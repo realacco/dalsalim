@@ -45,6 +45,10 @@ model Membership {
   role        String // OWNER | MEMBER
   sortOrder   Int      @default(0)
   joinedAt    DateTime @default(now())
+  /// 나갔거나 내보내진 멤버. 실제로 지우지 않는 이유는 MemberEntry 가 Cascade 로 딸려 나가
+  /// 과거 장부의 합계가 바뀌기 때문이다. 지난 기록은 그대로 두고 앞으로만 빼낸다.
+  active      Boolean  @default(true)
+  leftAt      DateTime?
 
   family        Family         @relation(fields: [familyId], references: [id], onDelete: Cascade)
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)

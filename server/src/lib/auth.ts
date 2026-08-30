@@ -37,7 +37,8 @@ export async function requireMembership(userId: string, familyId: string) {
     where: { familyId_userId: { familyId, userId } },
   });
 
-  if (!membership) throw forbidden('이 가족의 구성원이 아닙니다.');
+  // 나갔거나 내보내진 사람은 더 이상 구성원이 아니다 (기록은 남아 있어도)
+  if (!membership || !membership.active) throw forbidden('이 가족의 구성원이 아닙니다.');
   return membership;
 }
 

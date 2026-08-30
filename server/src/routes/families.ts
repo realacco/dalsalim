@@ -2,9 +2,14 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
 import { prisma } from '../lib/db.js';
-import { generateInviteCode } from '../services/family.js';
+import {
+  deactivateMember,
+  generateInviteCode,
+  refreshFamilyBooks,
+  transferOwner,
+} from '../services/family.js';
 import { requireMembership, requireOwner, requireUser } from '../lib/auth.js';
-import { conflict, notFound } from '../lib/http.js';
+import { badRequest, conflict, forbidden, notFound } from '../lib/http.js';
 import { CATEGORIES } from '../lib/shared.js';
 
 const displayName = z.string().trim().min(1, '이름을 입력해주세요.').max(20);
@@ -46,19 +51,31 @@ export async function familyRoutes(app: FastifyInstance) {
 
     if (!family) throw notFound('그런 초대코드를 가진 가족이 없습니다.');
 
-    if (family.memberships.some((m) => m.userId === user.id)) {
+    const existing = family.memberships.find((m) => m.userId === user.id);
+
+    if (existing?.active) {
       throw conflict('ALREADY_MEMBER', '이미 참여한 가족입니다.');
     }
 
-    await prisma.membership.create({
-      data: {
-        familyId: family.id,
-        userId: user.id,
-        displayName: body.displayName,
-        role: 'MEMBER',
-        sortOrder: family.memberships.length,
-      },
-    });
+    if (existing) {
+      // 나갔던 사람이 돌아왔다. (familyId, userId) 가 unique 라 새로 만들 수 없고,
+      // 지난 기록이 이 멤버십에 매달려 있으므로 되살리는 게 맞다.
+      await prisma.membership.update({
+        where: { id: existing.id },
+        data: { active: true, leftAt: null, displayName: body.displayName },
+      });
+      await refreshFamilyBooks(family.id);
+    } else {
+      await prisma.membership.create({
+        data: {
+          familyId: family.id,
+          userId: user.id,
+          displayName: body.displayName,
+          role: 'MEMBER',
+          sortOrder: family.memberships.length,
+        },
+      });
+    }
 
     return { family: { id: family.id, name: family.name, inviteCode: family.inviteCode } };
   });
@@ -70,7 +87,13 @@ export async function familyRoutes(app: FastifyInstance) {
 
     const family = await prisma.family.findUniqueOrThrow({
       where: { id: familyId },
-      include: { memberships: { include: { user: true }, orderBy: { sortOrder: 'asc' } } },
+      include: {
+        memberships: {
+          where: { active: true },
+          include: { user: true },
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
     });
 
     return {
@@ -114,5 +137,64 @@ export async function familyRoutes(app: FastifyInstance) {
     });
 
     return { membership: { id: updated.id, displayName: updated.displayName } };
+  });
+
+  /**
+   * 가족에서 빼기 — 본인이면 나가기, OWNER 가 남을 지목하면 내보내기.
+   *
+   * 이게 없으면 안 쓰는 멤버 한 명이 장부를 영원히 막는다. 잘못 초대한 사람도 뺄 수 없다.
+   */
+  app.delete('/families/:familyId/members/:membershipId', async (request) => {
+    const user = await requireUser(request);
+    const params = z
+      .object({ familyId: z.string(), membershipId: z.string() })
+      .parse(request.params);
+
+    const mine = await requireMembership(user.id, params.familyId);
+
+    const target = await prisma.membership.findUnique({ where: { id: params.membershipId } });
+    if (!target || target.familyId !== params.familyId || !target.active) {
+      throw notFound('그런 구성원이 없습니다.');
+    }
+
+    const isSelf = target.id === mine.id;
+    if (!isSelf && mine.role !== 'OWNER') {
+      throw forbidden('가족장만 구성원을 내보낼 수 있습니다.');
+    }
+
+    const activeCount = await prisma.membership.count({
+      where: { familyId: params.familyId, active: true },
+    });
+
+    // 가족장이 그냥 나가면 주인 없는 가족이 남는다. 남은 사람이 있으면 먼저 넘겨야 한다.
+    if (target.role === 'OWNER' && activeCount > 1) {
+      throw badRequest(
+        'TRANSFER_OWNER_FIRST',
+        '가족장을 다른 구성원에게 넘긴 뒤에 나갈 수 있어요.',
+      );
+    }
+
+    await deactivateMember(params.familyId, target.id);
+    return { ok: true, membershipId: target.id };
+  });
+
+  /** 가족장 넘기기 — OWNER 전용 */
+  app.post('/families/:familyId/transfer-owner', async (request) => {
+    const user = await requireUser(request);
+    const { familyId } = z.object({ familyId: z.string() }).parse(request.params);
+    const body = z.object({ membershipId: z.string() }).parse(request.body);
+
+    const mine = await requireOwner(user.id, familyId);
+
+    const target = await prisma.membership.findUnique({ where: { id: body.membershipId } });
+    if (!target || target.familyId !== familyId || !target.active) {
+      throw notFound('그런 구성원이 없습니다.');
+    }
+    if (target.id === mine.id) {
+      throw badRequest('ALREADY_OWNER', '이미 가족장이에요.');
+    }
+
+    await transferOwner(mine.id, target.id);
+    return { ok: true, ownerMembershipId: target.id };
   });
 }

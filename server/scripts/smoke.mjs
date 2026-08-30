@@ -265,6 +265,70 @@ async function main() {
   const peekEntry = await call('GET', `/entries/${dad.entryId}`, { token: stranger.body.token });
   check('남의 기록은 못 본다', peekEntry.status === 403, peekEntry.body);
 
+  console.log('\n[멤버 관리]');
+  // 안 쓰는 멤버 한 명이 장부를 영원히 막던 문제. 뺄 수 있어야 한다.
+  const family = await call('GET', `/families/${dad.familyId}`, { token: dad.token });
+  const momMembership = family.body.members.find((m) => m.displayName === '엄마');
+  const dadMembership = family.body.members.find((m) => m.isMe);
+
+  const ownerLeave = await call('DELETE', `/families/${dad.familyId}/members/${dadMembership.id}`, {
+    token: dad.token,
+  });
+  check(
+    '가족장은 넘기기 전에 못 나간다',
+    ownerLeave.status === 400 && ownerLeave.body.code === 'TRANSFER_OWNER_FIRST',
+    ownerLeave.body,
+  );
+
+  const kickByMember = await call(
+    'DELETE',
+    `/families/${dad.familyId}/members/${dadMembership.id}`,
+    { token: mom.token },
+  );
+  check('일반 멤버는 남을 못 내보낸다', kickByMember.status === 403, kickByMember.body);
+
+  const kick = await call('DELETE', `/families/${dad.familyId}/members/${momMembership.id}`, {
+    token: dad.token,
+  });
+  check('★ 가족장이 멤버를 내보낸다', kick.status === 200, kick.body);
+
+  const kickedPeek = await call('GET', `/families/${dad.familyId}`, { token: mom.token });
+  check('나간 사람은 가족을 못 본다', kickedPeek.status === 403, kickedPeek.body);
+
+  const afterKick = await call('GET', `/families/${dad.familyId}/books/${thisMonth}`, {
+    token: dad.token,
+  });
+  check(
+    '★ 남은 사람만으로 장부가 완성된다',
+    afterKick.body.book.status === 'COMPLETE' && afterKick.body.members.length === 1,
+    { status: afterKick.body.book.status, members: afterKick.body.members.length },
+  );
+
+  const afterKickSummary = await call(
+    'GET',
+    `/families/${dad.familyId}/books/${thisMonth}/summary`,
+    { token: dad.token },
+  );
+  check(
+    '나간 사람은 요약에서도 빠진다',
+    afterKickSummary.body.perMember.length === 1,
+    afterKickSummary.body.perMember,
+  );
+
+  // 되돌린다 — 이 스크립트는 몇 번이고 다시 돌 수 있어야 한다
+  const rejoin = await call('POST', '/families/join', {
+    token: mom.token,
+    body: { inviteCode: family.body.family.inviteCode, displayName: '엄마' },
+  });
+  check('★ 나갔던 사람이 초대코드로 돌아온다', rejoin.status === 200, rejoin.body);
+
+  const momEntryAgain = await call('GET', `/entries/${mom.entryId}`, { token: mom.token });
+  check(
+    '돌아오면 지난 기록이 그대로 남아 있다',
+    momEntryAgain.status === 200 && momEntryAgain.body.entry.status === 'SUBMITTED',
+    momEntryAgain.body,
+  );
+
   console.log(`\n${failed === 0 ? '✅ 전부 통과' : '❌ 실패 있음'} — ${passed}개 통과, ${failed}개 실패`);
   process.exitCode = failed === 0 ? 0 : 1;
 }

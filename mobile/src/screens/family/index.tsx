@@ -6,7 +6,13 @@ import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/shared/api/client';
-import { familyKeys, fetchFamily, regenerateInviteCode } from '@/entities/family';
+import {
+  familyKeys,
+  fetchFamily,
+  regenerateInviteCode,
+  removeMember,
+  transferOwner,
+} from '@/entities/family';
 import { useSession } from '@/entities/session';
 import { colors, font, radius, space } from '@/shared/config/theme';
 import { Button, Card, Divider, Loading, Muted } from '@/shared/ui';
@@ -34,7 +40,49 @@ export default function FamilyScreen() {
       Alert.alert('안 됐어요', caught instanceof ApiError ? caught.message : '다시 시도해주세요.'),
   });
 
-  const iAmOwner = detail.data?.members.find((m) => m.isMe)?.role === 'OWNER';
+  /** 구성원이 바뀌면 장부의 완성 판정도 바뀐다. 가족·장부 캐시를 같이 비운다. */
+  function refetchAll() {
+    void queryClient.invalidateQueries({ queryKey: familyKeys.detail(familyId) });
+    void queryClient.invalidateQueries({ queryKey: ['book', familyId] });
+    void refreshMe();
+  }
+
+  const failed = (caught: unknown) =>
+    Alert.alert('안 됐어요', caught instanceof ApiError ? caught.message : '다시 시도해주세요.');
+
+  const remove = useMutation({
+    mutationFn: (membershipId: string) => removeMember(familyId as string, membershipId),
+    onSuccess: refetchAll,
+    onError: failed,
+  });
+
+  const handOver = useMutation({
+    mutationFn: (membershipId: string) => transferOwner(familyId as string, membershipId),
+    onSuccess: refetchAll,
+    onError: failed,
+  });
+
+  /** 나가면 이 가족의 화면에 더 있을 이유가 없다. 다른 가족이 있으면 그쪽으로, 없으면 처음으로. */
+  const leave = useMutation({
+    mutationFn: (membershipId: string) => removeMember(familyId as string, membershipId),
+    onSuccess: async () => {
+      queryClient.clear();
+      const next = await refreshMe();
+      const other = next?.memberships[0];
+      if (other) {
+        await selectFamily(other.family.id);
+        router.replace('/(tabs)');
+      } else {
+        router.replace('/onboarding');
+      }
+    },
+    onError: failed,
+  });
+
+  const myMembership = detail.data?.members.find((m) => m.isMe);
+  const iAmOwner = myMembership?.role === 'OWNER';
+  const others = detail.data?.members.filter((m) => !m.isMe) ?? [];
+  const busy = remove.isPending || handOver.isPending || leave.isPending;
 
   async function copyCode() {
     if (!detail.data) return;
@@ -80,17 +128,94 @@ export default function FamilyScreen() {
               <Text style={styles.cardTitle}>구성원 {detail.data.members.length}명</Text>
               <Divider />
               {detail.data.members.map((member) => (
-                <View key={member.id} style={styles.memberRow}>
-                  <View style={{ gap: 2 }}>
-                    <Text style={styles.memberName}>
-                      {member.displayName}
-                      {member.isMe ? ' (나)' : ''}
-                    </Text>
-                    <Text style={styles.memberMeta}>{member.nickname}</Text>
+                <View key={member.id} style={{ gap: space.sm }}>
+                  <View style={styles.memberRow}>
+                    <View style={{ gap: 2 }}>
+                      <Text style={styles.memberName}>
+                        {member.displayName}
+                        {member.isMe ? ' (나)' : ''}
+                      </Text>
+                      <Text style={styles.memberMeta}>{member.nickname}</Text>
+                    </View>
+                    {member.role === 'OWNER' ? <Text style={styles.ownerTag}>가족장</Text> : null}
                   </View>
-                  {member.role === 'OWNER' ? <Text style={styles.ownerTag}>가족장</Text> : null}
+
+                  {/* 가족장만 남을 다룰 수 있다. 되돌리기 어려운 동작이라 항상 확인을 받는다. */}
+                  {iAmOwner && !member.isMe ? (
+                    <View style={styles.memberActions}>
+                      <Button
+                        label="가족장 넘기기"
+                        variant="ghost"
+                        disabled={busy}
+                        style={{ flex: 1 }}
+                        onPress={() =>
+                          Alert.alert(
+                            '가족장 넘기기',
+                            `${member.displayName}님이 가족장이 되고, 나는 일반 구성원이 돼요.`,
+                            [
+                              { text: '취소', style: 'cancel' },
+                              { text: '넘기기', onPress: () => handOver.mutate(member.id) },
+                            ],
+                          )
+                        }
+                      />
+                      <Button
+                        label="내보내기"
+                        variant="ghost"
+                        disabled={busy}
+                        style={{ flex: 1 }}
+                        onPress={() =>
+                          Alert.alert(
+                            `${member.displayName}님 내보내기`,
+                            '앞으로의 장부에서 빠져요. 지금까지 적은 기록은 그대로 남습니다.',
+                            [
+                              { text: '취소', style: 'cancel' },
+                              {
+                                text: '내보내기',
+                                style: 'destructive',
+                                onPress: () => remove.mutate(member.id),
+                              },
+                            ],
+                          )
+                        }
+                      />
+                    </View>
+                  ) : null}
                 </View>
               ))}
+
+              <Divider />
+
+              {/*
+                가족장이 그냥 나가면 주인 없는 가족이 남는다. 서버가 막지만,
+                버튼을 눌러보고 나서 알게 되면 늦으므로 여기서 먼저 안내한다.
+              */}
+              {iAmOwner && others.length > 0 ? (
+                <Muted>
+                  가족장은 바로 나갈 수 없어요. 위에서 다른 구성원에게 가족장을 넘긴 뒤에 나갈 수
+                  있어요.
+                </Muted>
+              ) : (
+                <Button
+                  label="가족에서 나가기"
+                  variant="ghost"
+                  disabled={busy || !myMembership}
+                  onPress={() =>
+                    Alert.alert(
+                      '가족에서 나가기',
+                      '앞으로의 장부에서 빠져요. 지금까지 적은 기록은 그대로 남습니다.',
+                      [
+                        { text: '취소', style: 'cancel' },
+                        {
+                          text: '나가기',
+                          style: 'destructive',
+                          onPress: () => myMembership && leave.mutate(myMembership.id),
+                        },
+                      ],
+                    )
+                  }
+                />
+              )}
             </Card>
           </>
         ) : null}
@@ -161,6 +286,7 @@ const styles = StyleSheet.create({
   copyHint: { ...font.caption, color: colors.inkFaint },
 
   memberRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  memberActions: { flexDirection: 'row', gap: space.sm },
   memberName: { ...font.body, fontWeight: '700', color: colors.ink },
   memberMeta: { ...font.caption, color: colors.inkFaint },
   ownerTag: {

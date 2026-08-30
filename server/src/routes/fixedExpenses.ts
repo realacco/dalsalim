@@ -18,7 +18,7 @@ export async function fixedExpenseRoutes(app: FastifyInstance) {
     const mine = await requireMembership(user.id, familyId);
 
     const members = await prisma.membership.findMany({
-      where: { familyId },
+      where: { familyId, active: true },
       orderBy: { sortOrder: 'asc' },
       include: {
         fixedExpenses: {
@@ -63,7 +63,7 @@ export async function fixedExpenseRoutes(app: FastifyInstance) {
 
     // 다른 가족의 멤버 id 를 넣어 남의 집에 항목을 꽂는 걸 막는다
     const target = await prisma.membership.findUnique({ where: { id: body.membershipId } });
-    if (!target || target.familyId !== familyId) {
+    if (!target || target.familyId !== familyId || !target.active) {
       throw badRequest('BAD_MEMBERSHIP', '이 가족의 구성원이 아닙니다.');
     }
 

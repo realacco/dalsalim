@@ -5,5 +5,7 @@ export {
   fetchFamily,
   joinFamily,
   regenerateInviteCode,
+  removeMember,
+  transferOwner,
   updateMyDisplayName,
 } from './api/family';

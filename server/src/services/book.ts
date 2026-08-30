@@ -13,11 +13,21 @@ import { entrySummary } from './entry.js';
 export async function refreshBookStatus(bookId: string): Promise<'OPEN' | 'COMPLETE'> {
   const book = await prisma.monthlyBook.findUniqueOrThrow({
     where: { id: bookId },
-    include: { entries: true, family: { include: { memberships: true } } },
+    include: {
+      entries: true,
+      // 나간 사람을 세면 정원이 안 차서 장부가 영원히 진행 중으로 남는다
+      family: { include: { memberships: { where: { active: true } } } },
+    },
   });
 
-  const memberCount = book.family.memberships.length;
-  const submitted = book.entries.filter((e) => e.status === 'SUBMITTED').length;
+  // 나간 사람의 기록은 장부에 그대로 남아 있다(과거를 지우지 않으므로).
+  // 정원에서만 빠지고 제출 수에는 남으면 submitted > memberCount 가 되어 영원히 안 닫힌다.
+  // 양쪽 다 현재 구성원 기준으로 세야 한다.
+  const activeIds = new Set(book.family.memberships.map((m) => m.id));
+  const memberCount = activeIds.size;
+  const submitted = book.entries.filter(
+    (e) => e.status === 'SUBMITTED' && activeIds.has(e.membershipId),
+  ).length;
   const complete = memberCount > 0 && submitted === memberCount;
 
   if (complete === (book.status === 'COMPLETE')) {
@@ -57,7 +67,10 @@ export async function buildMonthSummary(familyId: string, yearMonth: string) {
         entries: { include: { lines: { orderBy: { sortOrder: 'asc' } }, membership: true } },
       },
     }),
-    prisma.membership.findMany({ where: { familyId }, orderBy: { sortOrder: 'asc' } }),
+    prisma.membership.findMany({
+      where: { familyId, active: true },
+      orderBy: { sortOrder: 'asc' },
+    }),
   ]);
 
   const submitted = (book?.entries ?? []).filter((entry) => entry.status === 'SUBMITTED');

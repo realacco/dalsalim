@@ -48,7 +48,7 @@ export async function bookRoutes(app: FastifyInstance) {
     const book = await getOrCreateBook(params.familyId, yearMonth);
 
     const members = await prisma.membership.findMany({
-      where: { familyId: params.familyId },
+      where: { familyId: params.familyId, active: true },
       orderBy: { sortOrder: 'asc' },
       include: {
         entries: { where: { bookId: book.id }, include: { lines: true } },

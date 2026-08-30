@@ -120,7 +120,7 @@ export async function authRoutes(app: FastifyInstance) {
     const user = await requireUser(request);
 
     const memberships = await prisma.membership.findMany({
-      where: { userId: user.id },
+      where: { userId: user.id, active: true },
       include: { family: true },
       orderBy: { joinedAt: 'asc' },
     });
