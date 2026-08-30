@@ -7,9 +7,10 @@
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
-    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
     "db:generate": "prisma generate",
-    "db:reset": "prisma db push --force-reset",
+    "db:reset": "prisma migrate reset",
     "db:studio": "prisma studio",
     "seed": "tsx prisma/seed.ts"
   },

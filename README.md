@@ -28,7 +28,7 @@
 cd server
 cp .env.example .env          # 최초 1회
 npm install                   # 최초 1회
-npx prisma db push            # 최초 1회 (SQLite 파일 생성)
+npx prisma migrate dev        # 최초 1회 (SQLite 파일 + 스키마 생성)
 npm run seed                  # 최초 1회 (데모 가족 '김씨네')
 npm run dev                   # → http://localhost:4000
 ```
@@ -64,22 +64,21 @@ dalsalim/
 │   ├── 01-MVP-기획서.md            무엇을 왜 만드는가 · 화면 · 데이터모델 · API
 │   └── 02-MVP-출시-체크리스트.md    실제로 쓰기 시작하기까지 남은 일
 │
-├── server/                   Fastify + Prisma + SQLite
+├── server/                   Fastify + Prisma + SQLite · 레이어드
 │   ├── prisma/schema.prisma    데이터 모델 (원본)
-│   ├── prisma/seed.ts          데모 가족
+│   ├── prisma/migrations/      마이그레이션 (커밋 대상)
 │   ├── src/routes/             auth · families · fixedExpenses · books · entries
-│   ├── src/services/           entry(프리필·동기화) · book(완성 판정)
+│   ├── src/services/           entry(프리필) · book(완성 판정·집계) · family(초대코드)
+│   ├── src/lib/                db · auth(가드) · http(에러) · shared(상수·순수함수)
 │   └── scripts/smoke.mjs       전 구간 스모크 테스트 38개
 │
-└── mobile/                   Expo (React Native) + expo-router
-    ├── app/
-    │   ├── index.tsx             게이트 — 토큰·가족 유무로 갈 곳을 정한다
-    │   ├── login.tsx             카카오 / 개발용 로그인
-    │   ├── onboarding.tsx        가족 만들기 · 초대코드로 참여
-    │   ├── (tabs)/               이번 달 · 고정비 · 가족
-    │   ├── wizard/[entryId].tsx  ★ 스텝 입력 위저드 (이 앱의 심장)
-    │   └── summary/[yearMonth].tsx  월 요약
-    ├── src/                    theme · api · store · components · lib
+└── mobile/                   Expo (React Native) + expo-router · FSD
+    ├── src/app/                expo-router 라우트 — screens 를 re-export 만 한다
+    ├── src/screens/            gate · login · onboarding · this-month ·
+    │                           fixed-expenses · family · wizard · month-summary
+    ├── src/entities/           session · family · fixed-expense · book · entry
+    │                           (도메인별 api + model)
+    ├── src/shared/             ui · config(theme) · lib(format) · api(client) · model(types)
     └── scripts/                dev.js · emulator.js
 ```
 
@@ -108,14 +107,14 @@ cd mobile && npm run typecheck
 | 라우팅 | **expo-router** | 파일 기반. 위저드 같은 깊은 화면 이동이 단순해진다 |
 | 서버 상태 | **TanStack Query** | 캐시·재검증·로딩 상태를 직접 안 짜도 된다 |
 | 앱 상태 | **zustand** | 세션(토큰·가족) 하나만 전역이면 된다. Redux는 과하다 |
-| 스타일 | **StyleSheet + 토큰(`src/theme.ts`)** | 아래 참조 |
+| 스타일 | **StyleSheet + 토큰(`src/shared/config/theme.ts`)** | 아래 참조 |
 | 서버 | **Fastify + TypeScript** | 가볍고 빠르다. 라우트 20개 남짓이라 NestJS는 과하다 |
 | DB | **SQLite + Prisma** | 설치할 게 없다. Postgres로 옮길 때 스키마 한 줄만 바꾸면 된다 |
 | 인증 | **카카오 REST OAuth + JWT** | 아래 참조 |
 
 **왜 NativeWind를 안 썼나** — Babel 플러그인 + Metro + Tailwind 설정 세 군데를 건드린다.
 화면 10개짜리 MVP에서 그 이득보다 빌드 파이프라인 디버깅 비용이 크다.
-색·간격·타이포는 `src/theme.ts` 한 파일로 충분히 통제된다.
+색·간격·타이포는 `src/shared/config/theme.ts` 한 파일로 충분히 통제된다.
 
 **왜 카카오 네이티브 SDK를 안 썼나** — `@react-native-seoul/kakao-login`은 네이티브 모듈이라
 `expo prebuild` + 네이티브 빌드가 필수다. 이 PC에서 그 빌드는 실측 **22분**이고 경로 길이 함정도 있다.
@@ -206,7 +205,7 @@ foreach ($p in 4000,8081) {   # 4000=API, 8081=Metro
 }
 ```
 ```bash
-cd server && rm prisma/dev.db* && npx prisma db push && npm run seed   # 서버를 먼저 끄고
+cd server && npm run db:reset && npm run seed   # 서버를 먼저 끄고
 ```
 
 ### AVD를 다시 만들어야 할 때
