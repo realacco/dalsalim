@@ -154,22 +154,65 @@ async function runWizard(name, { changeFirstFixed }) {
   return { token, familyId, entryId: entry.id, bookStatus: submit.body.bookStatus };
 }
 
+/**
+ * 이 스크립트는 몇 번이고 다시 돌 수 있어야 한다.
+ * 앞선 실행이 남긴 제출 기록이 있으면 이번 달을 다시 열어 초기 상태로 되돌린다.
+ * (안 그러면 두 번째 실행부터 "한 명만 제출하면 진행 중" 같은 전제가 무너진다)
+ */
+async function resetMonth(names) {
+  for (const name of names) {
+    const login = await call('POST', '/auth/dev', { body: { name } });
+    if (login.status !== 200) continue;
+
+    const token = login.body.token;
+    const me = await call('GET', '/me', { token });
+    const familyId = me.body.memberships?.[0]?.family.id;
+    if (!familyId) continue;
+
+    const start = await call('POST', `/families/${familyId}/books/${thisMonth}/my-entry`, { token });
+    if (start.body?.entry?.status === 'SUBMITTED') {
+      await call('POST', `/entries/${start.body.entry.id}/reopen`, { token });
+    }
+  }
+}
+
 async function main() {
   console.log(`달살림 API 스모크 테스트 · ${BASE} · ${thisMonth}`);
 
   const health = await call('GET', '/health');
   check('서버 살아 있음', health.status === 200, health.body);
 
+  await resetMonth(['아빠', '엄마']);
+
   const dad = await runWizard('아빠', { changeFirstFixed: true });
   check('한 명만 제출하면 장부는 아직 진행 중', dad.bookStatus === 'OPEN', dad.bookStatus);
 
-  const earlySummary = await call('GET', `/families/${dad.familyId}/books/${thisMonth}/summary`, {
+  const dadEntry = await call('GET', `/entries/${dad.entryId}`, { token: dad.token });
+  const dadIncome = dadEntry.body.entry.summary.income;
+
+  // 전원이 안 적었어도 요약은 열린다. 한 명이 앱을 안 쓰기 시작하면 그 달부터
+  // 아무도 아무것도 못 보게 되는 게 예전 구조였다. (기획서 3장)
+  const partial = await call('GET', `/families/${dad.familyId}/books/${thisMonth}/summary`, {
     token: dad.token,
   });
+  check('★ 전원 제출 전에도 요약이 열린다', partial.status === 200, partial.body);
   check(
-    '★ 전원이 안 적었으면 요약이 닫혀 있다',
-    earlySummary.status === 409 && earlySummary.body.code === 'BOOK_NOT_COMPLETE',
-    earlySummary.body,
+    '미제출자를 progress 로 알려준다',
+    partial.body.progress?.submittedCount === 1 &&
+      partial.body.progress?.memberCount === 2 &&
+      partial.body.progress?.pendingMembers?.length === 1,
+    partial.body.progress,
+  );
+  check(
+    '★ 부분 제출 합계는 제출한 사람 것만 센다',
+    partial.body.totals.income === dadIncome,
+    { got: partial.body.totals.income, expected: dadIncome },
+  );
+  check(
+    '미제출자는 0원으로 서 있고 submitted=false 다',
+    partial.body.perMember?.length === 2 &&
+      partial.body.perMember.filter((m) => m.submitted === false).length === 1,
+    partial.body.perMember,
   );
 
   const mom = await runWizard('엄마', { changeFirstFixed: false });
@@ -183,6 +226,7 @@ async function main() {
 
   const s = summary.body;
   check('사람별 집계 2명', s.perMember?.length === 2, s.perMember);
+  check('전원 제출이면 pendingMembers 가 비어 있다', s.progress?.pendingMembers?.length === 0, s.progress);
   check(
     '합계가 맞는다',
     s.totals.surplus === s.totals.income - s.totals.fixedTotal - s.totals.extraTotal,
