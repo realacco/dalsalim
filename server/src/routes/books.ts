@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { prisma } from '../lib/db.js';
 import { requireMembership, requireUser } from '../lib/auth.js';
-import { badRequest, conflict, notFound } from '../lib/http.js';
+import { badRequest } from '../lib/http.js';
 import { isYearMonth, shiftYearMonth } from '../lib/shared.js';
 import { entrySummary, serializeEntry, syncFixedLines } from '../services/entry.js';
 import { buildMonthSummary, refreshBookStatus } from '../services/book.js';
@@ -154,21 +154,18 @@ export async function bookRoutes(app: FastifyInstance) {
     return { entry: await serializeEntry(entry.id) };
   });
 
-  /** 그 달의 요약. 집계는 services/book.ts 가 한다 (추이와 같은 계산을 공유한다). */
+  /**
+   * 그 달의 요약. **전원이 제출하지 않아도 열린다.**
+   *
+   * 예전에는 COMPLETE 가 아니면 409 로 막았는데, 가족 중 한 명이 앱을 안 쓰기 시작하면
+   * 그 달부터 아무도 아무것도 못 보게 된다. 잠금을 없애고, 대신 숫자가 몇 명 기준인지를
+   * progress 로 같이 내려보낸다. (기획서 3장)
+   */
   app.get('/families/:familyId/books/:yearMonth/summary', async (request) => {
     const user = await requireUser(request);
     const params = z.object({ familyId: z.string(), yearMonth: z.string() }).parse(request.params);
     const yearMonth = parseYearMonth(params.yearMonth);
     await requireMembership(user.id, params.familyId);
-
-    const book = await prisma.monthlyBook.findUnique({
-      where: { familyId_yearMonth: { familyId: params.familyId, yearMonth } },
-    });
-
-    if (!book) throw notFound('그 달의 장부가 없습니다.');
-    if (book.status !== 'COMPLETE') {
-      throw conflict('BOOK_NOT_COMPLETE', '가족 모두가 기록을 마쳐야 요약이 열립니다.');
-    }
 
     return buildMonthSummary(params.familyId, yearMonth);
   });

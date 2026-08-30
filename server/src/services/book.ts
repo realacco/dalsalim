@@ -1,5 +1,4 @@
 import { prisma } from '../lib/db.js';
-import { notFound } from '../lib/http.js';
 import { entrySummary } from './entry.js';
 
 /**
@@ -41,25 +40,41 @@ export async function refreshBookStatus(bookId: string): Promise<'OPEN' | 'COMPL
  *
  * 라우트가 아니라 여기 있는 이유: 추이(trend)가 같은 집계를 쓴다.
  * 두 곳이 같은 계산을 하기 시작하면 그 계산은 서비스로 내려와야 한다.
+ *
+ * ★ 집계에 넣는 것은 **제출된 기록뿐**이다.
+ * 작성 중(DRAFT)인 사람의 줄은 actualAmount 가 null 이고, 그걸 0원으로 세면
+ * "엄마가 수입 0원"처럼 읽히는 거짓 숫자가 나온다. 미제출자는 숫자에서 빼고
+ * progress 로만 알린다 — 요약은 누가 안 적었어도 열려야 하기 때문이다. (기획서 3장)
+ *
+ * 장부가 아직 없는 달도 404 가 아니라 빈 요약을 돌려준다. 추이에서 과거 달을
+ * 눌렀을 때 에러 화면이 뜨면 안 된다.
  */
 export async function buildMonthSummary(familyId: string, yearMonth: string) {
-  const book = await prisma.monthlyBook.findUnique({
-    where: { familyId_yearMonth: { familyId, yearMonth } },
-    include: {
-      entries: { include: { lines: { orderBy: { sortOrder: 'asc' } }, membership: true } },
-    },
+  const [book, memberships] = await Promise.all([
+    prisma.monthlyBook.findUnique({
+      where: { familyId_yearMonth: { familyId, yearMonth } },
+      include: {
+        entries: { include: { lines: { orderBy: { sortOrder: 'asc' } }, membership: true } },
+      },
+    }),
+    prisma.membership.findMany({ where: { familyId }, orderBy: { sortOrder: 'asc' } }),
+  ]);
+
+  const submitted = (book?.entries ?? []).filter((entry) => entry.status === 'SUBMITTED');
+  const submittedByMembership = new Map(submitted.map((entry) => [entry.membershipId, entry]));
+
+  const perMember = memberships.map((membership) => {
+    const entry = submittedByMembership.get(membership.id);
+    return {
+      membershipId: membership.id,
+      displayName: membership.displayName,
+      submitted: Boolean(entry),
+      note: entry?.note ?? null,
+      ...entrySummary(entry?.lines ?? []),
+    };
   });
 
-  if (!book) throw notFound('그 달의 장부가 없습니다.');
-
-  const perMember = book.entries.map((entry) => ({
-    membershipId: entry.membershipId,
-    displayName: entry.membership.displayName,
-    note: entry.note,
-    ...entrySummary(entry.lines),
-  }));
-
-  const allLines = book.entries.flatMap((entry) =>
+  const allLines = submitted.flatMap((entry) =>
     entry.lines.map((line) => ({ ...line, displayName: entry.membership.displayName })),
   );
 
@@ -75,7 +90,19 @@ export async function buildMonthSummary(familyId: string, yearMonth: string) {
   }
 
   return {
-    book: { id: book.id, yearMonth: book.yearMonth, status: book.status },
+    book: {
+      id: book?.id ?? null,
+      yearMonth,
+      status: book?.status ?? 'OPEN',
+    },
+    /** 숫자가 몇 명 기준인지 — 앱이 "엄마가 아직 안 적었어요" 배너를 그리는 근거 */
+    progress: {
+      submittedCount: submitted.length,
+      memberCount: memberships.length,
+      pendingMembers: perMember
+        .filter((m) => !m.submitted)
+        .map((m) => ({ membershipId: m.membershipId, displayName: m.displayName })),
+    },
     totals: { income, fixedTotal, extraTotal, surplus: income - fixedTotal - extraTotal },
     perMember,
     // "이번 달 달라진 것" — 이 앱이 다른 가계부와 갈라지는 지점

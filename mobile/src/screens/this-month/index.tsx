@@ -9,7 +9,7 @@ import { type BookView, bookKeys, fetchBook } from '@/entities/book';
 import { openMyEntry, reopenEntry } from '@/entities/entry';
 import { useSession } from '@/entities/session';
 import { colors, font, radius, space } from '@/shared/config/theme';
-import { Button, Card, Divider, ErrorText, Loading, Muted, Row } from '@/shared/ui';
+import { Button, Card, Divider, ErrorText, Loading, Muted, Notice, Row } from '@/shared/ui';
 import { currentYearMonth, formatWon, formatYearMonth, shiftYearMonth } from '@/shared/lib/format';
 
 export default function ThisMonthScreen() {
@@ -54,9 +54,12 @@ export default function ThisMonthScreen() {
   });
 
   const isCurrentMonth = yearMonth === currentYearMonth();
-  const mine = book.data?.members.find((m) => m.isMe);
-  const others = book.data?.members.filter((m) => !m.isMe) ?? [];
-  const remaining = book.data?.members.filter((m) => m.status !== 'SUBMITTED').length ?? 0;
+  const members = book.data?.members ?? [];
+  const mine = members.find((m) => m.isMe);
+  const others = members.filter((m) => !m.isMe);
+  const pending = members.filter((m) => m.status !== 'SUBMITTED');
+  const submittedCount = members.length - pending.length;
+  const remaining = pending.length;
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
@@ -150,19 +153,25 @@ export default function ThisMonthScreen() {
 
             <Card style={{ gap: space.md }}>
               <Text style={styles.cardTitle}>{formatYearMonth(yearMonth)} 요약</Text>
-              {book.data.book.status === 'COMPLETE' ? (
-                <>
-                  <Muted>가족 모두가 기록을 마쳤어요.</Muted>
-                  <Button
-                    label="요약 보기"
-                    onPress={() => router.push(`/summary/${yearMonth}`)}
-                  />
-                </>
+
+              {/*
+                예전에는 전원이 제출해야 열렸다. 한 명이 앱을 안 쓰기 시작하면 그 달부터
+                아무도 아무것도 못 보게 돼서 잠금을 없앴다. 대신 몇 명 기준인지 밝힌다.
+              */}
+              {submittedCount === 0 ? (
+                <Muted>아직 아무도 적지 않았어요. 먼저 시작해보세요.</Muted>
               ) : (
-                <Muted>
-                  가족 모두가 이번 달 기록을 마치면 열려요.{'\n'}
-                  {remaining}명이 아직 적지 않았어요.
-                </Muted>
+                <>
+                  {pending.length > 0 ? (
+                    <Notice>
+                      {pending.map((m) => m.displayName).join(', ')}님이 아직 안 적었어요 — 아래
+                      숫자는 {submittedCount}명 기준이에요.
+                    </Notice>
+                  ) : (
+                    <Muted>가족 모두가 기록을 마쳤어요.</Muted>
+                  )}
+                  <Button label="요약 보기" onPress={() => router.push(`/summary/${yearMonth}`)} />
+                </>
               )}
             </Card>
           </>

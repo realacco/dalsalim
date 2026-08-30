@@ -9,4 +9,5 @@ export { Loading } from './loading';
 export { ProgressBar } from './progress-bar';
 export { Divider, Row } from './row';
 export { ScreenScroll } from './screen-scroll';
+export { Notice } from './notice';
 export { ErrorText, Muted, SectionTitle } from './text';

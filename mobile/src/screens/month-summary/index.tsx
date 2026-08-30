@@ -3,11 +3,11 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ApiError, api } from '@/shared/api/client';
+import { ApiError } from '@/shared/api/client';
 import { bookKeys, fetchMonthSummary } from '@/entities/book';
 import { useSession } from '@/entities/session';
 import { colors, font, radius, space } from '@/shared/config/theme';
-import { Button, Card, Divider, ErrorText, Loading, Muted, Row } from '@/shared/ui';
+import { Button, Card, Divider, ErrorText, Loading, Muted, Notice, Row } from '@/shared/ui';
 import { formatAmount, formatWon, formatYearMonth } from '@/shared/lib/format';
 
 export default function SummaryScreen() {
@@ -43,8 +43,24 @@ export default function SummaryScreen() {
           </Card>
         ) : null}
 
-        {summary.data ? (
+        {summary.data && summary.data.progress.submittedCount === 0 ? (
+          <Card style={{ gap: space.md }}>
+            <Text style={styles.cardTitle}>아직 아무도 적지 않았어요</Text>
+            <Muted>이 달의 기록이 하나도 없어서 보여줄 숫자가 없어요.</Muted>
+            <Button label="돌아가기" variant="ghost" onPress={() => router.back()} />
+          </Card>
+        ) : null}
+
+        {summary.data && summary.data.progress.submittedCount > 0 ? (
           <>
+            {/* 미제출자가 있어도 요약은 열린다. 대신 아래 숫자가 몇 명 기준인지 먼저 밝힌다. */}
+            {summary.data.progress.pendingMembers.length > 0 ? (
+              <Notice>
+                {summary.data.progress.pendingMembers.map((m) => m.displayName).join(', ')}님이 아직
+                안 적었어요 — 아래 숫자는 {summary.data.progress.submittedCount}명 기준이에요.
+              </Notice>
+            ) : null}
+
             <Card style={styles.heroCard}>
               <Text style={styles.heroLabel}>남은 돈</Text>
               <Text style={styles.heroValue}>{formatWon(summary.data.totals.surplus)}</Text>
@@ -89,7 +105,11 @@ export default function SummaryScreen() {
               <Divider />
               {summary.data.perMember.map((member) => (
                 <View key={member.membershipId} style={{ gap: space.xs }}>
-                  <Text style={styles.memberName}>{member.displayName}</Text>
+                  <Text style={styles.memberName}>
+                    {member.displayName}
+                    {/* 미제출자는 0원으로 서 있다. 그걸 "안 썼다"로 오해하면 안 된다. */}
+                    {member.submitted ? '' : ' · 아직 안 적었어요'}
+                  </Text>
                   <Row label="수입" value={formatWon(member.income)} />
                   <Row
                     label="지출"
