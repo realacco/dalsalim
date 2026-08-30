@@ -1,0 +1,137 @@
+// 달살림 데이터 모델
+//
+// 설계 메모
+//  - EntryLine 은 항목의 "그 달 스냅샷"이다. name/category 를 FixedExpense 에서
+//    참조하지 않고 복사해 둔다. 나중에 고정비 항목의 이름·분류를 바꿔도 과거 기록이
+//    흔들리지 않게 하기 위함이다. (docs/01-MVP-기획서.md 8장)
+//  - 금액은 전부 원 단위 정수(Int)로 다룬다. 소수점 없음.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String   @id @default(cuid())
+  kakaoId         String?  @unique // 카카오 회원번호
+  devKey          String?  @unique // 개발자 로그인 전용 식별자 (DEV_LOGIN=true 일 때만)
+  nickname        String
+  profileImageUrl String?
+  createdAt       DateTime @default(now())
+
+  memberships Membership[]
+}
+
+model Family {
+  id         String   @id @default(cuid())
+  name       String
+  inviteCode String   @unique // 6자리 대문자+숫자
+  createdAt  DateTime @default(now())
+
+  memberships   Membership[]
+  fixedExpenses FixedExpense[]
+  books         MonthlyBook[]
+}
+
+model Membership {
+  id          String   @id @default(cuid())
+  familyId    String
+  userId      String
+  displayName String // 가족 안에서 불리는 이름 ("아빠")
+  role        String // OWNER | MEMBER
+  sortOrder   Int      @default(0)
+  joinedAt    DateTime @default(now())
+
+  family        Family         @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fixedExpenses FixedExpense[]
+  entries       MemberEntry[]
+
+  @@unique([familyId, userId])
+  @@index([userId])
+}
+
+model FixedExpense {
+  id            String   @id @default(cuid())
+  familyId      String
+  membershipId  String // 누구의 고정비인가 — 사람별로 쪼갠다
+  name          String
+  category      String // docs/01-MVP-기획서.md 7.4 의 고정 목록
+  defaultAmount Int
+  dayOfMonth    Int? // 결제일 (1~31, 선택)
+  active        Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  family     Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  membership Membership  @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  lines      EntryLine[]
+
+  @@index([familyId])
+  @@index([membershipId])
+}
+
+/// 가족 × 특정 월. status 는 "전원 제출됨"을 나타내는 표시일 뿐 잠금장치가 아니다. (기획서 3장)
+model MonthlyBook {
+  id          String    @id @default(cuid())
+  familyId    String
+  yearMonth   String // 'YYYY-MM'
+  status      String    @default("OPEN") // OPEN | COMPLETE
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  family  Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  entries MemberEntry[]
+
+  @@unique([familyId, yearMonth])
+}
+
+/// 멤버 1명이 그 달에 작성한 기록.
+model MemberEntry {
+  id           String    @id @default(cuid())
+  bookId       String
+  membershipId String
+  status       String    @default("DRAFT") // DRAFT | SUBMITTED
+  note         String? // 이번 달 특이사항
+  cursor       Int       @default(0) // 위저드가 멈춰 있는 스텝 (이어서 작성용)
+  submittedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  book       MonthlyBook @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  membership Membership  @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  lines      EntryLine[]
+
+  @@unique([bookId, membershipId])
+  @@index([membershipId])
+}
+
+/// 위저드의 한 줄 = 한 스텝. 수입 / 고정비 / 추가지출.
+model EntryLine {
+  id             String  @id @default(cuid())
+  entryId        String
+  kind           String // INCOME | FIXED | EXTRA
+  fixedExpenseId String? // FIXED 일 때만. 장기 추이의 근거가 되므로 보존한다
+  name           String
+  category       String
+  /// 기본값. 지난달 실제 금액 → 없으면 고정비 등록 금액. null 이면 첫 달이라 비교 대상이 없다.
+  plannedAmount  Int?
+  /// 기본값이 어디서 왔는가. 앱이 "지난달과 같아요" / "등록한 금액과 같아요" 를 가려 쓴다.
+  /// LAST_MONTH | FIXED_DEFAULT | null
+  plannedSource  String?
+  /// 사용자가 확정한 금액. null 이면 아직 이 스텝을 지나지 않았다.
+  actualAmount   Int?
+  /// plannedAmount 와 actualAmount 가 다를 때 필수.
+  changeReason   String?
+  sortOrder      Int     @default(0)
+
+  entry        MemberEntry   @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  fixedExpense FixedExpense? @relation(fields: [fixedExpenseId], references: [id], onDelete: SetNull)
+
+  @@index([entryId])
+  @@index([fixedExpenseId])
+}
