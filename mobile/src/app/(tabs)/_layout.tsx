@@ -15,7 +15,7 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.inkFaint,
-        // 아이콘을 두지 않는다. 탭이 셋뿐이고 이름이 짧아 글자만으로 충분하다.
+        // 아이콘을 두지 않는다. 탭이 넷뿐이고 이름이 짧아 글자만으로 충분하다.
         // (아이콘 폰트를 안 넣은 채로 비워두면 안드로이드에서 두부 글자가 뜬다)
         tabBarIcon: () => null,
         tabBarStyle: {
@@ -30,6 +30,7 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="index" options={{ title: '이번 달' }} />
       <Tabs.Screen name="fixed" options={{ title: '고정비' }} />
+      <Tabs.Screen name="trend" options={{ title: '추이' }} />
       <Tabs.Screen name="family" options={{ title: '가족' }} />
     </Tabs>
   );

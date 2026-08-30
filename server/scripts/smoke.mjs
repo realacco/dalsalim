@@ -265,6 +265,29 @@ async function main() {
   const peekEntry = await call('GET', `/entries/${dad.entryId}`, { token: stranger.body.token });
   check('남의 기록은 못 본다', peekEntry.status === 403, peekEntry.body);
 
+  console.log('\n[추이]');
+  const trend = await call('GET', `/families/${dad.familyId}/trend?months=12`, {
+    token: dad.token,
+  });
+  check('추이가 열린다', trend.status === 200, trend.body);
+  check(
+    '★ 지난달과 이번 달 두 점이 찍힌다',
+    trend.body.months?.length >= 2,
+    trend.body.months?.map((m) => m.yearMonth),
+  );
+  check(
+    '추이 합계도 제출된 기록만 센다',
+    trend.body.months?.every(
+      (m) => m.surplus === m.income - m.fixedTotal - m.extraTotal && m.submittedCount > 0,
+    ),
+    trend.body.months,
+  );
+  check(
+    '오래된 달이 앞에 온다',
+    trend.body.months?.[0]?.yearMonth < trend.body.months?.at(-1)?.yearMonth,
+    trend.body.months?.map((m) => m.yearMonth),
+  );
+
   console.log('\n[멤버 관리]');
   // 안 쓰는 멤버 한 명이 장부를 영원히 막던 문제. 뺄 수 있어야 한다.
   const family = await call('GET', `/families/${dad.familyId}`, { token: dad.token });

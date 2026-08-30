@@ -6,7 +6,7 @@ import { requireMembership, requireUser } from '../lib/auth.js';
 import { badRequest } from '../lib/http.js';
 import { isYearMonth, shiftYearMonth } from '../lib/shared.js';
 import { entrySummary, serializeEntry, syncFixedLines } from '../services/entry.js';
-import { buildMonthSummary, refreshBookStatus } from '../services/book.js';
+import { buildMonthSummary, buildTrend, refreshBookStatus } from '../services/book.js';
 
 const INCOME_CATEGORY = '수입';
 
@@ -168,6 +168,18 @@ export async function bookRoutes(app: FastifyInstance) {
     await requireMembership(user.id, params.familyId);
 
     return buildMonthSummary(params.familyId, yearMonth);
+  });
+
+  /** 월별 추이. 엑셀에서 하려면 시트를 다 뒤져야 했던 것이다. (기획서 7.5) */
+  app.get('/families/:familyId/trend', async (request) => {
+    const user = await requireUser(request);
+    const { familyId } = z.object({ familyId: z.string() }).parse(request.params);
+    const { months } = z
+      .object({ months: z.coerce.number().int().min(1).max(60).default(12) })
+      .parse(request.query);
+    await requireMembership(user.id, familyId);
+
+    return { months: await buildTrend(familyId, months) };
   });
 
   /** 장부 상태를 다시 계산한다 (디버깅·복구용) */

@@ -146,3 +146,50 @@ export async function buildMonthSummary(familyId: string, yearMonth: string) {
       .map((m) => ({ displayName: m.displayName, note: m.note as string })),
   };
 }
+
+/**
+ * 월별 추이. 요약과 **같은 집계 규칙**을 쓴다 — 제출된 기록만 센다.
+ *
+ * 기록이 없는 달은 배열에서 뺀다. 0원으로 채우면 "그 달은 한 푼도 안 썼다"는
+ * 거짓 그래프가 된다. 없는 건 없는 대로 두는 게 맞다.
+ */
+export async function buildTrend(familyId: string, months: number) {
+  const memberCount = await prisma.membership.count({ where: { familyId, active: true } });
+
+  const books = await prisma.monthlyBook.findMany({
+    where: { familyId },
+    orderBy: { yearMonth: 'desc' },
+    take: months,
+    include: {
+      entries: {
+        where: { status: 'SUBMITTED', membership: { active: true } },
+        include: { lines: true },
+      },
+    },
+  });
+
+  return books
+    .filter((book) => book.entries.length > 0)
+    .map((book) => {
+      const totals = book.entries.reduce(
+        (acc, entry) => {
+          const s = entrySummary(entry.lines);
+          return {
+            income: acc.income + s.income,
+            fixedTotal: acc.fixedTotal + s.fixedTotal,
+            extraTotal: acc.extraTotal + s.extraTotal,
+          };
+        },
+        { income: 0, fixedTotal: 0, extraTotal: 0 },
+      );
+
+      return {
+        yearMonth: book.yearMonth,
+        ...totals,
+        surplus: totals.income - totals.fixedTotal - totals.extraTotal,
+        submittedCount: book.entries.length,
+        memberCount,
+      };
+    })
+    .reverse(); // 오래된 달이 왼쪽에 오게
+}

@@ -29,6 +29,14 @@ export const colors = {
   kakaoInk: '#191600',
 
   danger: '#C0392B',
+
+  /**
+   * 추이 차트의 선 색. 셋을 구분하는 게 목적이라 의미(오름/내림)를 싣지 않는다.
+   * up/down 을 그대로 쓰면 "고정비는 빨강 = 나쁨"으로 읽혀 잔소리처럼 보인다.
+   */
+  chartIncome: '#2E7D5B',
+  chartFixed: '#B07D3F',
+  chartSurplus: '#3E6E8E',
 } as const;
 
 export const space = {

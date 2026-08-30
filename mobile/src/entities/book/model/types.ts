@@ -47,3 +47,14 @@ export type MonthSummary = {
   byCategory: { category: string; amount: number }[];
   notes: { displayName: string; note: string }[];
 };
+
+/** 추이 한 점 = 한 달. 기록이 없는 달은 아예 안 내려온다. */
+export type TrendPoint = {
+  yearMonth: string;
+  income: number;
+  fixedTotal: number;
+  extraTotal: number;
+  surplus: number;
+  submittedCount: number;
+  memberCount: number;
+};

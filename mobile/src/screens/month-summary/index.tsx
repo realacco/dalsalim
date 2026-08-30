@@ -170,7 +170,7 @@ export default function SummaryScreen() {
             ) : null}
 
             <Muted style={{ textAlign: 'center' }}>
-              월별 추이와 스프레드시트 공유는 다음 단계에서 붙어요.
+              [추이] 탭에서 달마다 어떻게 달라졌는지 볼 수 있어요.
             </Muted>
           </>
         ) : null}
