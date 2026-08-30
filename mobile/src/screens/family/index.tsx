@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
@@ -93,7 +101,22 @@ export default function FamilyScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content}>
+      {/*
+        당겨서 새로고침이 필요하다. 가족이 방금 초대코드로 참여했는지 확인하는 건
+        이 앱에서 가장 자주 하는 동작인데, 없으면 앱을 껐다 켜는 수밖에 없다.
+      */}
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={detail.isFetching}
+            onRefresh={() => {
+              void detail.refetch();
+              void refreshMe();
+            }}
+          />
+        }
+      >
         <Text style={styles.title}>{detail.data?.family.name ?? '가족'}</Text>
 
         {detail.isLoading ? <Loading /> : null}
@@ -128,7 +151,7 @@ export default function FamilyScreen() {
               <Text style={styles.cardTitle}>구성원 {detail.data.members.length}명</Text>
               <Divider />
               {detail.data.members.map((member) => (
-                <View key={member.id} style={{ gap: space.sm }}>
+                <View key={member.id} style={styles.member}>
                   <View style={styles.memberRow}>
                     <View style={{ gap: 2 }}>
                       <Text style={styles.memberName}>
@@ -287,6 +310,7 @@ const styles = StyleSheet.create({
 
   memberRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   memberActions: { flexDirection: 'row', gap: space.sm },
+  member: { gap: space.sm, paddingVertical: space.xs },
   memberName: { ...font.body, fontWeight: '700', color: colors.ink },
   memberMeta: { ...font.caption, color: colors.inkFaint },
   ownerTag: {

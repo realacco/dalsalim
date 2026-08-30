@@ -9,6 +9,8 @@ import { formatMonthShort } from '@/shared/lib/format';
 const HEIGHT = 180;
 const PAD_TOP = 12;
 const PAD_BOTTOM = 22;
+/** 양 끝 점이 반쯤 잘리지 않게 하는 좌우 여백 (점 반지름 + 선 두께) */
+const PAD_X = 6;
 
 type Series = { key: 'income' | 'fixedTotal' | 'surplus'; label: string; color: string };
 
@@ -34,8 +36,9 @@ export function TrendChart({ points }: { points: TrendPoint[] }) {
   const span = max - min || 1;
 
   const plotHeight = HEIGHT - PAD_TOP - PAD_BOTTOM;
+  const plotWidth = Math.max(width - PAD_X * 2, 1);
   const x = (index: number) =>
-    points.length === 1 ? width / 2 : (index / (points.length - 1)) * width;
+    points.length === 1 ? width / 2 : PAD_X + (index / (points.length - 1)) * plotWidth;
   const y = (value: number) => PAD_TOP + (1 - (value - min) / span) * plotHeight;
 
   return (

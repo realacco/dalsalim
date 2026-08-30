@@ -184,8 +184,16 @@ export default function FixedScreen() {
       </ScrollView>
 
       <Modal visible={draft !== null} animationType="slide" transparent onRequestClose={() => setDraft(null)}>
-        <View style={styles.backdrop}>
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {/*
+          키보드를 피하는 건 시트가 아니라 **화면 전체**여야 한다.
+          시트만 감싸면 줄어들 여지가 없어서 [저장] 이 키보드에 그대로 덮인다.
+          바깥 컨테이너를 줄여야 아래 정렬된 시트가 키보드 위로 올라온다. (에뮬레이터에서 확인)
+        */}
+        <KeyboardAvoidingView
+          style={styles.backdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          {
             <View style={styles.sheet}>
               <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: space.lg }}>
                 <Text style={styles.sheetTitle}>
@@ -281,8 +289,8 @@ export default function FixedScreen() {
                 <Button label="닫기" variant="ghost" onPress={() => setDraft(null)} />
               </ScrollView>
             </View>
-          </KeyboardAvoidingView>
-        </View>
+          }
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
