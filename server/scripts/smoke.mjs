@@ -352,6 +352,16 @@ async function main() {
     momEntryAgain.body,
   );
 
+  const afterRejoin = await call('GET', `/families/${dad.familyId}/books/${thisMonth}`, {
+    token: dad.token,
+  });
+  check(
+    '★ 사람이 늘면 장부가 다시 열린다',
+    afterRejoin.body.members.length === 2,
+    { members: afterRejoin.body.members.length, status: afterRejoin.body.book.status },
+  );
+
+
   console.log(`\n${failed === 0 ? '✅ 전부 통과' : '❌ 실패 있음'} — ${passed}개 통과, ${failed}개 실패`);
   process.exitCode = failed === 0 ? 0 : 1;
 }

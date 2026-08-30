@@ -64,7 +64,6 @@ export async function familyRoutes(app: FastifyInstance) {
         where: { id: existing.id },
         data: { active: true, leftAt: null, displayName: body.displayName },
       });
-      await refreshFamilyBooks(family.id);
     } else {
       await prisma.membership.create({
         data: {
@@ -76,6 +75,11 @@ export async function familyRoutes(app: FastifyInstance) {
         },
       });
     }
+
+    // 사람이 늘면 "전원 제출"에 필요한 정원도 늘어난다. 다시 계산하지 않으면
+    // 먼저 있던 사람들만으로 완성돼 있던 장부가 완성인 채로 남는다 —
+    // 방금 들어온 사람은 한 줄도 안 적었는데 홈에 '완성' 배지가 뜬다.
+    await refreshFamilyBooks(family.id);
 
     return { family: { id: family.id, name: family.name, inviteCode: family.inviteCode } };
   });

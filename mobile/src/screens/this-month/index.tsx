@@ -106,6 +106,22 @@ export default function ThisMonthScreen() {
 
         {book.data && mine ? (
           <>
+            {/*
+              고정비가 하나도 없으면 위저드가 수입·추가지출·특이사항·확인 4스텝으로 끝난다.
+              "등록한 고정비가 매달 템플릿이 된다"는 이 앱의 핵심을 첫 사용자가 그대로 건너뛰고,
+              두 번째 달에 프리필될 것도 남지 않는다. 그래서 순서를 먼저 안내한다.
+            */}
+            {mine.fixedExpenseCount === 0 && mine.status === 'NONE' ? (
+              <Card style={{ gap: space.md }}>
+                <Text style={styles.cardTitle}>먼저 고정비부터 등록해요</Text>
+                <Muted>
+                  매달 나가는 돈을 한 번 등록해두면, 다음 달부터는 그 금액이 미리 채워진 채로
+                  열려요. 엑셀에서 템플릿을 만드는 일을 여기서 딱 한 번만 하는 거예요.
+                </Muted>
+                <Button label="고정비 등록하러 가기" onPress={() => router.push('/(tabs)/fixed')} />
+              </Card>
+            ) : null}
+
             <MyCard
               status={mine.status}
               progress={mine.progress}

@@ -19,6 +19,7 @@ export type BookView = {
     entryId: string | null;
     status: MemberEntryStatus;
     progress: { step: number; total: number } | null;
+    fixedExpenseCount: number;
     summary: EntrySummary | null;
   }[];
 };
