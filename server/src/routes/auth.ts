@@ -2,8 +2,8 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
 import { env, kakaoConfigured } from '../env.js';
-import { prisma } from '../db.js';
-import { fetchKakaoProfile, issueToken, requireUser } from '../auth.js';
+import { prisma } from '../lib/db.js';
+import { fetchKakaoProfile, issueToken, requireUser } from '../lib/auth.js';
 import { badRequest, unauthorized } from '../lib/http.js';
 
 /**

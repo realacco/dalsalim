@@ -1,12 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
-import { prisma } from '../db.js';
-import { requireMembership, requireUser } from '../auth.js';
+import { prisma } from '../lib/db.js';
+import { requireMembership, requireUser } from '../lib/auth.js';
 import { badRequest, conflict, notFound } from '../lib/http.js';
 import { isYearMonth, shiftYearMonth } from '../lib/shared.js';
 import { entrySummary, serializeEntry, syncFixedLines } from '../services/entry.js';
-import { refreshBookStatus } from '../services/book.js';
+import { buildMonthSummary, refreshBookStatus } from '../services/book.js';
 
 const INCOME_CATEGORY = '수입';
 
@@ -154,7 +154,7 @@ export async function bookRoutes(app: FastifyInstance) {
     return { entry: await serializeEntry(entry.id) };
   });
 
-  /** 그 달의 요약. 전원이 제출해야 열린다 — 이 앱의 핵심 계약이다. */
+  /** 그 달의 요약. 집계는 services/book.ts 가 한다 (추이와 같은 계산을 공유한다). */
   app.get('/families/:familyId/books/:yearMonth/summary', async (request) => {
     const user = await requireUser(request);
     const params = z.object({ familyId: z.string(), yearMonth: z.string() }).parse(request.params);
@@ -163,70 +163,14 @@ export async function bookRoutes(app: FastifyInstance) {
 
     const book = await prisma.monthlyBook.findUnique({
       where: { familyId_yearMonth: { familyId: params.familyId, yearMonth } },
-      include: {
-        entries: { include: { lines: { orderBy: { sortOrder: 'asc' } }, membership: true } },
-      },
     });
 
     if (!book) throw notFound('그 달의 장부가 없습니다.');
-
     if (book.status !== 'COMPLETE') {
       throw conflict('BOOK_NOT_COMPLETE', '가족 모두가 기록을 마쳐야 요약이 열립니다.');
     }
 
-    const perMember = book.entries.map((entry) => ({
-      membershipId: entry.membershipId,
-      displayName: entry.membership.displayName,
-      note: entry.note,
-      ...entrySummary(entry.lines),
-    }));
-
-    const allLines = book.entries.flatMap((entry) =>
-      entry.lines.map((line) => ({ ...line, displayName: entry.membership.displayName })),
-    );
-
-    const income = perMember.reduce((sum, m) => sum + m.income, 0);
-    const fixedTotal = perMember.reduce((sum, m) => sum + m.fixedTotal, 0);
-    const extraTotal = perMember.reduce((sum, m) => sum + m.extraTotal, 0);
-
-    // 카테고리별 합계 (수입 제외)
-    const byCategory = new Map<string, number>();
-    for (const line of allLines) {
-      if (line.kind === 'INCOME') continue;
-      byCategory.set(line.category, (byCategory.get(line.category) ?? 0) + (line.actualAmount ?? 0));
-    }
-
-    return {
-      book: { id: book.id, yearMonth: book.yearMonth, status: book.status },
-      totals: { income, fixedTotal, extraTotal, surplus: income - fixedTotal - extraTotal },
-      perMember,
-      // "이번 달 달라진 것" — 이 앱이 다른 가계부와 갈라지는 지점
-      changes: allLines
-        .filter((l) => l.changeReason && l.plannedAmount !== null)
-        .map((l) => ({
-          displayName: l.displayName,
-          name: l.name,
-          kind: l.kind,
-          delta: (l.actualAmount ?? 0) - (l.plannedAmount ?? 0),
-          reason: l.changeReason as string,
-        }))
-        .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)),
-      extras: allLines
-        .filter((l) => l.kind === 'EXTRA')
-        .map((l) => ({
-          displayName: l.displayName,
-          name: l.name,
-          category: l.category,
-          amount: l.actualAmount ?? 0,
-        }))
-        .sort((a, b) => b.amount - a.amount),
-      byCategory: [...byCategory.entries()]
-        .map(([category, amount]) => ({ category, amount }))
-        .sort((a, b) => b.amount - a.amount),
-      notes: perMember
-        .filter((m) => m.note)
-        .map((m) => ({ displayName: m.displayName, note: m.note as string })),
-    };
+    return buildMonthSummary(params.familyId, yearMonth);
   });
 
   /** 장부 상태를 다시 계산한다 (디버깅·복구용) */

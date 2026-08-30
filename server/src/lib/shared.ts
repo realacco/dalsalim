@@ -1,4 +1,4 @@
-/** 앱과 서버가 공유하는 상수·타입. 앱 쪽 src/shared/model/types.ts 와 짝을 이룬다. */
+/** 앱과 서버가 공유하는 상수·타입. 앱 쪽 mobile/src/shared/model/types.ts 와 짝을 이룬다. */
 
 export const CATEGORIES = [
   '주거',

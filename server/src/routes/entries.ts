@@ -1,8 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
-import { prisma } from '../db.js';
-import { requireOwnEntry, requireUser } from '../auth.js';
+import { prisma } from '../lib/db.js';
+import { requireOwnEntry, requireUser } from '../lib/auth.js';
 import { badRequest, forbidden, notFound } from '../lib/http.js';
 import { CATEGORIES, needsReason } from '../lib/shared.js';
 import { serializeEntry } from '../services/entry.js';

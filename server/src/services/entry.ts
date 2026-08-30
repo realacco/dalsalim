@@ -1,6 +1,6 @@
 import type { EntryLine } from '@prisma/client';
 
-import { prisma } from '../db.js';
+import { prisma } from '../lib/db.js';
 import { shiftYearMonth } from '../lib/shared.js';
 
 /** 위저드가 들고 다니는 기록 한 벌 */

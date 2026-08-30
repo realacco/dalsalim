@@ -1,9 +1,9 @@
 import jwt from 'jsonwebtoken';
 import type { FastifyRequest } from 'fastify';
 
-import { env } from './env.js';
+import { env } from '../env.js';
 import { prisma } from './db.js';
-import { forbidden, notFound, unauthorized } from './lib/http.js';
+import { forbidden, notFound, unauthorized } from './http.js';
 
 export type TokenPayload = { sub: string };
 

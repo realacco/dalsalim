@@ -1,8 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
-import { prisma } from '../db.js';
-import { requireMembership, requireUser } from '../auth.js';
+import { prisma } from '../lib/db.js';
+import { requireMembership, requireUser } from '../lib/auth.js';
 import { badRequest, notFound } from '../lib/http.js';
 import { CATEGORIES } from '../lib/shared.js';
 

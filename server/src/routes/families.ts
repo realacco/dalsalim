@@ -1,8 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
-import { generateInviteCode, prisma } from '../db.js';
-import { requireMembership, requireOwner, requireUser } from '../auth.js';
+import { prisma } from '../lib/db.js';
+import { generateInviteCode } from '../services/family.js';
+import { requireMembership, requireOwner, requireUser } from '../lib/auth.js';
 import { conflict, notFound } from '../lib/http.js';
 import { CATEGORIES } from '../lib/shared.js';
 
