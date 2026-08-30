@@ -1,0 +1,25 @@
+node_modules/
+.expo/
+dist/
+web-build/
+*.tsbuildinfo
+
+# 네이티브 프로젝트는 prebuild 가 언제든 다시 만든다
+android/
+ios/
+
+# 로컬 DB
+*.db
+*.db-journal
+
+# 환경 변수 (server/.env.example 을 복사해서 쓴다)
+.env
+.env.local
+
+*.log
+npm-debug.*
+.DS_Store
+Thumbs.db
+
+# 작업용 태스크 문서 (로컬 전용)
+docs/MVP-개발-태스크.md
