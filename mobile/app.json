@@ -14,7 +14,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png",
         "backgroundColor": "#F4F5FA"
-      }
+      },
+      "backgroundColor": "#F4F5FA"
     },
     "ios": {
       "supportsTablet": true,
@@ -58,6 +59,7 @@
         "projectId": "53442dd2-432f-4dbe-9c20-030e4aeb7f0b"
       }
     },
-    "owner": "jongdaepark"
+    "owner": "jongdaepark",
+    "backgroundColor": "#F4F5FA"
   }
 }
