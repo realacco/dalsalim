@@ -148,6 +148,40 @@ REST 키와 client secret이 앱 번들에 들어가지 않는다 — 보안상�
 
 ---
 
+## 폰에 설치해서 써보기
+
+두 가지 길이 있다. **매일 쓰기엔 Expo Go 쪽이 낫다** — 코드를 고치면 즉시 반영되고, 재빌드가 없다.
+
+### 1. Expo Go (실시간, 준비 없음)
+
+폰에 Expo Go 를 설치하고 PC 와 같은 Wi-Fi 에 둔 뒤, **Enter URL manually** 에 개발 서버 주소를 넣는다.
+
+```
+exp://<PC의 LAN IP>:8081        예: exp://192.168.45.56:8081
+```
+
+서버 주소는 앱이 개발 서버 호스트에서 자동으로 유추한다(`src/shared/api/client.ts`). 따로 설정할 게 없다.
+서버는 `HOST=0.0.0.0`(기본값)이어야 하고, 윈도우 방화벽에서 node.exe 인바운드가 허용돼 있어야 한다.
+
+### 2. EAS Build APK (설치형)
+
+```bash
+cd mobile
+eas login                                          # 최초 1회
+eas build --platform android --profile preview     # 클라우드 빌드 → APK 링크
+```
+
+**독립 빌드에는 Expo 개발 서버가 없어서 호스트 자동 유추가 동작하지 않는다.** 그래서 `eas.json` 의
+`preview.env.EXPO_PUBLIC_API_URL` 에 서버 주소를 박아둔다. 지금은 이 PC 의 LAN 주소라서:
+
+- **PC 가 켜져 있고 서버가 떠 있어야** 앱이 동작한다
+- **공유기가 PC 에 다른 IP 를 주면 깨진다.** `eas.json` 의 값을 고치고 다시 빌드해야 한다
+  (자주 겪는다면 공유기에서 이 PC 의 IP 를 고정해두는 편이 낫다)
+- 안드로이드 9+ 는 평문 HTTP 를 막기 때문에 `app.json` 에서 `usesCleartextTraffic` 을 켜뒀다.
+  **서버를 https 로 배포하면 이 예외는 지운다** (`docs/02-MVP-출시-체크리스트.md` 3장)
+
+---
+
 ## 개발 노트 (이 PC 기준 · 함정 모음)
 
 | 항목 | 값 |

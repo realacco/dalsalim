@@ -5,25 +5,17 @@
   },
   "build": {
     "preview": {
-      "//": "집 Wi-Fi 전용 테스트 APK. 서버는 이 PC 가 그대로 맡는다.",
-      "//api": "★ 공유기가 PC 에 다른 IP 를 주면 이 값을 바꾸고 다시 빌드해야 한다.",
       "android": {
         "buildType": "apk"
       },
       "distribution": "internal",
-      "channel": "preview",
       "env": {
         "EXPO_PUBLIC_API_URL": "http://192.168.45.56:4000"
       }
     },
     "production": {
-      "//": "서버를 배포한 뒤에 쓴다. https 주소를 넣으면 cleartext 예외도 필요 없어진다.",
       "android": {
         "buildType": "app-bundle"
-      },
-      "channel": "production",
-      "env": {
-        "EXPO_PUBLIC_API_URL": ""
       }
     }
   },

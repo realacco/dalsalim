@@ -46,6 +46,13 @@
     ],
     "experiments": {
       "typedRoutes": false
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "53442dd2-432f-4dbe-9c20-030e4aeb7f0b"
+      }
+    },
+    "owner": "jongdaepark"
   }
 }
