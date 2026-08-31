@@ -39,6 +39,7 @@
   },
   "private": true,
   "overrides": {
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "react-native-worklets": "0.12.1"
   }
 }
