@@ -31,10 +31,11 @@ type TabBarProps = {
  */
 export function AppTabBar({ state, descriptors, navigation }: TabBarProps) {
   const styles = useStyles();
+  const t = useTheme();
   const insets = useSafeAreaInsets();
 
   // 제스처 바에 깔리지 않게 하단 인셋을 더한다. 인셋이 0으로 오는 기기가 있어 최소값을 둔다.
-  const bottom = Math.max(insets.bottom, 10);
+  const bottom = Math.max(insets.bottom, t.space.md);
 
   return (
     <View style={[styles.bar, { paddingBottom: bottom }]}>
@@ -109,28 +110,38 @@ const useStyles = makeStyles((t) => ({
   bar: {
     flexDirection: 'row',
     backgroundColor: t.colors.surface,
+    // 위 카드와 같은 색이라 경계가 흐리면 툴바가 떠 있는 느낌이 안 난다.
+    // 실기기(갤럭시 다크)에서 특히 안 보였다.
     borderTopWidth: 1,
-    borderTopColor: t.colors.line,
-    paddingTop: t.space.sm,
-    paddingHorizontal: t.space.sm,
+    borderTopColor: t.colors.lineStrong,
+    paddingTop: t.space.md,
+    // 첫/마지막 탭이 화면 가장자리에 붙지 않게
+    paddingHorizontal: t.space.md,
   },
   slot: { flex: 1 },
-  item: { alignItems: 'center', justifyContent: 'center', paddingVertical: t.space.xs },
-  pillWrap: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: t.space.md },
+  item: { alignItems: 'center', justifyContent: 'center' },
+  pillWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    // 알약이 글자를 감싸는 여백. 너무 크면 탭 표시가 아니라 버튼처럼 읽힌다.
+    paddingHorizontal: t.space.lg,
+    paddingVertical: t.space.sm - 1,
+  },
   pill: {
     position: 'absolute',
-    top: -2,
+    top: 0,
     left: 0,
     right: 0,
-    bottom: -2,
+    bottom: 0,
     backgroundColor: t.colors.primarySoft,
     borderRadius: t.radius.pill,
   },
   label: {
     ...t.font.small,
-    color: t.colors.inkFaint,
+    // inkFaint 는 실기기에서 너무 흐렸다. 활성 탭은 색·알약·굵기로 이미 구분되므로
+    // 비활성도 읽히는 밝기까지 올린다.
+    color: t.colors.inkSoft,
     fontWeight: t.weight.semibold,
-    paddingVertical: t.space.sm,
   },
   labelActive: { color: t.colors.primary, fontWeight: t.weight.bold },
 }));
