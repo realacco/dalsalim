@@ -1,15 +1,9 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
+import { ActivityIndicator, Text, ViewStyle } from 'react-native';
 
-import { colors, font, radius, space } from '@/shared/config/theme';
+import { makeStyles, useTheme } from '@/shared/config/theme-provider';
+import { PressableScale } from './pressable-scale';
 
-type ButtonProps = {
-  label: string;
-  onPress: () => void;
-  variant?: 'primary' | 'ghost' | 'kakao' | 'danger';
-  disabled?: boolean;
-  loading?: boolean;
-  style?: ViewStyle;
-};
+type Variant = 'primary' | 'ghost' | 'kakao' | 'danger';
 
 export function Button({
   label,
@@ -18,55 +12,65 @@ export function Button({
   disabled,
   loading,
   style,
-}: ButtonProps) {
+}: {
+  label: string;
+  onPress: () => void;
+  variant?: Variant;
+  disabled?: boolean;
+  loading?: boolean;
+  style?: ViewStyle;
+}) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const inactive = disabled || loading;
 
+  const face = {
+    primary: styles.primary,
+    ghost: styles.ghost,
+    kakao: styles.kakao,
+    danger: styles.danger,
+  }[variant];
+
+  const labelTone = {
+    primary: styles.labelOnPrimary,
+    ghost: styles.labelOnGhost,
+    kakao: styles.labelOnKakao,
+    danger: styles.labelOnPrimary,
+  }[variant];
+
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
+      accessibilityState={{ disabled: Boolean(inactive), busy: Boolean(loading) }}
       onPress={onPress}
       disabled={inactive}
-      style={({ pressed }) => [
-        styles.button,
-        variant === 'primary' && styles.buttonPrimary,
-        variant === 'ghost' && styles.buttonGhost,
-        variant === 'kakao' && styles.buttonKakao,
-        variant === 'danger' && styles.buttonDanger,
-        inactive && styles.buttonDisabled,
-        pressed && !inactive && styles.buttonPressed,
-        style,
-      ]}
+      style={[styles.button, face, inactive && styles.disabled, style] as ViewStyle[]}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'ghost' ? colors.ink : colors.surface} />
+        <ActivityIndicator color={variant === 'ghost' ? colors.inkSoft : colors.primaryInk} />
       ) : (
-        <Text
-          style={[
-            styles.buttonLabel,
-            variant === 'ghost' && { color: colors.inkSoft },
-            variant === 'kakao' && { color: colors.kakaoInk },
-          ]}
-        >
-          {label}
-        </Text>
+        <Text style={[styles.label, labelTone]}>{label}</Text>
       )}
-    </Pressable>
+    </PressableScale>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   button: {
-    height: 52,
-    borderRadius: radius.md,
+    height: 54,
+    borderRadius: t.radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: space.lg,
+    paddingHorizontal: t.space.lg,
   },
-  buttonPrimary: { backgroundColor: colors.primary },
-  buttonGhost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.lineStrong },
-  buttonKakao: { backgroundColor: colors.kakao },
-  buttonDanger: { backgroundColor: colors.danger },
-  buttonDisabled: { opacity: 0.45 },
-  buttonPressed: { opacity: 0.85 },
-  buttonLabel: { ...font.bodyLg, color: colors.surface, fontWeight: '700' },
-});
+  primary: { backgroundColor: t.colors.primary },
+  ghost: { backgroundColor: t.colors.surfaceMuted },
+  kakao: { backgroundColor: t.colors.kakao },
+  danger: { backgroundColor: t.colors.danger },
+  disabled: { opacity: 0.4 },
+
+  label: { ...t.font.bodyLg, fontWeight: t.weight.bold },
+  labelOnPrimary: { color: t.colors.primaryInk },
+  labelOnGhost: { color: t.colors.inkSoft },
+  labelOnKakao: { color: t.colors.kakaoInk },
+}));

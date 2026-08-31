@@ -25,7 +25,7 @@ import {
 } from '@/entities/fixed-expense';
 import { bookKeys } from '@/entities/book';
 import { useSession } from '@/entities/session';
-import { colors, font, radius, space } from '@/shared/config/theme';
+import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import {
   AmountInput,
   Button,
@@ -50,6 +50,8 @@ type Draft = {
 };
 
 export default function FixedScreen() {
+  const styles = useStyles();
+  const { space } = useTheme();
   const queryClient = useQueryClient();
   const familyId = useSession((state) => state.familyId);
 
@@ -296,33 +298,33 @@ export default function FixedScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
-  header: { paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.sm, gap: space.xs },
-  title: { ...font.title, fontWeight: '800', color: colors.ink },
-  content: { padding: space.lg, paddingTop: space.sm, gap: space.lg, paddingBottom: space.xxl },
+const useStyles = makeStyles((t) => ({
+  screen: { flex: 1, backgroundColor: t.colors.bg },
+  header: { paddingHorizontal: t.space.lg, paddingTop: t.space.md, paddingBottom: t.space.sm, gap: t.space.xs },
+  title: { ...t.font.title, fontWeight: t.weight.heavy, color: t.colors.ink },
+  content: { padding: t.space.lg, paddingTop: t.space.sm, gap: t.space.lg, paddingBottom: t.space.xxl },
 
-  totalCard: { backgroundColor: colors.primarySoft, borderColor: colors.primarySoft, gap: space.xs },
-  totalLabel: { ...font.small, color: colors.primary, fontWeight: '700' },
-  totalValue: { ...font.question, fontWeight: '800', color: colors.ink },
+  totalCard: { backgroundColor: t.colors.primarySoft, borderColor: t.colors.primarySoft, gap: t.space.xs },
+  totalLabel: { ...t.font.small, color: t.colors.primary, fontWeight: t.weight.bold },
+  totalValue: { ...t.font.question, fontWeight: t.weight.heavy, color: t.colors.ink },
 
   groupHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  groupName: { ...font.bodyLg, fontWeight: '700', color: colors.ink },
-  groupTotal: { ...font.body, color: colors.inkSoft, fontVariant: ['tabular-nums'] },
+  groupName: { ...t.font.bodyLg, fontWeight: t.weight.bold, color: t.colors.ink },
+  groupTotal: { ...t.font.body, color: t.colors.inkSoft, fontVariant: ['tabular-nums' as const] },
 
-  item: { flexDirection: 'row', alignItems: 'center', paddingVertical: space.sm, gap: space.md },
-  itemName: { ...font.body, color: colors.ink, fontWeight: '600' },
-  itemMeta: { ...font.caption, color: colors.inkFaint },
-  itemAmount: { ...font.body, color: colors.ink, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  item: { flexDirection: 'row', alignItems: 'center', paddingVertical: t.space.sm, gap: t.space.md },
+  itemName: { ...t.font.body, color: t.colors.ink, fontWeight: t.weight.semibold },
+  itemMeta: { ...t.font.caption, color: t.colors.inkFaint },
+  itemAmount: { ...t.font.body, color: t.colors.ink, fontWeight: t.weight.bold, fontVariant: ['tabular-nums' as const] },
 
-  backdrop: { flex: 1, backgroundColor: 'rgba(35,31,26,0.4)', justifyContent: 'flex-end' },
+  backdrop: { flex: 1, backgroundColor: t.colors.overlay, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: colors.bg,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    padding: space.xl,
+    backgroundColor: t.colors.bg,
+    borderTopLeftRadius: t.radius.lg,
+    borderTopRightRadius: t.radius.lg,
+    padding: t.space.xl,
     maxHeight: '90%',
   },
-  sheetTitle: { ...font.title, fontWeight: '800', color: colors.ink },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-});
+  sheetTitle: { ...t.font.title, fontWeight: t.weight.heavy, color: t.colors.ink },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: t.space.sm },
+}));

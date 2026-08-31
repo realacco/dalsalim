@@ -1,13 +1,14 @@
 import { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
-import { colors, font, radius, space } from '@/shared/config/theme';
+import { makeStyles } from '@/shared/config/theme-provider';
 
 /**
- * 사실을 알려주는 띠. 경고가 아니다 — 색을 쓰지 않는다.
+ * 사실을 알려주는 띠. 경고가 아니다 — 강한 색을 쓰지 않는다.
  * "엄마가 아직 안 적었어요" 처럼 화면의 숫자가 무엇을 기준으로 하는지 밝힐 때 쓴다.
  */
 export function Notice({ children }: { children: ReactNode }) {
+  const styles = useStyles();
   return (
     <View style={styles.notice}>
       <Text style={styles.text}>{children}</Text>
@@ -15,12 +16,12 @@ export function Notice({ children }: { children: ReactNode }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   notice: {
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.md,
-    paddingHorizontal: space.lg,
-    paddingVertical: space.md,
+    backgroundColor: t.colors.surfaceMuted,
+    borderRadius: t.radius.lg,
+    paddingHorizontal: t.space.lg,
+    paddingVertical: t.space.md,
   },
-  text: { ...font.small, color: colors.inkSoft, lineHeight: 20 },
-});
+  text: { ...t.font.small, color: t.colors.inkSoft, lineHeight: 20 },
+}));

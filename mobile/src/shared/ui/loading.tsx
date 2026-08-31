@@ -1,9 +1,11 @@
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 
-import { colors, space } from '@/shared/config/theme';
+import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Muted } from './text';
 
 export function Loading({ label }: { label?: string }) {
+  const styles = useStyles();
+  const { colors, space } = useTheme();
   return (
     <View style={styles.center}>
       <ActivityIndicator color={colors.primary} />
@@ -12,6 +14,12 @@ export function Loading({ label }: { label?: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
-});
+const useStyles = makeStyles((t) => ({
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: t.space.xxl,
+    backgroundColor: 'transparent',
+  },
+}));

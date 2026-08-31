@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Keyboard, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Keyboard, Text, TextInput, View } from 'react-native';
 
-import { colors, font, space } from '@/shared/config/theme';
+import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { digitsOnly, formatAmount } from '@/shared/lib/format';
 
 const MAX_AMOUNT = 1_000_000_000;
@@ -30,6 +30,8 @@ export function AmountInput({
   autoFocus?: boolean;
   size?: 'lg' | 'md';
 }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
 
@@ -43,7 +45,7 @@ export function AmountInput({
   const text = editing ? draft : value === null ? '' : formatAmount(value);
 
   return (
-    <View style={styles.amountRow}>
+    <View style={styles.row}>
       <TextInput
         value={text}
         onFocus={() => {
@@ -66,25 +68,27 @@ export function AmountInput({
         placeholderTextColor={colors.inkFaint}
         autoFocus={autoFocus}
         selectTextOnFocus
-        style={[styles.amountInput, size === 'md' && styles.amountInputMd]}
+        style={[styles.input, size === 'md' && styles.inputMd, editing && styles.inputEditing]}
       />
-      <Text style={[styles.amountUnit, size === 'md' && { ...font.bodyLg }]}>원</Text>
+      <Text style={[styles.unit, size === 'md' && styles.unitMd]}>원</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  amountRow: { flexDirection: 'row', alignItems: 'flex-end', gap: space.sm },
-  amountInput: {
+const useStyles = makeStyles((t) => ({
+  row: { flexDirection: 'row', alignItems: 'flex-end', gap: t.space.sm },
+  input: {
     flex: 1,
-    ...font.amount,
-    fontWeight: '700',
-    color: colors.ink,
-    paddingVertical: space.sm,
+    ...t.font.amountLg,
+    fontWeight: t.weight.heavy,
+    color: t.colors.ink,
+    paddingVertical: t.space.sm,
     borderBottomWidth: 2,
-    borderBottomColor: colors.lineStrong,
+    borderBottomColor: t.colors.lineStrong,
     textAlign: 'right',
   },
-  amountInputMd: { ...font.title, fontWeight: '700' },
-  amountUnit: { ...font.title, color: colors.inkSoft, paddingBottom: space.md },
-});
+  inputEditing: { borderBottomColor: t.colors.primary },
+  inputMd: { ...t.font.title, fontWeight: t.weight.heavy },
+  unit: { ...t.font.title, color: t.colors.inkSoft, paddingBottom: t.space.md },
+  unitMd: { ...t.font.bodyLg, color: t.colors.inkSoft, paddingBottom: t.space.md },
+}));

@@ -6,11 +6,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '@/shared/api/client';
 import { bookKeys, fetchMonthSummary } from '@/entities/book';
 import { useSession } from '@/entities/session';
-import { colors, font, radius, space } from '@/shared/config/theme';
+import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Button, Card, Divider, ErrorText, Loading, Muted, Notice, Row } from '@/shared/ui';
 import { formatAmount, formatWon, formatYearMonth } from '@/shared/lib/format';
 
 export default function SummaryScreen() {
+  const styles = useStyles();
+  const { colors, space } = useTheme();
   const router = useRouter();
   const familyId = useSession((state) => state.familyId);
   const { yearMonth } = useLocalSearchParams<{ yearMonth: string }>();
@@ -179,36 +181,36 @@ export default function SummaryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+const useStyles = makeStyles((t) => ({
+  screen: { flex: 1, backgroundColor: t.colors.bg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: space.lg,
-    paddingVertical: space.md,
+    paddingHorizontal: t.space.lg,
+    paddingVertical: t.space.md,
   },
-  back: { fontSize: 30, color: colors.inkSoft, lineHeight: 34, width: 24 },
-  title: { ...font.bodyLg, fontWeight: '800', color: colors.ink },
+  back: { ...t.font.glyph, color: t.colors.inkSoft, width: 24 },
+  title: { ...t.font.bodyLg, fontWeight: t.weight.heavy, color: t.colors.ink },
 
-  content: { padding: space.lg, gap: space.lg, paddingBottom: space.xxl },
+  content: { padding: t.space.lg, gap: t.space.lg, paddingBottom: t.space.xxl },
 
-  heroCard: { gap: space.md, backgroundColor: colors.primarySoft, borderColor: colors.primarySoft },
-  heroLabel: { ...font.small, fontWeight: '700', color: colors.primary },
-  heroValue: { fontSize: 36, fontWeight: '800', color: colors.ink, fontVariant: ['tabular-nums'] },
+  heroCard: { gap: t.space.md, backgroundColor: t.colors.primarySoft, borderColor: t.colors.primarySoft },
+  heroLabel: { ...t.font.small, fontWeight: t.weight.bold, color: t.colors.primary },
+  heroValue: { ...t.font.amount, fontWeight: t.weight.heavy, color: t.colors.ink },
 
-  cardTitle: { ...font.bodyLg, fontWeight: '700', color: colors.ink },
+  cardTitle: { ...t.font.bodyLg, fontWeight: t.weight.bold, color: t.colors.ink },
 
-  changeHead: { flexDirection: 'row', justifyContent: 'space-between', gap: space.md },
-  changeName: { ...font.body, color: colors.ink, fontWeight: '600', flexShrink: 1 },
-  changeWho: { ...font.small, color: colors.inkFaint, fontWeight: '400' },
-  changeDelta: { ...font.body, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  changeReason: { ...font.small, color: colors.inkSoft },
+  changeHead: { flexDirection: 'row', justifyContent: 'space-between', gap: t.space.md },
+  changeName: { ...t.font.body, color: t.colors.ink, fontWeight: t.weight.semibold, flexShrink: 1 },
+  changeWho: { ...t.font.small, color: t.colors.inkFaint, fontWeight: t.weight.regular },
+  changeDelta: { ...t.font.body, fontWeight: t.weight.bold, fontVariant: ['tabular-nums' as const] },
+  changeReason: { ...t.font.small, color: t.colors.inkSoft },
 
-  memberName: { ...font.body, fontWeight: '700', color: colors.ink, marginTop: space.xs },
+  memberName: { ...t.font.body, fontWeight: t.weight.bold, color: t.colors.ink, marginTop: t.space.xs },
 
-  barTrack: { height: 6, backgroundColor: colors.surfaceMuted, borderRadius: radius.pill },
-  barFill: { height: 6, backgroundColor: colors.primary, borderRadius: radius.pill },
+  barTrack: { height: 6, backgroundColor: t.colors.surfaceMuted, borderRadius: t.radius.pill },
+  barFill: { height: 6, backgroundColor: t.colors.primary, borderRadius: t.radius.pill },
 
-  noteText: { ...font.body, color: colors.inkSoft },
-});
+  noteText: { ...t.font.body, color: t.colors.inkSoft },
+}));

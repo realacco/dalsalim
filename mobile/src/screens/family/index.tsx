@@ -22,10 +22,12 @@ import {
   transferOwner,
 } from '@/entities/family';
 import { useSession } from '@/entities/session';
-import { colors, font, radius, space } from '@/shared/config/theme';
+import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Button, Card, Divider, Loading, Muted } from '@/shared/ui';
 
 export default function FamilyScreen() {
+  const styles = useStyles();
+  const { space } = useTheme();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { me, familyId, signOut, refreshMe, selectFamily } = useSession();
@@ -292,44 +294,44 @@ export default function FamilyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: space.lg, gap: space.lg, paddingBottom: space.xxl },
-  title: { ...font.title, fontWeight: '800', color: colors.ink, paddingHorizontal: space.xs },
-  cardTitle: { ...font.bodyLg, fontWeight: '700', color: colors.ink },
+const useStyles = makeStyles((t) => ({
+  screen: { flex: 1, backgroundColor: t.colors.bg },
+  content: { padding: t.space.lg, gap: t.space.lg, paddingBottom: t.space.xxl },
+  title: { ...t.font.title, fontWeight: t.weight.heavy, color: t.colors.ink, paddingHorizontal: t.space.xs },
+  cardTitle: { ...t.font.bodyLg, fontWeight: t.weight.bold, color: t.colors.ink },
 
   codeBox: {
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.md,
-    paddingVertical: space.lg,
+    backgroundColor: t.colors.surfaceMuted,
+    borderRadius: t.radius.md,
+    paddingVertical: t.space.lg,
     alignItems: 'center',
-    gap: space.xs,
+    gap: t.space.xs,
   },
-  code: { fontSize: 32, fontWeight: '800', letterSpacing: 8, color: colors.ink },
-  copyHint: { ...font.caption, color: colors.inkFaint },
+  code: { ...t.font.code, fontWeight: t.weight.heavy, color: t.colors.ink },
+  copyHint: { ...t.font.caption, color: t.colors.inkFaint },
 
   memberRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  memberActions: { flexDirection: 'row', gap: space.sm },
-  member: { gap: space.sm, paddingVertical: space.xs },
-  memberName: { ...font.body, fontWeight: '700', color: colors.ink },
-  memberMeta: { ...font.caption, color: colors.inkFaint },
+  memberActions: { flexDirection: 'row', gap: t.space.sm },
+  member: { gap: t.space.sm, paddingVertical: t.space.xs },
+  memberName: { ...t.font.body, fontWeight: t.weight.bold, color: t.colors.ink },
+  memberMeta: { ...t.font.caption, color: t.colors.inkFaint },
   ownerTag: {
-    ...font.caption,
-    fontWeight: '700',
-    color: colors.primary,
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: space.md,
-    paddingVertical: space.xs,
-    borderRadius: radius.pill,
+    ...t.font.caption,
+    fontWeight: t.weight.bold,
+    color: t.colors.primary,
+    backgroundColor: t.colors.primarySoft,
+    paddingHorizontal: t.space.md,
+    paddingVertical: t.space.xs,
+    borderRadius: t.radius.pill,
     overflow: 'hidden',
   },
 
   familyRow: {
-    padding: space.md,
-    borderRadius: radius.md,
+    padding: t.space.md,
+    borderRadius: t.radius.md,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: t.colors.line,
     gap: 2,
   },
-  familyRowActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-});
+  familyRowActive: { borderColor: t.colors.primary, backgroundColor: t.colors.primarySoft },
+}));

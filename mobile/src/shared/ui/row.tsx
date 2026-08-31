@@ -1,6 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
-import { colors, font, space } from '@/shared/config/theme';
+import { makeStyles } from '@/shared/config/theme-provider';
 
 /** 좌우로 벌린 한 줄. 요약·합계에 계속 쓰인다. */
 export function Row({
@@ -14,17 +14,16 @@ export function Row({
   strong?: boolean;
   tone?: 'up' | 'down' | 'default';
 }) {
+  const styles = useStyles();
   return (
     <View style={styles.row}>
-      <Text style={[styles.rowLabel, strong && { color: colors.ink, fontWeight: '600' }]}>
-        {label}
-      </Text>
+      <Text style={[styles.label, strong && styles.labelStrong]}>{label}</Text>
       <Text
         style={[
-          styles.rowValue,
-          strong && { ...font.bodyLg, fontWeight: '700' },
-          tone === 'up' && { color: colors.up },
-          tone === 'down' && { color: colors.down },
+          styles.value,
+          strong && styles.valueStrong,
+          tone === 'up' && styles.up,
+          tone === 'down' && styles.down,
         ]}
       >
         {value}
@@ -34,17 +33,27 @@ export function Row({
 }
 
 export function Divider() {
+  const styles = useStyles();
   return <View style={styles.divider} />;
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: space.md,
+    gap: t.space.md,
   },
-  rowLabel: { ...font.body, color: colors.inkSoft, flexShrink: 1 },
-  rowValue: { ...font.body, color: colors.ink, fontWeight: '600', fontVariant: ['tabular-nums'] },
-  divider: { height: 1, backgroundColor: colors.line, marginVertical: space.md },
-});
+  label: { ...t.font.body, color: t.colors.inkSoft, flexShrink: 1 },
+  labelStrong: { color: t.colors.ink, fontWeight: t.weight.semibold },
+  value: {
+    ...t.font.body,
+    color: t.colors.ink,
+    fontWeight: t.weight.semibold,
+    fontVariant: ['tabular-nums' as const],
+  },
+  valueStrong: { ...t.font.bodyLg, fontWeight: t.weight.bold, fontVariant: ['tabular-nums' as const] },
+  up: { color: t.colors.up },
+  down: { color: t.colors.down },
+  divider: { height: 1, backgroundColor: t.colors.line, marginVertical: t.space.md },
+}));

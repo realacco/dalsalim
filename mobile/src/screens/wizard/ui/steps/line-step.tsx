@@ -4,10 +4,10 @@ import { useMutation } from '@tanstack/react-query';
 
 import { ApiError } from '@/shared/api/client';
 import { type EntryLine, needsReason, updateLine } from '@/entities/entry';
-import { colors, font, space } from '@/shared/config/theme';
+import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { AmountInput, Button, Card, ErrorText, Field, Input, Muted } from '@/shared/ui';
 import { formatAmount, formatWon } from '@/shared/lib/format';
-import { stepStyles } from '../styles';
+import { useStepStyles } from '../styles';
 
 /**
  * 스텝 1..n — 수입 / 고정비.
@@ -30,6 +30,9 @@ export function LineStep({
   setError: (value: string | null) => void;
   onSaved: () => void;
 }) {
+  const styles = useStyles();
+  const stepStyles = useStepStyles();
+  const { space } = useTheme();
   const [amount, setAmount] = useState<number | null>(line.actualAmount ?? line.plannedAmount);
   const [reason, setReason] = useState(line.changeReason ?? '');
 
@@ -111,6 +114,8 @@ function DiffHint({
   source: EntryLine['plannedSource'];
   amount: number | null;
 }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
   if (planned === null) {
     return <Muted>지난달 기록이 없어요. 이번 달 금액을 적어주세요.</Muted>;
   }
@@ -133,9 +138,9 @@ function DiffHint({
   );
 }
 
-const styles = StyleSheet.create({
-  category: { ...font.small, color: colors.primary, fontWeight: '700', marginBottom: space.xs },
-  hintSame: { ...font.small, color: colors.inkFaint, textAlign: 'right' },
-  hintDiff: { ...font.small, fontWeight: '700', textAlign: 'right' },
-  reasonCard: { marginTop: space.lg, backgroundColor: colors.upSoft, borderColor: colors.upSoft },
-});
+const useStyles = makeStyles((t) => ({
+  category: { ...t.font.small, color: t.colors.primary, fontWeight: t.weight.bold, marginBottom: t.space.xs },
+  hintSame: { ...t.font.small, color: t.colors.inkFaint, textAlign: 'right' },
+  hintDiff: { ...t.font.small, fontWeight: t.weight.bold, textAlign: 'right' },
+  reasonCard: { marginTop: t.space.lg, backgroundColor: t.colors.upSoft, borderColor: t.colors.upSoft },
+}));

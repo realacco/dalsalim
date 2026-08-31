@@ -8,7 +8,7 @@ import { ApiError } from '@/shared/api/client';
 import { bookKeys } from '@/entities/book';
 import { entryKeys } from '@/entities/entry';
 import { useSession } from '@/entities/session';
-import { colors, font, space } from '@/shared/config/theme';
+import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Button, ErrorText, Loading, ProgressBar } from '@/shared/ui';
 import { formatYearMonth } from '@/shared/lib/format';
 
@@ -25,6 +25,7 @@ import { ReviewStep } from './ui/steps/review-step';
  * 이 파일은 껍데기만 맡는다 — 헤더·진행바·스텝 전환. 흐름은 useWizard, 내용은 각 스텝 파일에 있다.
  */
 export default function WizardScreen() {
+  const styles = useStyles();
   const router = useRouter();
   const queryClient = useQueryClient();
   const familyId = useSession((state) => state.familyId);
@@ -133,26 +134,26 @@ export default function WizardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+const useStyles = makeStyles((t) => ({
+  screen: { flex: 1, backgroundColor: t.colors.bg },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: space.lg,
-    padding: space.xl,
+    gap: t.space.lg,
+    padding: t.space.xl,
   },
 
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.md,
-    paddingHorizontal: space.lg,
-    paddingVertical: space.md,
+    gap: t.space.md,
+    paddingHorizontal: t.space.lg,
+    paddingVertical: t.space.md,
   },
   headerButton: { minWidth: 36, alignItems: 'center', justifyContent: 'center' },
-  headerIcon: { fontSize: 30, color: colors.inkSoft, lineHeight: 34 },
-  headerClose: { ...font.small, color: colors.inkFaint, fontWeight: '700' },
-  progressArea: { flex: 1, gap: space.xs },
-  progressText: { ...font.caption, color: colors.inkFaint, textAlign: 'center' },
-});
+  headerIcon: { ...t.font.glyph, color: t.colors.inkSoft },
+  headerClose: { ...t.font.small, color: t.colors.inkFaint, fontWeight: t.weight.bold },
+  progressArea: { flex: 1, gap: t.space.xs },
+  progressText: { ...t.font.caption, color: t.colors.inkFaint, textAlign: 'center' },
+}));

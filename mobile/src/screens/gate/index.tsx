@@ -1,7 +1,7 @@
 import { Redirect } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors, font, space } from '@/shared/config/theme';
+import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { useSession } from '@/entities/session';
 import { Loading } from '@/shared/ui';
 
@@ -12,6 +12,7 @@ import { Loading } from '@/shared/ui';
  *   둘 다 있음 → 이번 달
  */
 export default function Gate() {
+  const styles = useStyles();
   const { ready, token, me } = useSession();
 
   if (!ready) {
@@ -30,14 +31,14 @@ export default function Gate() {
   return <Redirect href="/(tabs)" />;
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   splash: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: t.colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: space.sm,
+    gap: t.space.sm,
   },
-  logo: { fontSize: 32, fontWeight: '800', color: colors.ink, letterSpacing: -1 },
-  tagline: { ...font.small, color: colors.inkFaint, marginBottom: space.xl },
-});
+  logo: { ...t.font.display, fontWeight: t.weight.heavy, color: t.colors.ink },
+  tagline: { ...t.font.small, color: t.colors.inkFaint, marginBottom: t.space.xl },
+}));

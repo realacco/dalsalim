@@ -15,10 +15,12 @@ import {
   kakaoStartUrl,
   useSession,
 } from '@/entities/session';
-import { colors, font, radius, space } from '@/shared/config/theme';
+import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Button, Card, ErrorText, Input, Muted } from '@/shared/ui';
 
 export default function LoginScreen() {
+  const styles = useStyles();
+  const { space } = useTheme();
   const router = useRouter();
   const signIn = useSession((state) => state.signIn);
 
@@ -145,13 +147,13 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg, padding: space.xl, justifyContent: 'space-between' },
-  hero: { flex: 1, justifyContent: 'center', gap: space.md },
-  logo: { fontSize: 40, fontWeight: '800', color: colors.ink, letterSpacing: -1.5 },
-  tagline: { ...font.title, color: colors.inkSoft },
-  actions: { gap: space.md, paddingBottom: space.lg },
+const useStyles = makeStyles((t) => ({
+  screen: { flex: 1, backgroundColor: t.colors.bg, padding: t.space.xl, justifyContent: 'space-between' },
+  hero: { flex: 1, justifyContent: 'center', gap: t.space.md },
+  logo: { ...t.font.displayLg, fontWeight: t.weight.heavy, color: t.colors.ink },
+  tagline: { ...t.font.title, color: t.colors.inkSoft },
+  actions: { gap: t.space.md, paddingBottom: t.space.lg },
   centerText: { textAlign: 'center' },
-  devCard: { gap: space.md, backgroundColor: colors.surfaceMuted, borderRadius: radius.lg },
-  devTitle: { ...font.body, fontWeight: '700', color: colors.ink },
-});
+  devCard: { gap: t.space.md, backgroundColor: t.colors.surfaceMuted, borderRadius: t.radius.lg },
+  devTitle: { ...t.font.body, fontWeight: t.weight.bold, color: t.colors.ink },
+}));

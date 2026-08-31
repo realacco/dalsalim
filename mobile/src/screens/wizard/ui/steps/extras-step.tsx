@@ -5,16 +5,19 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/shared/api/client';
 import { type Entry, addExtraLine, deleteLine, entryKeys } from '@/entities/entry';
 import { CATEGORIES, type Category } from '@/shared/model/types';
-import { colors, font, radius, space } from '@/shared/config/theme';
+import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { AmountInput, Button, Card, Chip, ErrorText, Field, Input, Muted } from '@/shared/ui';
 import { formatWon } from '@/shared/lib/format';
-import { stepStyles } from '../styles';
+import { useStepStyles } from '../styles';
 
 /**
  * 스텝 n+1 — 추가 지출.
  * 고정비에 없는, 그 달에만 있었던 지출이다. 사유를 묻지 않는다 — 이름이 곧 사유다.
  */
 export function ExtrasStep({ entry, onNext }: { entry: Entry; onNext: () => void }) {
+  const styles = useStyles();
+  const stepStyles = useStepStyles();
+  const { space } = useTheme();
   const queryClient = useQueryClient();
   const extras = entry.lines.filter((line) => line.kind === 'EXTRA');
 
@@ -131,19 +134,19 @@ export function ExtrasStep({ entry, onNext }: { entry: Entry; onNext: () => void
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   extraRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.md,
-    backgroundColor: colors.surface,
+    gap: t.space.md,
+    backgroundColor: t.colors.surface,
     borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.md,
-    padding: space.md,
+    borderColor: t.colors.line,
+    borderRadius: t.radius.md,
+    padding: t.space.md,
   },
-  extraName: { ...font.body, color: colors.ink, fontWeight: '600' },
-  extraMeta: { ...font.caption, color: colors.inkFaint },
-  extraAmount: { ...font.body, color: colors.ink, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  removeIcon: { fontSize: 24, color: colors.inkFaint, lineHeight: 26 },
-});
+  extraName: { ...t.font.body, color: t.colors.ink, fontWeight: t.weight.semibold },
+  extraMeta: { ...t.font.caption, color: t.colors.inkFaint },
+  extraAmount: { ...t.font.body, color: t.colors.ink, fontWeight: t.weight.bold, fontVariant: ['tabular-nums' as const] },
+  removeIcon: { ...t.font.headline, color: t.colors.inkFaint },
+}));

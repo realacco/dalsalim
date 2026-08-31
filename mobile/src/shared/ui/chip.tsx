@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Text } from 'react-native';
 
-import { colors, font, radius, space } from '@/shared/config/theme';
+import { makeStyles } from '@/shared/config/theme-provider';
+import { PressableScale } from './pressable-scale';
 
 export function Chip({
   label,
@@ -11,28 +12,30 @@ export function Chip({
   selected?: boolean;
   onPress: () => void;
 }) {
+  const styles = useStyles();
   return (
-    <Pressable
+    <PressableScale
+      small
       onPress={onPress}
-      style={[styles.chip, selected && styles.chipSelected]}
       accessibilityRole="button"
       accessibilityState={{ selected }}
+      style={[styles.chip, selected && styles.chipSelected]}
     >
-      <Text style={[styles.chipLabel, selected && styles.chipLabelSelected]}>{label}</Text>
-    </Pressable>
+      <Text style={[styles.label, selected && styles.labelSelected]}>{label}</Text>
+    </PressableScale>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   chip: {
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
+    paddingHorizontal: t.space.lg,
+    paddingVertical: t.space.sm + 2,
+    borderRadius: t.radius.pill,
+    borderWidth: 1.5,
+    borderColor: t.colors.line,
+    backgroundColor: t.colors.surface,
   },
-  chipSelected: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
-  chipLabel: { ...font.small, color: colors.inkSoft },
-  chipLabelSelected: { color: colors.primary, fontWeight: '700' },
-});
+  chipSelected: { backgroundColor: t.colors.primarySoft, borderColor: t.colors.primary },
+  label: { ...t.font.small, color: t.colors.inkSoft, fontWeight: t.weight.semibold },
+  labelSelected: { color: t.colors.primary, fontWeight: t.weight.bold },
+}));

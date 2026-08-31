@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '@/shared/api/client';
 import { bookKeys, fetchTrend } from '@/entities/book';
 import { useSession } from '@/entities/session';
-import { colors, font, space } from '@/shared/config/theme';
+import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Button, Card, Divider, ErrorText, Loading, Muted, Notice } from '@/shared/ui';
 import { formatWon, formatYearMonth } from '@/shared/lib/format';
 
@@ -19,6 +19,8 @@ const MONTHS = 12;
  * 두 번째 달부터 의미가 생긴다. 첫 달에 비어 있는 건 정상이다.
  */
 export default function TrendScreen() {
+  const styles = useStyles();
+  const { colors, space } = useTheme();
   const router = useRouter();
   const familyId = useSession((state) => state.familyId);
 
@@ -118,26 +120,26 @@ export default function TrendScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+const useStyles = makeStyles((t) => ({
+  screen: { flex: 1, backgroundColor: t.colors.bg },
   header: {
-    paddingHorizontal: space.lg,
-    paddingTop: space.md,
-    paddingBottom: space.sm,
-    gap: space.xs,
+    paddingHorizontal: t.space.lg,
+    paddingTop: t.space.md,
+    paddingBottom: t.space.sm,
+    gap: t.space.xs,
   },
-  title: { ...font.title, fontWeight: '800', color: colors.ink },
-  content: { padding: space.lg, paddingTop: space.sm, gap: space.lg, paddingBottom: space.xxl },
-  cardTitle: { ...font.bodyLg, fontWeight: '700', color: colors.ink },
+  title: { ...t.font.title, fontWeight: t.weight.heavy, color: t.colors.ink },
+  content: { padding: t.space.lg, paddingTop: t.space.sm, gap: t.space.lg, paddingBottom: t.space.xxl },
+  cardTitle: { ...t.font.bodyLg, fontWeight: t.weight.bold, color: t.colors.ink },
 
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: space.sm,
-    gap: space.md,
+    paddingVertical: t.space.sm,
+    gap: t.space.md,
   },
-  month: { ...font.body, color: colors.ink, fontWeight: '600' },
-  meta: { ...font.caption, color: colors.inkFaint },
-  surplus: { ...font.bodyLg, fontWeight: '700', fontVariant: ['tabular-nums'] },
-});
+  month: { ...t.font.body, color: t.colors.ink, fontWeight: t.weight.semibold },
+  meta: { ...t.font.caption, color: t.colors.inkFaint },
+  surplus: { ...t.font.bodyLg, fontWeight: t.weight.bold, fontVariant: ['tabular-nums' as const] },
+}));

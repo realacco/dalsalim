@@ -4,10 +4,10 @@ import { useMutation } from '@tanstack/react-query';
 
 import { ApiError } from '@/shared/api/client';
 import { type Entry, submitEntry } from '@/entities/entry';
-import { colors, font, space } from '@/shared/config/theme';
+import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Button, Card, Divider, ErrorText, Muted, Row } from '@/shared/ui';
 import { formatAmount, formatWon } from '@/shared/lib/format';
-import { stepStyles } from '../styles';
+import { useStepStyles } from '../styles';
 
 /**
  * 스텝 n+3 — 확인 후 제출.
@@ -20,6 +20,9 @@ export function ReviewStep({
   entry: Entry;
   onDone: (complete: boolean) => void;
 }) {
+  const styles = useStyles();
+  const stepStyles = useStepStyles();
+  const { colors, space } = useTheme();
   const [error, setError] = useState<string | null>(null);
 
   const changes = entry.lines.filter(
@@ -87,10 +90,10 @@ export function ReviewStep({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   changeHead: { flexDirection: 'row', justifyContent: 'space-between' },
-  changeName: { ...font.body, color: colors.ink, fontWeight: '600' },
-  changeDelta: { ...font.body, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  changeReason: { ...font.small, color: colors.inkSoft },
-  noteText: { ...font.body, color: colors.inkSoft },
-});
+  changeName: { ...t.font.body, color: t.colors.ink, fontWeight: t.weight.semibold },
+  changeDelta: { ...t.font.body, fontWeight: t.weight.bold, fontVariant: ['tabular-nums' as const] },
+  changeReason: { ...t.font.small, color: t.colors.inkSoft },
+  noteText: { ...t.font.body, color: t.colors.inkSoft },
+}));

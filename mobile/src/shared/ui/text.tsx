@@ -1,29 +1,32 @@
 import { ReactNode } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { Text } from 'react-native';
 
-import { colors, font, space } from '@/shared/config/theme';
+import { makeStyles } from '@/shared/config/theme-provider';
 
 export function SectionTitle({ children }: { children: ReactNode }) {
+  const styles = useStyles();
   return <Text style={styles.sectionTitle}>{children}</Text>;
 }
 
 export function Muted({ children, style }: { children: ReactNode; style?: object }) {
+  const styles = useStyles();
   return <Text style={[styles.muted, style]}>{children}</Text>;
 }
 
 export function ErrorText({ children }: { children: ReactNode }) {
+  const styles = useStyles();
   if (!children) return null;
   return <Text style={styles.error}>{children}</Text>;
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   sectionTitle: {
-    ...font.small,
-    color: colors.inkFaint,
-    fontWeight: '700',
+    ...t.font.small,
+    color: t.colors.inkFaint,
+    fontWeight: t.weight.bold,
     letterSpacing: 0.4,
-    marginBottom: space.sm,
+    marginBottom: t.space.sm,
   },
-  muted: { ...font.small, color: colors.inkFaint },
-  error: { ...font.small, color: colors.danger },
-});
+  muted: { ...t.font.small, color: t.colors.inkFaint, lineHeight: 20 },
+  error: { ...t.font.small, color: t.colors.danger, lineHeight: 20 },
+}));

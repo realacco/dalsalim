@@ -4,15 +4,17 @@ import { View } from 'react-native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { type Entry, entryKeys, patchEntry } from '@/entities/entry';
-import { space } from '@/shared/config/theme';
+import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Button, Input, Muted } from '@/shared/ui';
-import { stepStyles } from '../styles';
+import { useStepStyles } from '../styles';
 
 /**
  * 스텝 n+2 — 이번 달 특이사항. 선택 입력이다.
  * 몇 달 뒤 "그때 왜 그랬더라"에 답해주는 재료라서, 짧아도 적어두는 쪽이 낫다.
  */
 export function NoteStep({ entry, onNext }: { entry: Entry; onNext: () => void }) {
+  const stepStyles = useStepStyles();
+  const { space } = useTheme();
   const queryClient = useQueryClient();
   const [note, setNote] = useState(entry.note ?? '');
 

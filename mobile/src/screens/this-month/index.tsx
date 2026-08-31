@@ -8,11 +8,13 @@ import { ApiError } from '@/shared/api/client';
 import { type BookView, bookKeys, fetchBook } from '@/entities/book';
 import { openMyEntry, reopenEntry } from '@/entities/entry';
 import { useSession } from '@/entities/session';
-import { colors, font, radius, space } from '@/shared/config/theme';
+import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Button, Card, Divider, ErrorText, Loading, Muted, Notice, Row } from '@/shared/ui';
 import { currentYearMonth, formatWon, formatYearMonth, shiftYearMonth } from '@/shared/lib/format';
 
 export default function ThisMonthScreen() {
+  const styles = useStyles();
+  const { space } = useTheme();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { me, familyId } = useSession();
@@ -154,7 +156,7 @@ export default function ThisMonthScreen() {
                     {member.displayName}
                     {member.isMe ? ' (나)' : ''}
                   </Text>
-                  <Text style={[styles.memberStatus, statusStyle(member.status)]}>
+                  <Text style={[styles.memberStatus, styles[statusStyleKey(member.status)]]}>
                     {statusLabel(member.status, member.progress)}
                   </Text>
                 </View>
@@ -212,6 +214,8 @@ function MyCard({
   onStart: () => void;
   onEdit: () => void;
 }) {
+  const styles = useStyles();
+  const { space } = useTheme();
   if (status === 'SUBMITTED' && summary) {
     return (
       <Card style={{ gap: space.md }}>
@@ -266,43 +270,52 @@ function statusLabel(
   return '시작 안 함';
 }
 
-function statusStyle(status: BookView['members'][number]['status']) {
-  if (status === 'SUBMITTED') return { color: colors.primary };
-  if (status === 'DRAFT') return { color: colors.up };
-  return { color: colors.inkFaint };
+/**
+ * 상태별 색은 스타일 시트에서 고른다.
+ * 여기서 useTheme() 을 부르면 렌더 중에 조건부로 훅이 불려 훅 순서가 깨진다.
+ * (실제로 "React has detected a change in the order of Hooks" 가 났다)
+ */
+function statusStyleKey(status: BookView['members'][number]['status']) {
+  if (status === 'SUBMITTED') return 'statusSubmitted' as const;
+  if (status === 'DRAFT') return 'statusDraft' as const;
+  return 'statusNone' as const;
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+const useStyles = makeStyles((t) => ({
+  screen: { flex: 1, backgroundColor: t.colors.bg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: space.xl,
-    paddingVertical: space.md,
+    paddingHorizontal: t.space.xl,
+    paddingVertical: t.space.md,
   },
-  arrow: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  arrowLabel: { fontSize: 30, color: colors.inkSoft, lineHeight: 34 },
-  month: { ...font.title, fontWeight: '800', color: colors.ink },
+  statusSubmitted: { color: t.colors.primary },
+  statusDraft: { color: t.colors.up },
+  statusNone: { color: t.colors.inkFaint },
 
-  content: { padding: space.lg, paddingTop: space.sm, gap: space.lg, paddingBottom: space.xxl },
+  arrow: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  arrowLabel: { ...t.font.glyph, color: t.colors.inkSoft },
+  month: { ...t.font.title, fontWeight: t.weight.heavy, color: t.colors.ink },
+
+  content: { padding: t.space.lg, paddingTop: t.space.sm, gap: t.space.lg, paddingBottom: t.space.xxl },
 
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardTitle: { ...font.bodyLg, fontWeight: '700', color: colors.ink },
-  prompt: { ...font.body, color: colors.inkSoft },
+  cardTitle: { ...t.font.bodyLg, fontWeight: t.weight.bold, color: t.colors.ink },
+  prompt: { ...t.font.body, color: t.colors.inkSoft },
 
   badge: {
-    ...font.caption,
-    fontWeight: '700',
-    paddingHorizontal: space.md,
-    paddingVertical: space.xs,
-    borderRadius: radius.pill,
+    ...t.font.caption,
+    fontWeight: t.weight.bold,
+    paddingHorizontal: t.space.md,
+    paddingVertical: t.space.xs,
+    borderRadius: t.radius.pill,
     overflow: 'hidden',
   },
-  badgeDone: { backgroundColor: colors.primarySoft, color: colors.primary },
-  badgeOpen: { backgroundColor: colors.upSoft, color: colors.up },
+  badgeDone: { backgroundColor: t.colors.primarySoft, color: t.colors.primary },
+  badgeOpen: { backgroundColor: t.colors.upSoft, color: t.colors.up },
 
   memberRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  memberName: { ...font.body, color: colors.ink, fontWeight: '600' },
-  memberStatus: { ...font.small, fontWeight: '700' },
-});
+  memberName: { ...t.font.body, color: t.colors.ink, fontWeight: t.weight.semibold },
+  memberStatus: { ...t.font.small, fontWeight: t.weight.bold },
+}));

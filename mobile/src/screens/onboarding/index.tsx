@@ -6,12 +6,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '@/shared/api/client';
 import { createFamily, joinFamily } from '@/entities/family';
 import { useSession } from '@/entities/session';
-import { colors, font, radius, space } from '@/shared/config/theme';
+import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Button, Card, ErrorText, Field, Input, Muted } from '@/shared/ui';
 
 type Mode = 'create' | 'join';
 
 export default function OnboardingScreen() {
+  const styles = useStyles();
+  const { space } = useTheme();
   const router = useRouter();
   const { me, refreshMe, selectFamily, signOut } = useSession();
 
@@ -119,6 +121,7 @@ export default function OnboardingScreen() {
 }
 
 function Tab({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  const styles = useStyles();
   return (
     <Pressable onPress={onPress} style={[styles.tab, active && styles.tabActive]}>
       <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{label}</Text>
@@ -126,21 +129,21 @@ function Tab({ label, active, onPress }: { label: string; active: boolean; onPre
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg, padding: space.xl, gap: space.xl },
-  title: { fontSize: 28, fontWeight: '800', color: colors.ink, letterSpacing: -0.8 },
+const useStyles = makeStyles((t) => ({
+  screen: { flex: 1, backgroundColor: t.colors.bg, padding: t.space.xl, gap: t.space.xl },
+  title: { ...t.font.display, fontWeight: t.weight.heavy, color: t.colors.ink },
 
   tabs: {
     flexDirection: 'row',
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.md,
-    padding: space.xs,
-    gap: space.xs,
+    backgroundColor: t.colors.surfaceMuted,
+    borderRadius: t.radius.md,
+    padding: t.space.xs,
+    gap: t.space.xs,
   },
-  tab: { flex: 1, paddingVertical: space.md, borderRadius: radius.sm, alignItems: 'center' },
-  tabActive: { backgroundColor: colors.surface },
-  tabLabel: { ...font.body, color: colors.inkFaint, fontWeight: '600' },
-  tabLabelActive: { color: colors.ink },
+  tab: { flex: 1, paddingVertical: t.space.md, borderRadius: t.radius.sm, alignItems: 'center' },
+  tabActive: { backgroundColor: t.colors.surface },
+  tabLabel: { ...t.font.body, color: t.colors.inkFaint, fontWeight: t.weight.semibold },
+  tabLabelActive: { color: t.colors.ink },
 
-  codeInput: { letterSpacing: 6, fontWeight: '700', textAlign: 'center' },
-});
+  codeInput: { letterSpacing: 6, fontWeight: t.weight.bold, textAlign: 'center' },
+}));

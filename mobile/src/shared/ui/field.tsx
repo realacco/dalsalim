@@ -1,7 +1,7 @@
-import { ReactNode } from 'react';
-import { StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
+import { ReactNode, useState } from 'react';
+import { Text, TextInput, TextInputProps, View } from 'react-native';
 
-import { colors, font, radius, space } from '@/shared/config/theme';
+import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 
 export function Field({
   label,
@@ -12,6 +12,8 @@ export function Field({
   hint?: string;
   children: ReactNode;
 }) {
+  const styles = useStyles();
+  const { space } = useTheme();
   return (
     <View style={{ gap: space.sm }}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -22,27 +24,46 @@ export function Field({
 }
 
 export function Input(props: TextInputProps) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const [focused, setFocused] = useState(false);
+
   return (
     <TextInput
       placeholderTextColor={colors.inkFaint}
       {...props}
-      style={[styles.input, props.multiline && styles.inputMultiline, props.style]}
+      onFocus={(e) => {
+        setFocused(true);
+        props.onFocus?.(e);
+      }}
+      onBlur={(e) => {
+        setFocused(false);
+        props.onBlur?.(e);
+      }}
+      style={[
+        styles.input,
+        // 지금 어디를 적고 있는지 테두리로 보여준다
+        focused && styles.inputFocused,
+        props.multiline && styles.inputMultiline,
+        props.style,
+      ]}
     />
   );
 }
 
-const styles = StyleSheet.create({
-  fieldLabel: { ...font.small, color: colors.inkSoft, fontWeight: '700' },
-  fieldHint: { ...font.caption, color: colors.inkFaint },
+const useStyles = makeStyles((t) => ({
+  fieldLabel: { ...t.font.small, color: t.colors.inkSoft, fontWeight: t.weight.bold },
+  fieldHint: { ...t.font.caption, color: t.colors.inkFaint, lineHeight: 18 },
   input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.md,
-    paddingHorizontal: space.lg,
-    paddingVertical: space.md,
-    ...font.bodyLg,
-    color: colors.ink,
+    backgroundColor: t.colors.surface,
+    borderWidth: 1.5,
+    borderColor: t.colors.line,
+    borderRadius: t.radius.lg,
+    paddingHorizontal: t.space.lg,
+    paddingVertical: t.space.md + 2,
+    ...t.font.bodyLg,
+    color: t.colors.ink,
   },
-  inputMultiline: { minHeight: 120, textAlignVertical: 'top', paddingTop: space.md },
-});
+  inputFocused: { borderColor: t.colors.primary },
+  inputMultiline: { minHeight: 132, textAlignVertical: 'top', paddingTop: t.space.md },
+}));

@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "dalsalim",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
     "android": {
       "package": "com.dalsalim.app",
@@ -13,7 +13,7 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png",
-        "backgroundColor": "#FBF7F0"
+        "backgroundColor": "#F4F5FA"
       }
     },
     "ios": {
@@ -33,7 +33,11 @@
         {
           "image": "./assets/splash-icon.png",
           "resizeMode": "contain",
-          "backgroundColor": "#FBF7F0"
+          "backgroundColor": "#F4F5FA",
+          "dark": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#14151B"
+          }
         }
       ],
       [
