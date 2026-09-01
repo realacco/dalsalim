@@ -92,6 +92,7 @@
 ```
 가족(Family)
  └─ 멤버(Membership)              아빠, 엄마, 나
+                                    (초대코드로 들어오려면 가족장 승인이 필요하다)
      └─ 고정비 항목(FixedExpense)   "아빠의 통신비 55,000원"   ← 엑셀의 '템플릿'
 
 월 장부(MonthlyBook) = 가족 × 특정 월 (2026-08)              ← 엑셀의 '이번 달 시트'
@@ -423,7 +424,7 @@ Family ──< MonthlyBook (가족 × YYYY-MM) ──< MemberEntry ──< Entry
 |---|---|
 | `User` | 카카오 계정 또는 개발용 계정 |
 | `Family` | 가족. 6자리 `inviteCode` |
-| `Membership` | 사용자 × 가족. `displayName`("아빠")이 여기 있다 |
+| `Membership` | 사용자 × 가족. `displayName`("아빠")이 여기 있다. `status`는 `PENDING`/`ACTIVE`/`LEFT` |
 | `FixedExpense` | **사람별** 고정비 항목. 지우면 `active=false` |
 | `MonthlyBook` | 가족 × 특정 월. `OPEN` / `COMPLETE` (표시용 상태) |
 | `MemberEntry` | 한 사람의 그 달 기록. `DRAFT`/`SUBMITTED`, `note`, `cursor` |
@@ -473,8 +474,13 @@ MonthlyBook:  OPEN ⇄ COMPLETE     전원 SUBMITTED 이면 COMPLETE
 | | `GET /me` | 내 정보 + 속한 가족 목록 |
 | 가족 | `GET /categories` | 분류 고정 목록 9개 |
 | | `POST /families` | `{ name, displayName }` → 생성(OWNER) |
-| | `POST /families/join` | `{ inviteCode, displayName }` |
+| | `POST /families/join` | `{ inviteCode, displayName }` → **승인 대기(`PENDING`)**. 아직 구성원이 아니다 |
+| | `GET /families/pending` | 내가 승인을 기다리는 가족 |
+| | `DELETE /families/pending/:membershipId` | 내 참여 요청 취소 |
 | | `GET /families/:familyId` | 가족 + 구성원 + 초대코드 |
+| | `GET /families/:familyId/join-requests` | 들어온 참여 요청 (**OWNER**) |
+| | `POST /families/:familyId/join-requests/:id/approve` | 승인 (**OWNER**) |
+| | `POST /families/:familyId/join-requests/:id/reject` | 거절 (**OWNER**) |
 | | `POST /families/:familyId/invite-code` | 초대코드 재발급 (**OWNER**) |
 | | `PATCH /families/:familyId/me` | 내 표시 이름 변경 |
 | 고정비 | `GET /families/:familyId/fixed-expenses` | **사람별로 묶인** 목록 + 합계 |
