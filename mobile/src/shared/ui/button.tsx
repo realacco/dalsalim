@@ -44,7 +44,13 @@ export function Button({
       accessibilityState={{ disabled: Boolean(inactive), busy: Boolean(loading) }}
       onPress={onPress}
       disabled={inactive}
-      style={[styles.button, face, inactive && styles.disabled, style] as ViewStyle[]}
+      /*
+        레이아웃(flex 등)은 바깥 컨테이너로 보낸다. 안쪽 Pressable 에 flex 를 주면
+        컨테이너가 폭을 안 가져가서 버튼이 글자 너비로 쪼그라든다.
+        나란히 놓인 [승인][거절] 이 좁게 붙어 나오던 게 이 문제였다.
+      */
+      containerStyle={style}
+      style={[styles.button, face, inactive && styles.disabled] as ViewStyle[]}
     >
       {loading ? (
         <ActivityIndicator color={variant === 'ghost' ? colors.inkSoft : colors.primaryInk} />
