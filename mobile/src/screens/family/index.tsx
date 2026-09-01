@@ -15,9 +15,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/shared/api/client';
 import {
+  approveJoinRequest,
   familyKeys,
   fetchFamily,
+  fetchJoinRequests,
   regenerateInviteCode,
+  rejectJoinRequest,
   removeMember,
   transferOwner,
 } from '@/entities/family';
@@ -40,6 +43,19 @@ export default function FamilyScreen() {
     enabled: Boolean(familyId),
   });
 
+  const myMembership = detail.data?.members.find((m) => m.isMe);
+  const iAmOwner = myMembership?.role === 'OWNER';
+
+  /**
+   * 들어온 참여 요청. OWNER 만 볼 수 있는 API 라서 가족장일 때만 부른다 —
+   * 일반 구성원이 부르면 매번 403 을 받는다.
+   */
+  const joinRequests = useQuery({
+    queryKey: familyKeys.joinRequests(familyId),
+    queryFn: () => fetchJoinRequests(familyId as string),
+    enabled: Boolean(familyId) && iAmOwner,
+  });
+
   const rotate = useMutation({
     mutationFn: () => regenerateInviteCode(familyId as string),
     onSuccess: () => {
@@ -50,9 +66,10 @@ export default function FamilyScreen() {
       Alert.alert('안 됐어요', caught instanceof ApiError ? caught.message : '다시 시도해주세요.'),
   });
 
-  /** 구성원이 바뀌면 장부의 완성 판정도 바뀐다. 가족·장부 캐시를 같이 비운다. */
+  /** 구성원이 바뀌면 장부의 완성 판정도 바뀐다. 가족·요청·장부 캐시를 같이 비운다. */
   function refetchAll() {
     void queryClient.invalidateQueries({ queryKey: familyKeys.detail(familyId) });
+    void queryClient.invalidateQueries({ queryKey: familyKeys.joinRequests(familyId) });
     void queryClient.invalidateQueries({ queryKey: ['book', familyId] });
     void refreshMe();
   }
@@ -62,6 +79,18 @@ export default function FamilyScreen() {
 
   const remove = useMutation({
     mutationFn: (membershipId: string) => removeMember(familyId as string, membershipId),
+    onSuccess: refetchAll,
+    onError: failed,
+  });
+
+  const approve = useMutation({
+    mutationFn: (membershipId: string) => approveJoinRequest(familyId as string, membershipId),
+    onSuccess: refetchAll,
+    onError: failed,
+  });
+
+  const reject = useMutation({
+    mutationFn: (membershipId: string) => rejectJoinRequest(familyId as string, membershipId),
     onSuccess: refetchAll,
     onError: failed,
   });
@@ -89,10 +118,14 @@ export default function FamilyScreen() {
     onError: failed,
   });
 
-  const myMembership = detail.data?.members.find((m) => m.isMe);
-  const iAmOwner = myMembership?.role === 'OWNER';
   const others = detail.data?.members.filter((m) => !m.isMe) ?? [];
-  const busy = remove.isPending || handOver.isPending || leave.isPending;
+  const busy =
+    remove.isPending ||
+    handOver.isPending ||
+    leave.isPending ||
+    approve.isPending ||
+    reject.isPending;
+  const requests = joinRequests.data ?? [];
 
   async function copyCode() {
     if (!detail.data) return;
@@ -114,6 +147,7 @@ export default function FamilyScreen() {
             refreshing={detail.isFetching}
             onRefresh={() => {
               void detail.refetch();
+              void joinRequests.refetch();
               void refreshMe();
             }}
           />
@@ -127,7 +161,10 @@ export default function FamilyScreen() {
           <>
             <Card style={{ gap: space.md }}>
               <Text style={styles.cardTitle}>초대코드</Text>
-              <Muted>이 코드를 카톡으로 보내면 가족이 참여할 수 있어요.</Muted>
+              <Muted>
+                이 코드를 카톡으로 보내면 가족이 참여를 요청할 수 있어요. 요청이 오면
+                {iAmOwner ? ' 여기서 승인해야' : ' 가족장이 승인해야'} 가계부가 열려요.
+              </Muted>
 
               <Pressable onPress={copyCode} style={styles.codeBox}>
                 <Text style={styles.code}>{detail.data.family.inviteCode}</Text>
@@ -148,6 +185,68 @@ export default function FamilyScreen() {
                 />
               ) : null}
             </Card>
+
+            {/*
+              초대코드는 카톡으로 오가다 새어나갈 수 있다. 코드를 맞힌 사람은 여기 대기로 걸리고,
+              가족장이 승인해야 가계부를 볼 수 있다. 알림이 아직 없어서 이 카드가 유일한 통로다 —
+              그래서 요청이 있으면 구성원 목록보다 위에 둔다.
+            */}
+            {iAmOwner && requests.length > 0 ? (
+              <Card style={{ gap: space.md }}>
+                <Text style={styles.cardTitle}>참여 요청 {requests.length}건</Text>
+                <Muted>초대코드를 넣은 사람이에요. 아는 사람이 맞는지 확인하고 승인해주세요.</Muted>
+                <Divider />
+
+                {requests.map((request) => (
+                  <View key={request.id} style={styles.member}>
+                    <View style={styles.memberRow}>
+                      <View style={{ gap: 2 }}>
+                        <Text style={styles.memberName}>{request.displayName}</Text>
+                        <Text style={styles.memberMeta}>{request.nickname}</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.memberActions}>
+                      <Button
+                        label="승인"
+                        disabled={busy}
+                        style={{ flex: 1 }}
+                        onPress={() =>
+                          Alert.alert(
+                            `${request.displayName}님 승인`,
+                            '승인하면 우리 가족의 가계부를 볼 수 있고, 이번 달 장부에도 함께 들어가요.',
+                            [
+                              { text: '취소', style: 'cancel' },
+                              { text: '승인', onPress: () => approve.mutate(request.id) },
+                            ],
+                          )
+                        }
+                      />
+                      <Button
+                        label="거절"
+                        variant="ghost"
+                        disabled={busy}
+                        style={{ flex: 1 }}
+                        onPress={() =>
+                          Alert.alert(
+                            `${request.displayName}님 거절`,
+                            '요청이 사라져요. 모르는 사람이면 초대코드도 새로 만드는 게 좋아요.',
+                            [
+                              { text: '취소', style: 'cancel' },
+                              {
+                                text: '거절',
+                                style: 'destructive',
+                                onPress: () => reject.mutate(request.id),
+                              },
+                            ],
+                          )
+                        }
+                      />
+                    </View>
+                  </View>
+                ))}
+              </Card>
+            ) : null}
 
             <Card style={{ gap: space.md }}>
               <Text style={styles.cardTitle}>구성원 {detail.data.members.length}명</Text>

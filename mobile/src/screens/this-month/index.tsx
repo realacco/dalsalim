@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/shared/api/client';
 import { type BookView, bookKeys, fetchBook } from '@/entities/book';
+import { familyKeys, fetchJoinRequests } from '@/entities/family';
 import { openMyEntry, reopenEntry } from '@/entities/entry';
 import { useSession } from '@/entities/session';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
@@ -28,6 +29,19 @@ export default function ThisMonthScreen() {
     queryKey: bookKeys.view(familyId, yearMonth),
     queryFn: () => fetchBook(familyId as string, yearMonth),
     enabled: Boolean(familyId),
+  });
+
+  const iAmOwner = me?.memberships.find((m) => m.family.id === familyId)?.role === 'OWNER';
+
+  /**
+   * 들어온 참여 요청. 홈에서도 알려줘야 한다 —
+   * 아직 푸시 알림이 없어서, 가족장이 [가족] 탭을 일부러 열어보지 않으면
+   * 누가 참여를 기다리고 있는지 영영 모른다. 이 화면은 매달 어차피 열어보는 곳이다.
+   */
+  const joinRequests = useQuery({
+    queryKey: familyKeys.joinRequests(familyId),
+    queryFn: () => fetchJoinRequests(familyId as string),
+    enabled: Boolean(familyId) && iAmOwner,
   });
 
   /** 기록을 시작하거나 이어서 연다. 서버가 지난달 값으로 채운 초안을 돌려준다. */
@@ -92,7 +106,13 @@ export default function ThisMonthScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
-          <RefreshControl refreshing={book.isFetching} onRefresh={() => void book.refetch()} />
+          <RefreshControl
+            refreshing={book.isFetching}
+            onRefresh={() => {
+              void book.refetch();
+              void joinRequests.refetch();
+            }}
+          />
         }
       >
         {book.isLoading ? <Loading /> : null}
@@ -108,6 +128,19 @@ export default function ThisMonthScreen() {
 
         {book.data && mine ? (
           <>
+            {joinRequests.data && joinRequests.data.length > 0 ? (
+              <Card style={{ gap: space.md }}>
+                <Text style={styles.cardTitle}>
+                  참여 요청 {joinRequests.data.length}건이 기다리고 있어요
+                </Text>
+                <Muted>
+                  {joinRequests.data.map((request) => request.displayName).join(', ')}님이 초대코드로
+                  참여를 요청했어요. 승인해야 함께 적을 수 있어요.
+                </Muted>
+                <Button label="확인하러 가기" onPress={() => router.push('/(tabs)/family')} />
+              </Card>
+            ) : null}
+
             {/*
               고정비가 하나도 없으면 위저드가 수입·추가지출·특이사항·확인 4스텝으로 끝난다.
               "등록한 고정비가 매달 템플릿이 된다"는 이 앱의 핵심을 첫 사용자가 그대로 건너뛰고,

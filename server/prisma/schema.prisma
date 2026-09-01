@@ -45,9 +45,16 @@ model Membership {
   role        String // OWNER | MEMBER
   sortOrder   Int      @default(0)
   joinedAt    DateTime @default(now())
-  /// 나갔거나 내보내진 멤버. 실제로 지우지 않는 이유는 MemberEntry 가 Cascade 로 딸려 나가
-  /// 과거 장부의 합계가 바뀌기 때문이다. 지난 기록은 그대로 두고 앞으로만 빼낸다.
-  active      Boolean  @default(true)
+  /// PENDING | ACTIVE | LEFT
+  ///
+  ///  - PENDING: 초대코드를 넣었지만 가족장이 아직 승인하지 않은 사람.
+  ///    구성원 목록에도, 장부 정원에도 들어가지 않는다. 가족 데이터를 한 줄도 볼 수 없다.
+  ///  - ACTIVE: 구성원.
+  ///  - LEFT: 나갔거나 내보내진 사람. 실제로 지우지 않는 이유는 MemberEntry 가 Cascade 로
+  ///    딸려 나가 과거 장부의 합계가 바뀌기 때문이다. 지난 기록은 그대로 두고 앞으로만 빼낸다.
+  status      String   @default("ACTIVE")
+  /// 참여를 요청한 시각. 가족장에게 "언제 요청했는지"를 보여준다.
+  requestedAt DateTime?
   leftAt      DateTime?
 
   family        Family         @relation(fields: [familyId], references: [id], onDelete: Cascade)

@@ -4,7 +4,9 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/shared/api/client';
-import { createFamily, joinFamily } from '@/entities/family';
+import { useQueryClient } from '@tanstack/react-query';
+
+import { createFamily, familyKeys, joinFamily } from '@/entities/family';
 import { useSession } from '@/entities/session';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Button, Card, ErrorText, Field, Input, Muted } from '@/shared/ui';
@@ -15,6 +17,7 @@ export default function OnboardingScreen() {
   const styles = useStyles();
   const { space } = useTheme();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { me, refreshMe, selectFamily, signOut } = useSession();
 
   const [mode, setMode] = useState<Mode>('create');
@@ -43,16 +46,22 @@ export default function OnboardingScreen() {
 
     setBusy(true);
     try {
-      const family =
-        mode === 'create'
-          ? await createFamily({
-              name: familyName.trim(),
-              displayName: displayName.trim(),
-            })
-          : await joinFamily({
-              inviteCode: inviteCode.trim().toUpperCase(),
-              displayName: displayName.trim(),
-            });
+      // 참여는 "요청"이다. 가족장이 승인해야 구성원이 되므로 곧장 탭으로 보내면 안 된다 —
+      // 아직 아무것도 볼 수 없어서 빈 화면이나 권한 오류를 만나게 된다.
+      if (mode === 'join') {
+        await joinFamily({
+          inviteCode: inviteCode.trim().toUpperCase(),
+          displayName: displayName.trim(),
+        });
+        await queryClient.invalidateQueries({ queryKey: familyKeys.myPending() });
+        router.replace('/pending');
+        return;
+      }
+
+      const family = await createFamily({
+        name: familyName.trim(),
+        displayName: displayName.trim(),
+      });
 
       await refreshMe();
       await selectFamily(family.id);
@@ -85,7 +94,7 @@ export default function OnboardingScreen() {
             <Input value={familyName} onChangeText={setFamilyName} placeholder="김씨네" maxLength={20} />
           </Field>
         ) : (
-          <Field label="초대코드" hint="가족에게 받은 6자리 코드">
+          <Field label="초대코드" hint="가족에게 받은 6자리 코드. 가족장이 승인해야 들어가요.">
             <Input
               value={inviteCode}
               onChangeText={(text) => setInviteCode(text.toUpperCase())}
@@ -105,7 +114,7 @@ export default function OnboardingScreen() {
         <ErrorText>{error}</ErrorText>
 
         <Button
-          label={mode === 'create' ? '가족 만들기' : '참여하기'}
+          label={mode === 'create' ? '가족 만들기' : '참여 요청하기'}
           onPress={submit}
           loading={busy}
         />

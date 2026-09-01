@@ -36,7 +36,7 @@ export async function generateInviteCode(): Promise<string> {
 export async function deactivateMember(familyId: string, membershipId: string) {
   await prisma.membership.update({
     where: { id: membershipId },
-    data: { active: false, leftAt: new Date() },
+    data: { status: 'LEFT', leftAt: new Date() },
   });
 
   await refreshFamilyBooks(familyId);

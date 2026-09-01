@@ -19,6 +19,23 @@ export function verifyToken(token: string): TokenPayload {
   }
 }
 
+/**
+ * 레이트리밋을 묶는 기준. 로그인한 사람이면 사용자 id, 아니면 IP.
+ *
+ * IP 로만 묶으면 한 집에서 같은 공유기를 쓰는 가족끼리 서로의 한도를 갉아먹는다.
+ * 여기서는 절대 던지지 않는다 — 키를 못 구하면 IP 로 떨어질 뿐이다.
+ */
+export function rateLimitKey(request: FastifyRequest): string {
+  const header = request.headers.authorization;
+  if (!header?.startsWith('Bearer ')) return request.ip;
+
+  try {
+    return `user:${verifyToken(header.slice('Bearer '.length)).sub}`;
+  } catch {
+    return request.ip;
+  }
+}
+
 /** Authorization 헤더에서 사용자를 꺼낸다. 없거나 잘못됐으면 401. */
 export async function requireUser(request: FastifyRequest) {
   const header = request.headers.authorization;
@@ -37,8 +54,16 @@ export async function requireMembership(userId: string, familyId: string) {
     where: { familyId_userId: { familyId, userId } },
   });
 
-  // 나갔거나 내보내진 사람은 더 이상 구성원이 아니다 (기록은 남아 있어도)
-  if (!membership || !membership.active) throw forbidden('이 가족의 구성원이 아닙니다.');
+  // ACTIVE 만 구성원이다.
+  //  - LEFT: 나갔거나 내보내진 사람 (기록은 남아 있어도 더 이상 못 본다)
+  //  - PENDING: 초대코드는 맞혔지만 아직 승인 전. 코드가 새어나갔을 때 여기서 막힌다.
+  if (!membership || membership.status !== 'ACTIVE') {
+    if (membership?.status === 'PENDING') {
+      throw forbidden('가족장이 승인해야 참여할 수 있습니다.', 'PENDING_APPROVAL');
+    }
+    throw forbidden('이 가족의 구성원이 아닙니다.');
+  }
+
   return membership;
 }
 

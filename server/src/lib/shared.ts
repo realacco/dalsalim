@@ -21,6 +21,17 @@ export type EntryStatus = 'DRAFT' | 'SUBMITTED';
 export type BookStatus = 'OPEN' | 'COMPLETE';
 export type Role = 'OWNER' | 'MEMBER';
 
+/**
+ * 멤버십 상태. 초대코드는 카톡으로 오가는 문자열이라 새어나갈 수 있어서,
+ * 코드를 맞힌 사람은 곧바로 구성원이 아니라 PENDING(승인 대기)으로 들어온다.
+ * 가계부를 볼 수 있는 상태는 ACTIVE 하나뿐이다.
+ */
+export const MEMBERSHIP_STATUSES = ['PENDING', 'ACTIVE', 'LEFT'] as const;
+export type MembershipStatus = (typeof MEMBERSHIP_STATUSES)[number];
+
+/** 구성원으로 세는 조건. 정원·목록·권한이 전부 이 하나를 봐야 어긋나지 않는다. */
+export const ACTIVE_MEMBER = { status: 'ACTIVE' } as const;
+
 /** 'YYYY-MM' 형식인지 */
 export function isYearMonth(value: string): boolean {
   return /^\d{4}-(0[1-9]|1[0-2])$/.test(value);

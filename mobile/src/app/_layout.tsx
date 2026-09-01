@@ -74,6 +74,7 @@ function AppShell() {
         <Stack.Screen name="index" options={{ animation: 'none' }} />
         <Stack.Screen name="login" />
         <Stack.Screen name="onboarding" />
+        <Stack.Screen name="pending" />
         <Stack.Screen name="(tabs)" />
         {/* 위저드는 "지금부터 적는다"는 별도의 상태라 아래에서 올라오는 게 맞다 */}
         <Stack.Screen name="wizard/[entryId]" options={{ animation: 'slide_from_bottom' }} />

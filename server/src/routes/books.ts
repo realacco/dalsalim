@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/db.js';
 import { requireMembership, requireUser } from '../lib/auth.js';
 import { badRequest } from '../lib/http.js';
-import { isYearMonth, shiftYearMonth } from '../lib/shared.js';
+import { ACTIVE_MEMBER, isYearMonth, shiftYearMonth } from '../lib/shared.js';
 import { entrySummary, serializeEntry, syncFixedLines } from '../services/entry.js';
 import { buildMonthSummary, buildTrend, refreshBookStatus } from '../services/book.js';
 
@@ -48,7 +48,7 @@ export async function bookRoutes(app: FastifyInstance) {
     const book = await getOrCreateBook(params.familyId, yearMonth);
 
     const members = await prisma.membership.findMany({
-      where: { familyId: params.familyId, active: true },
+      where: { familyId: params.familyId, ...ACTIVE_MEMBER },
       orderBy: { sortOrder: 'asc' },
       include: {
         entries: { where: { bookId: book.id }, include: { lines: true } },

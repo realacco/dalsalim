@@ -1,5 +1,6 @@
 import { prisma } from '../lib/db.js';
 import { entrySummary } from './entry.js';
+import { ACTIVE_MEMBER } from '../lib/shared.js';
 
 /**
  * 장부 상태를 다시 계산한다.
@@ -16,7 +17,7 @@ export async function refreshBookStatus(bookId: string): Promise<'OPEN' | 'COMPL
     include: {
       entries: true,
       // 나간 사람을 세면 정원이 안 차서 장부가 영원히 진행 중으로 남는다
-      family: { include: { memberships: { where: { active: true } } } },
+      family: { include: { memberships: { where: ACTIVE_MEMBER } } },
     },
   });
 
@@ -68,7 +69,7 @@ export async function buildMonthSummary(familyId: string, yearMonth: string) {
       },
     }),
     prisma.membership.findMany({
-      where: { familyId, active: true },
+      where: { familyId, ...ACTIVE_MEMBER },
       orderBy: { sortOrder: 'asc' },
     }),
   ]);
@@ -154,7 +155,7 @@ export async function buildMonthSummary(familyId: string, yearMonth: string) {
  * 거짓 그래프가 된다. 없는 건 없는 대로 두는 게 맞다.
  */
 export async function buildTrend(familyId: string, months: number) {
-  const memberCount = await prisma.membership.count({ where: { familyId, active: true } });
+  const memberCount = await prisma.membership.count({ where: { familyId, ...ACTIVE_MEMBER } });
 
   const books = await prisma.monthlyBook.findMany({
     where: { familyId },
@@ -162,7 +163,7 @@ export async function buildTrend(familyId: string, months: number) {
     take: months,
     include: {
       entries: {
-        where: { status: 'SUBMITTED', membership: { active: true } },
+        where: { status: 'SUBMITTED', membership: ACTIVE_MEMBER },
         include: { lines: true },
       },
     },

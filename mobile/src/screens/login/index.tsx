@@ -36,8 +36,9 @@ export default function LoginScreen() {
 
   async function finish(token: string) {
     await signIn(token);
-    const me = useSession.getState().me;
-    router.replace(me && me.memberships.length > 0 ? '/(tabs)' : '/onboarding');
+    // 갈 곳은 게이트가 정한다. 여기서 가족 유무만 보고 온보딩으로 보내면,
+    // 이미 참여를 요청해 둔 사람이 초대코드 화면을 다시 만나 또 요청하게 된다.
+    router.replace('/');
   }
 
   /**

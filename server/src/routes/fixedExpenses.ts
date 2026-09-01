@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/db.js';
 import { requireMembership, requireUser } from '../lib/auth.js';
 import { badRequest, notFound } from '../lib/http.js';
-import { CATEGORIES } from '../lib/shared.js';
+import { ACTIVE_MEMBER, CATEGORIES } from '../lib/shared.js';
 
 const category = z.enum(CATEGORIES);
 const amount = z.number().int().min(0).max(1_000_000_000);
@@ -18,7 +18,7 @@ export async function fixedExpenseRoutes(app: FastifyInstance) {
     const mine = await requireMembership(user.id, familyId);
 
     const members = await prisma.membership.findMany({
-      where: { familyId, active: true },
+      where: { familyId, ...ACTIVE_MEMBER },
       orderBy: { sortOrder: 'asc' },
       include: {
         fixedExpenses: {
@@ -63,7 +63,7 @@ export async function fixedExpenseRoutes(app: FastifyInstance) {
 
     // 다른 가족의 멤버 id 를 넣어 남의 집에 항목을 꽂는 걸 막는다
     const target = await prisma.membership.findUnique({ where: { id: body.membershipId } });
-    if (!target || target.familyId !== familyId || !target.active) {
+    if (!target || target.familyId !== familyId || target.status !== 'ACTIVE') {
       throw badRequest('BAD_MEMBERSHIP', '이 가족의 구성원이 아닙니다.');
     }
 
