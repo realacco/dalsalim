@@ -197,7 +197,17 @@ export default function FixedScreen() {
         >
           {
             <View style={styles.sheet}>
-              <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: space.lg }}>
+              {/* 시트를 아래로 끌어내릴 수 있다는 표시이자, 여기가 스크롤된다는 신호 */}
+              <View style={styles.grabber} />
+              {/*
+                패딩은 ScrollView 가 아니라 contentContainerStyle 에 준다.
+                시트에 패딩을 주면 ScrollView 가 그만큼 안쪽에 놓여서
+                스크롤바가 화면 끝이 아니라 글자 위에 그려진다.
+              */}
+              <ScrollView
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={styles.sheetContent}
+              >
                 <Text style={styles.sheetTitle}>
                   {draft?.id ? '고정비 수정' : '고정비 추가'}
                 </Text>
@@ -320,10 +330,24 @@ const useStyles = makeStyles((t) => ({
   backdrop: { flex: 1, backgroundColor: t.colors.overlay, justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: t.colors.bg,
-    borderTopLeftRadius: t.radius.lg,
-    borderTopRightRadius: t.radius.lg,
-    padding: t.space.xl,
+    borderTopLeftRadius: t.radius.sheet,
+    borderTopRightRadius: t.radius.sheet,
+    paddingTop: t.space.md,
     maxHeight: '90%',
+    ...t.shadow.sheet,
+  },
+  grabber: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: t.radius.pill,
+    backgroundColor: t.colors.lineStrong,
+    marginBottom: t.space.md,
+  },
+  sheetContent: {
+    paddingHorizontal: t.space.xl,
+    paddingBottom: t.space.xl,
+    gap: t.space.lg,
   },
   sheetTitle: { ...t.font.title, fontWeight: t.weight.heavy, color: t.colors.ink },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: t.space.sm },

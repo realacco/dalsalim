@@ -10,5 +10,4 @@ export { Notice } from './notice';
 export { PressableScale } from './pressable-scale';
 export { ProgressBar } from './progress-bar';
 export { Divider, Row } from './row';
-export { ScreenScroll } from './screen-scroll';
 export { ErrorText, Muted, SectionTitle } from './text';
