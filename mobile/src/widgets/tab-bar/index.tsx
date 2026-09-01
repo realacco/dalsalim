@@ -34,8 +34,16 @@ export function AppTabBar({ state, descriptors, navigation }: TabBarProps) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
 
-  // 제스처 바에 깔리지 않게 하단 인셋을 더한다. 인셋이 0으로 오는 기기가 있어 최소값을 둔다.
-  const bottom = Math.max(insets.bottom, t.space.md);
+  /**
+   * 시스템 내비게이션 영역 **위에** 여유를 더 얹는다.
+   *
+   * insets.bottom 을 패딩으로만 쓰면 그 값을 시스템 버튼이 통째로 먹어서
+   * 탭 라벨이 버튼에 딱 붙는다. 3버튼 기기(inset 48dp)에서 5dp 도 안 떨어져 있었다 —
+   * 탭을 누르려다 뒤로가기를 누르기 딱 좋다.
+   *
+   * 인셋이 0으로 오는 기기가 있어 전체에 최소값도 둔다.
+   */
+  const bottom = Math.max(insets.bottom + t.space.md, t.space.lg);
 
   return (
     <View style={[styles.bar, { paddingBottom: bottom }]}>
