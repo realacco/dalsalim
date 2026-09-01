@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -8,6 +9,7 @@ import { cancelJoinRequest, familyKeys, fetchMyPendingRequests } from '@/entitie
 import { useSession } from '@/entities/session';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Button, Card, Loading, Muted, Notice } from '@/shared/ui';
+import { formatClock } from '@/shared/lib/format';
 
 /**
  * 초대코드를 넣고 가족장의 승인을 기다리는 동안 머무는 화면.
@@ -23,6 +25,17 @@ export default function PendingScreen() {
   const queryClient = useQueryClient();
   const { me, refreshMe, selectFamily, signOut } = useSession();
 
+  /**
+   * 확인 버튼이 스스로 상태를 가진다.
+   *
+   * 뒤에서 10초마다 도는 자동 확인과 버튼을 같은 플래그로 묶으면, 누르지도 않았는데
+   * 버튼이 깜빡이고 정작 눌렀을 때는 아무 일도 없어 보인다.
+   * checkedAt 은 "눌렀고, 아직 승인 전이더라"를 화면에 남기기 위한 것이다 —
+   * 이게 없으면 승인이 안 났을 때 버튼이 먹통처럼 보인다.
+   */
+  const [checking, setChecking] = useState(false);
+  const [checkedAt, setCheckedAt] = useState<Date | null>(null);
+
   const pending = useQuery({
     queryKey: familyKeys.myPending(),
     queryFn: fetchMyPendingRequests,
@@ -31,18 +44,54 @@ export default function PendingScreen() {
   });
 
   /** 승인이 났는지 확인한다. 났으면 그때부터는 구성원이므로 바로 들여보낸다. */
-  async function checkApproved() {
-    const next = await refreshMe();
-    const joined = next?.memberships[0];
-    if (!joined) {
+  const checkApproved = useCallback(async () => {
+    setChecking(true);
+    try {
+      const next = await refreshMe();
+      const joined = next?.memberships[0];
+
+      if (joined) {
+        await selectFamily(joined.family.id);
+        queryClient.clear();
+        router.replace('/(tabs)');
+        return true;
+      }
+
       await pending.refetch();
+      setCheckedAt(new Date());
+      return false;
+    } finally {
+      setChecking(false);
+    }
+    // pending.refetch 는 일부러 의존성에서 뺐다 — 매 렌더 새 함수라 넣으면 아래 effect 가 계속 다시 돈다
+  }, [refreshMe, selectFamily, queryClient, router]);
+
+  /**
+   * 대기 목록이 비었다고 곧바로 "거절됐어요"를 띄우면 안 된다.
+   *
+   * 승인이 나도 목록에서 사라지기 때문에 사라진 것만으로는 승인인지 거절인지 알 수 없고,
+   * /me 를 봐야 갈린다. 확인하지 않으면 **방금 승인된 사람에게 거절 화면이 뜬다.**
+   * 10초마다 도는 자동 확인이 먼저 도착하는 게 보통이라 실제로 그렇게 보였다.
+   */
+  const resolvedEmpty = useRef(false);
+  const [resolving, setResolving] = useState(false);
+
+  useEffect(() => {
+    const requests = pending.data;
+    if (!requests) return;
+
+    if (requests.length > 0) {
+      resolvedEmpty.current = false;
       return;
     }
 
-    await selectFamily(joined.family.id);
-    queryClient.clear();
-    router.replace('/(tabs)');
-  }
+    // 한 번만 확인한다 — 확인 안에서 refetch 를 부르므로 안 막으면 서로를 계속 깨운다
+    if (resolvedEmpty.current) return;
+    resolvedEmpty.current = true;
+
+    setResolving(true);
+    void checkApproved().finally(() => setResolving(false));
+  }, [pending.data, checkApproved]);
 
   const cancel = useMutation({
     mutationFn: cancelJoinRequest,
@@ -61,10 +110,10 @@ export default function PendingScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
-          <RefreshControl refreshing={pending.isFetching} onRefresh={checkApproved} />
+          <RefreshControl refreshing={checking} onRefresh={checkApproved} />
         }
       >
-        {pending.isLoading ? <Loading /> : null}
+        {pending.isLoading || resolving ? <Loading /> : null}
 
         {request ? (
           <>
@@ -89,7 +138,14 @@ export default function PendingScreen() {
               </Muted>
             </Card>
 
-            <Button label="승인됐는지 확인하기" onPress={checkApproved} loading={pending.isFetching} />
+            <View style={{ gap: space.sm }}>
+              <Button label="승인됐는지 확인하기" onPress={checkApproved} loading={checking} />
+              {checkedAt ? (
+                <Muted style={styles.checkedNote}>
+                  {formatClock(checkedAt)}에 확인했어요 · 아직 승인 전이에요
+                </Muted>
+              ) : null}
+            </View>
 
             <Button
               label="요청 취소하기"
@@ -105,7 +161,7 @@ export default function PendingScreen() {
           </>
         ) : null}
 
-        {!pending.isLoading && !request ? (
+        {!pending.isLoading && !resolving && !request ? (
           <>
             <Text style={styles.title}>기다리는 요청이 없어요</Text>
             <Muted>거절됐거나 이미 처리된 요청이에요. 다시 참여를 요청할 수 있어요.</Muted>
@@ -139,4 +195,5 @@ const useStyles = makeStyles((t) => ({
   title: { ...t.font.display, fontWeight: t.weight.heavy, color: t.colors.ink },
   cardTitle: { ...t.font.bodyLg, fontWeight: t.weight.bold, color: t.colors.ink },
   strong: { fontWeight: t.weight.bold, color: t.colors.ink },
+  checkedNote: { textAlign: 'center' },
 }));

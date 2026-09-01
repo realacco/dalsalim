@@ -49,3 +49,8 @@ export function formatYearMonth(yearMonth: string): string {
 export function formatMonthShort(yearMonth: string): string {
   return `${Number(yearMonth.split('-')[1])}월`;
 }
+
+/** '오후 2:26' — 마지막으로 확인한 시각처럼 "방금"을 알려줄 때 쓴다 */
+export function formatClock(date: Date): string {
+  return date.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' });
+}
