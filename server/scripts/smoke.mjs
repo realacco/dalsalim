@@ -47,6 +47,119 @@ const thisMonth = (() => {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 })();
 
+const lastMonth = (() => {
+  const [y, m] = thisMonth.split('-').map(Number);
+  return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
+})();
+
+/**
+ * 스모크는 자기 가족을 직접 만들어 쓴다.
+ *
+ * 예전엔 시드 데이터(김씨네)에 얹혀 있었는데, 실기기로 앱을 써 보다 가족에 사람이 한 명 늘자
+ * "남은 사람만으로 장부가 완성된다" 같은 전제가 통째로 깨졌다. 테스트가 사람이 만지는
+ * 데이터에 기대면 안 된다. 이 가족은 스모크만 쓰고, 없으면 만들고, 있으면 그대로 재사용한다.
+ */
+const FAMILY_NAME = '스모크네';
+const OWNER = '스모크아빠';
+const MEMBER = '스모크엄마';
+
+async function login(name) {
+  const response = await call('POST', '/auth/dev', { body: { name } });
+  if (response.status !== 200) throw new Error(`로그인 실패: ${name} ${JSON.stringify(response.body)}`);
+  return response.body.token;
+}
+
+/** 그 사람이 스모크 가족에 속해 있으면 familyId, 아니면 null */
+async function findFamily(token) {
+  const me = await call('GET', '/me', { token });
+  return me.body.memberships?.find((m) => m.family.name === FAMILY_NAME)?.family.id ?? null;
+}
+
+/** 들어온 요청 중 그 이름의 것을 승인한다 */
+async function approve(ownerToken, familyId, displayName) {
+  const requests = await call('GET', `/families/${familyId}/join-requests`, { token: ownerToken });
+  const target = requests.body.requests?.find((r) => r.displayName === displayName);
+  if (!target) return false;
+
+  const result = await call(
+    'POST',
+    `/families/${familyId}/join-requests/${target.id}/approve`,
+    { token: ownerToken },
+  );
+  return result.status === 200;
+}
+
+/** 아직 안 적은 줄을 기본값으로 채우고 제출한다 (지난달 기록을 만들 때 쓴다) */
+async function fillAndSubmit(token, entry, incomeAmount) {
+  for (const line of entry.lines) {
+    if (line.actualAmount !== null) continue;
+    // plannedAmount 가 null 인 건 비교 대상이 없다는 뜻이라 사유가 필요 없다
+    const value = line.kind === 'INCOME' ? (line.plannedAmount ?? incomeAmount) : line.plannedAmount ?? 0;
+    await call('PATCH', `/entries/${entry.id}/lines/${line.id}`, {
+      token,
+      body: { actualAmount: value },
+    });
+  }
+
+  await call('POST', `/entries/${entry.id}/submit`, { token });
+}
+
+/**
+ * 스모크 가족을 있어야 할 모양으로 맞춰 둔다 — 가족 · 두 사람 · 사람별 고정비 · 지난달 기록.
+ * 처음 한 번만 실제로 만들고, 그 뒤로는 전부 건너뛴다.
+ */
+async function bootstrap() {
+  const ownerToken = await login(OWNER);
+  let familyId = await findFamily(ownerToken);
+
+  if (!familyId) {
+    const created = await call('POST', '/families', {
+      token: ownerToken,
+      body: { name: FAMILY_NAME, displayName: OWNER },
+    });
+    familyId = created.body.family.id;
+  }
+
+  const family = await call('GET', `/families/${familyId}`, { token: ownerToken });
+  const inviteCode = family.body.family.inviteCode;
+
+  const memberToken = await login(MEMBER);
+  if (!family.body.members.some((m) => m.displayName === MEMBER)) {
+    await call('POST', '/families/join', {
+      token: memberToken,
+      body: { inviteCode, displayName: MEMBER },
+    });
+    await approve(ownerToken, familyId, MEMBER);
+  }
+
+  // 사람별 고정비 — 위저드가 펼칠 스텝이 된다
+  const fixed = await call('GET', `/families/${familyId}/fixed-expenses`, { token: ownerToken });
+  const preset = [
+    { name: '월세', category: '주거', defaultAmount: 600_000 },
+    { name: '통신비', category: '통신', defaultAmount: 55_000 },
+  ];
+
+  for (const group of fixed.body.groups) {
+    if (group.items.length > 0) continue;
+    for (const item of preset) {
+      await call('POST', `/families/${familyId}/fixed-expenses`, {
+        token: ownerToken,
+        body: { membershipId: group.membershipId, ...item },
+      });
+    }
+  }
+
+  // 지난달 기록 — "지난달 월급이 기본값으로 깔린다"와 추이 검사가 이걸 본다
+  for (const [token, incomeAmount] of [[ownerToken, 3_000_000], [memberToken, 2_000_000]]) {
+    const start = await call('POST', `/families/${familyId}/books/${lastMonth}/my-entry`, { token });
+    if (start.body.entry.status !== 'SUBMITTED') {
+      await fillAndSubmit(token, start.body.entry, incomeAmount);
+    }
+  }
+
+  return { familyId, inviteCode, ownerToken };
+}
+
 /** 한 사람이 위저드를 처음부터 끝까지 밟는다 */
 async function runWizard(name, { changeFirstFixed }) {
   console.log(`\n[${name}]`);
@@ -56,8 +169,9 @@ async function runWizard(name, { changeFirstFixed }) {
   const token = login.body.token;
 
   const me = await call('GET', '/me', { token });
-  check('내 가족이 있다', me.body.memberships.length === 1, me.body);
-  const familyId = me.body.memberships[0].family.id;
+  const membership = me.body.memberships?.find((m) => m.family.name === FAMILY_NAME);
+  check('내 가족이 있다', Boolean(membership), me.body);
+  const familyId = membership.family.id;
 
   const start = await call('POST', `/families/${familyId}/books/${thisMonth}/my-entry`, { token });
   check('기록 시작', start.status === 200, start.body);
@@ -165,8 +279,7 @@ async function resetMonth(names) {
     if (login.status !== 200) continue;
 
     const token = login.body.token;
-    const me = await call('GET', '/me', { token });
-    const familyId = me.body.memberships?.[0]?.family.id;
+    const familyId = await findFamily(token);
     if (!familyId) continue;
 
     const start = await call('POST', `/families/${familyId}/books/${thisMonth}/my-entry`, { token });
@@ -176,15 +289,36 @@ async function resetMonth(names) {
   }
 }
 
+/**
+ * '이웃' 같은 임시 참여자를 가족에서 완전히 걷어낸다.
+ * 승인 구조가 생기면서 앞선 실행이 ACTIVE 나 PENDING 을 남길 수 있어졌다.
+ */
+async function clearOutsider(ownerToken, familyId, displayName) {
+  const family = await call('GET', `/families/${familyId}`, { token: ownerToken });
+  const member = family.body.members?.find((m) => m.displayName === displayName);
+  if (member) {
+    await call('DELETE', `/families/${familyId}/members/${member.id}`, { token: ownerToken });
+  }
+
+  const requests = await call('GET', `/families/${familyId}/join-requests`, { token: ownerToken });
+  for (const request of requests.body.requests ?? []) {
+    if (request.displayName !== displayName) continue;
+    await call('POST', `/families/${familyId}/join-requests/${request.id}/reject`, {
+      token: ownerToken,
+    });
+  }
+}
+
 async function main() {
   console.log(`달살림 API 스모크 테스트 · ${BASE} · ${thisMonth}`);
 
   const health = await call('GET', '/health');
   check('서버 살아 있음', health.status === 200, health.body);
 
-  await resetMonth(['아빠', '엄마']);
+  await bootstrap();
+  await resetMonth([OWNER, MEMBER]);
 
-  const dad = await runWizard('아빠', { changeFirstFixed: true });
+  const dad = await runWizard(OWNER, { changeFirstFixed: true });
   check('한 명만 제출하면 장부는 아직 진행 중', dad.bookStatus === 'OPEN', dad.bookStatus);
 
   const dadEntry = await call('GET', `/entries/${dad.entryId}`, { token: dad.token });
@@ -215,7 +349,7 @@ async function main() {
     partial.body.perMember,
   );
 
-  const mom = await runWizard('엄마', { changeFirstFixed: false });
+  const mom = await runWizard(MEMBER, { changeFirstFixed: false });
   check('★ 전원 제출 → 장부 완성', mom.bookStatus === 'COMPLETE', mom.bookStatus);
 
   console.log('\n[요약]');
@@ -291,7 +425,7 @@ async function main() {
   console.log('\n[멤버 관리]');
   // 안 쓰는 멤버 한 명이 장부를 영원히 막던 문제. 뺄 수 있어야 한다.
   const family = await call('GET', `/families/${dad.familyId}`, { token: dad.token });
-  const momMembership = family.body.members.find((m) => m.displayName === '엄마');
+  const momMembership = family.body.members.find((m) => m.displayName === MEMBER);
   const dadMembership = family.body.members.find((m) => m.isMe);
 
   const ownerLeave = await call('DELETE', `/families/${dad.familyId}/members/${dadMembership.id}`, {
@@ -339,11 +473,35 @@ async function main() {
   );
 
   // 되돌린다 — 이 스크립트는 몇 번이고 다시 돌 수 있어야 한다
+  const inviteCode = family.body.family.inviteCode;
   const rejoin = await call('POST', '/families/join', {
     token: mom.token,
-    body: { inviteCode: family.body.family.inviteCode, displayName: '엄마' },
+    body: { inviteCode, displayName: MEMBER },
   });
-  check('★ 나갔던 사람이 초대코드로 돌아온다', rejoin.status === 200, rejoin.body);
+  check(
+    '★ 나갔던 사람도 다시 승인을 받는다',
+    rejoin.status === 200 && rejoin.body.status === 'PENDING',
+    rejoin.body,
+  );
+
+  const stillOne = await call('GET', `/families/${dad.familyId}/books/${thisMonth}`, {
+    token: dad.token,
+  });
+  check(
+    '★ 대기 중인 사람은 장부 정원에 안 들어간다',
+    stillOne.body.members.length === 1 && stillOne.body.book.status === 'COMPLETE',
+    { members: stillOne.body.members.length, status: stillOne.body.book.status },
+  );
+
+  const momRequests = await call('GET', `/families/${dad.familyId}/join-requests`, {
+    token: dad.token,
+  });
+  const momRequest = momRequests.body.requests.find((r) => r.displayName === MEMBER);
+  await call(
+    'POST',
+    `/families/${dad.familyId}/join-requests/${momRequest.id}/approve`,
+    { token: dad.token },
+  );
 
   const momEntryAgain = await call('GET', `/entries/${mom.entryId}`, { token: mom.token });
   check(
@@ -360,6 +518,132 @@ async function main() {
     afterRejoin.body.members.length === 2,
     { members: afterRejoin.body.members.length, status: afterRejoin.body.book.status },
   );
+
+  console.log('\n[참여 승인]');
+  // 초대코드는 카톡으로 오가다 새어나갈 수 있다. 코드를 맞혔다고 바로 들어오면 안 된다.
+  const neighbor = await call('POST', '/auth/dev', { body: { name: '이웃' } });
+  const neighborToken = neighbor.body.token;
+  await clearOutsider(dad.token, dad.familyId, '이웃');
+
+  const request = await call('POST', '/families/join', {
+    token: neighborToken,
+    body: { inviteCode, displayName: '이웃' },
+  });
+  check(
+    '★ 초대코드를 맞혀도 바로 들어오지 못한다',
+    request.status === 200 && request.body.status === 'PENDING',
+    request.body,
+  );
+  check(
+    '대기자에게는 초대코드를 알려주지 않는다',
+    request.body.family?.inviteCode === undefined,
+    request.body,
+  );
+
+  const peekWhilePending = await call('GET', `/families/${dad.familyId}`, {
+    token: neighborToken,
+  });
+  check(
+    '★ 승인 전에는 가계부를 한 줄도 못 본다',
+    peekWhilePending.status === 403 && peekWhilePending.body.code === 'PENDING_APPROVAL',
+    peekWhilePending.body,
+  );
+
+  const bookWhilePending = await call('GET', `/families/${dad.familyId}/books/${thisMonth}`, {
+    token: neighborToken,
+  });
+  check('승인 전에는 장부도 못 본다', bookWhilePending.status === 403, bookWhilePending.body);
+
+  const myPending = await call('GET', '/families/pending', { token: neighborToken });
+  check(
+    '대기 화면이 어느 가족인지는 안다',
+    myPending.body.requests?.[0]?.family?.name === family.body.family.name,
+    myPending.body,
+  );
+
+  const again = await call('POST', '/families/join', {
+    token: neighborToken,
+    body: { inviteCode, displayName: '이웃' },
+  });
+  check(
+    '두 번 요청해도 중복으로 쌓이지 않는다',
+    again.status === 409 && again.body.code === 'ALREADY_REQUESTED',
+    again.body,
+  );
+
+  const memberPeeksRequests = await call('GET', `/families/${dad.familyId}/join-requests`, {
+    token: mom.token,
+  });
+  check('일반 멤버는 요청 목록을 못 본다', memberPeeksRequests.status === 403, memberPeeksRequests.body);
+
+  const requests = await call('GET', `/families/${dad.familyId}/join-requests`, {
+    token: dad.token,
+  });
+  const pendingId = requests.body.requests.find((r) => r.displayName === '이웃')?.id;
+  check('가족장에게 요청이 보인다', Boolean(pendingId), requests.body);
+
+  const memberApproves = await call(
+    'POST',
+    `/families/${dad.familyId}/join-requests/${pendingId}/approve`,
+    { token: mom.token },
+  );
+  check('일반 멤버는 승인하지 못한다', memberApproves.status === 403, memberApproves.body);
+
+  const reject = await call(
+    'POST',
+    `/families/${dad.familyId}/join-requests/${pendingId}/reject`,
+    { token: dad.token },
+  );
+  check('★ 가족장이 거절한다', reject.status === 200, reject.body);
+
+  const afterReject = await call('GET', `/families/${dad.familyId}`, { token: neighborToken });
+  check('거절당하면 여전히 못 본다', afterReject.status === 403, afterReject.body);
+  check(
+    '거절당하면 대기 목록에서도 사라진다',
+    (await call('GET', '/families/pending', { token: neighborToken })).body.requests.length === 0,
+  );
+
+  // 다시 요청해서 이번엔 승인까지 간다
+  await call('POST', '/families/join', {
+    token: neighborToken,
+    body: { inviteCode, displayName: '이웃' },
+  });
+  const secondRequests = await call('GET', `/families/${dad.familyId}/join-requests`, {
+    token: dad.token,
+  });
+  const approveId = secondRequests.body.requests.find((r) => r.displayName === '이웃').id;
+
+  const approve = await call(
+    'POST',
+    `/families/${dad.familyId}/join-requests/${approveId}/approve`,
+    { token: dad.token },
+  );
+  check('★ 가족장이 승인한다', approve.status === 200, approve.body);
+
+  const afterApprove = await call('GET', `/families/${dad.familyId}/books/${thisMonth}`, {
+    token: dad.token,
+  });
+  check(
+    '★ 승인해야 비로소 정원에 들어간다',
+    afterApprove.body.members.length === 3,
+    { members: afterApprove.body.members.length, status: afterApprove.body.book.status },
+  );
+
+  // 원래대로 두 명으로 되돌린다
+  await clearOutsider(dad.token, dad.familyId, '이웃');
+
+  console.log('\n[레이트리밋]');
+  // 초대코드를 계속 찍어보는 걸 막는다. 이 검사는 그 사람의 한도를 소진하므로 맨 마지막에 둔다.
+  const attacker = await call('POST', '/auth/dev', { body: { name: '침입자' } });
+  let limited = null;
+  for (let i = 0; i < 15 && !limited; i += 1) {
+    const attempt = await call('POST', '/families/join', {
+      token: attacker.body.token,
+      body: { inviteCode: 'ZZZZZZ', displayName: '침입자' },
+    });
+    if (attempt.status === 429) limited = attempt;
+  }
+  check('★ 초대코드를 연달아 찍으면 막힌다', limited?.body?.code === 'RATE_LIMITED', limited?.body);
 
 
   console.log(`\n${failed === 0 ? '✅ 전부 통과' : '❌ 실패 있음'} — ${passed}개 통과, ${failed}개 실패`);
