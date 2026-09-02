@@ -8,7 +8,7 @@ export const CATEGORIES = [
   '구독',
   '교육',
   '대출·상환',
-  '생활',
+  '생활비',
   '기타',
 ] as const;
 

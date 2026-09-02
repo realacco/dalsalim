@@ -37,6 +37,7 @@ import {
   Input,
   Loading,
   Muted,
+  Notice,
 } from '@/shared/ui';
 import { formatWon } from '@/shared/lib/format';
 
@@ -212,6 +213,17 @@ export default function FixedScreen() {
                   {draft?.id ? '고정비 수정' : '고정비 추가'}
                 </Text>
 
+                {/*
+                  '생활비' 를 여기 넣는 사람이 있는데, 뜻이 두 가지다. (기획서 3장)
+                  매달 이체하는 정액이면 고정비가 맞지만, 실제로 쓴 총액이면 매달 금액이 달라서
+                  위저드가 매번 사유를 묻는다 — 사유가 "예외 기록"이 아니라 "매달 잔업"이 된다.
+                  등록하기 전에 갈라줘야 한다.
+                */}
+                <Notice>
+                  매달 <Text style={styles.noticeStrong}>같은 금액</Text>이 나가는 것만 등록해요.
+                  생활비도 매달 옮겨두는 정액이면 여기 맞고, 실제로 쓴 돈은 기록할 때 적어요.
+                </Notice>
+
                 <Field label="항목 이름" hint="예: 통신비, 월세, 자동차보험">
                   <Input
                     value={draft?.name ?? ''}
@@ -350,5 +362,6 @@ const useStyles = makeStyles((t) => ({
     gap: t.space.lg,
   },
   sheetTitle: { ...t.font.title, fontWeight: t.weight.heavy, color: t.colors.ink },
+  noticeStrong: { fontWeight: t.weight.bold, color: t.colors.inkSoft },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: t.space.sm },
 }));
