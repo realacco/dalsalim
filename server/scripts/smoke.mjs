@@ -254,6 +254,21 @@ async function runWizard(name, { changeFirstFixed }) {
   });
   check('이름 없는 추가 지출은 막힌다', badExtra.status === 400, badExtra.body);
 
+  // '생활' 을 '생활비' 로 고쳤다. 서버가 옛 이름을 계속 받아주면 앱과 갈라진다.
+  const livingExtra = await call('POST', `/entries/${entry.id}/lines`, {
+    token,
+    body: { name: '장보기', category: '생활비', actualAmount: 30_000 },
+  });
+  check('★ 생활비 분류로 적을 수 있다', livingExtra.status === 200, livingExtra.body);
+
+  const oldLiving = await call('POST', `/entries/${entry.id}/lines`, {
+    token,
+    body: { name: '장보기', category: '생활', actualAmount: 30_000 },
+  });
+  check('★ 옛 이름 생활 은 더 이상 받지 않는다', oldLiving.status === 400, oldLiving.body);
+
+  await call('DELETE', `/entries/${entry.id}/lines/${livingExtra.body.line.id}`, { token });
+
   // 5) 특이사항
   const note = await call('PATCH', `/entries/${entry.id}`, {
     token,
