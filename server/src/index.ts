@@ -9,6 +9,7 @@ import { AppError, fail } from './lib/http.js';
 import { messageFor } from './lib/messages.js';
 import { authRoutes } from './routes/auth.js';
 import { familyRoutes } from './routes/families.js';
+import { joinRequestRoutes } from './routes/join-requests.js';
 import { fixedExpenseRoutes } from './routes/fixedExpenses.js';
 import { bookRoutes } from './routes/books.js';
 import { entryRoutes } from './routes/entries.js';
@@ -73,6 +74,7 @@ app.get('/health', async () => ({ ok: true, kakao: kakaoConfigured, devLogin: en
 
 await app.register(authRoutes);
 await app.register(familyRoutes);
+await app.register(joinRequestRoutes);
 await app.register(fixedExpenseRoutes);
 await app.register(bookRoutes);
 await app.register(entryRoutes);

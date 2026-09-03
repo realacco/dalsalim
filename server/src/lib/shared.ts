@@ -46,6 +46,11 @@ export function shiftYearMonth(yearMonth: string, months: number): string {
   return `${year}-${String(month).padStart(2, '0')}`;
 }
 
+/** 이번 달 'YYYY-MM'. 앱의 shared/lib/format.ts 에 같은 함수가 있다 — tests/contract 가 둘을 맞춰본다 */
+export function currentYearMonth(now: Date = new Date()): string {
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
 /**
  * 사유가 반드시 필요한가?
  * 기본값이 있고(= 비교 대상이 있고) 실제 금액이 그와 다르면 필수다.
@@ -54,4 +59,30 @@ export function shiftYearMonth(yearMonth: string, months: number): string {
 export function needsReason(plannedAmount: number | null, actualAmount: number | null): boolean {
   if (plannedAmount === null || actualAmount === null) return false;
   return plannedAmount !== actualAmount;
+}
+
+/**
+ * 위저드 진행 표시. 총 스텝 = 수입 1 + 고정비 n + 추가지출 1 + 특이사항 1 + 확인 1.
+ * cursor 는 0 부터 세는 위치라 사람에게는 +1 로 보여주되, 스텝 수를 넘지 않는다.
+ */
+export function bookProgress(cursor: number, fixedExpenseCount: number) {
+  const total = fixedExpenseCount + 4;
+  return { step: Math.min(cursor + 1, total), total };
+}
+
+/**
+ * 초대코드 규칙.
+ *
+ * 사람이 카톡으로 불러주거나 눈으로 읽어 옮겨 적는 코드라서, 헷갈리는 글자(0/O, 1/I)를 뺀다.
+ * 인프라가 아니라 도메인 규칙이므로 db 가 아니라 여기 있다. 겹치는지 확인은 services 가 한다.
+ */
+export const INVITE_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+export const INVITE_CODE_LENGTH = 6;
+
+export function randomInviteCode(random: () => number = Math.random): string {
+  let code = '';
+  for (let i = 0; i < INVITE_CODE_LENGTH; i += 1) {
+    code += INVITE_CODE_ALPHABET[Math.floor(random() * INVITE_CODE_ALPHABET.length)];
+  }
+  return code;
 }

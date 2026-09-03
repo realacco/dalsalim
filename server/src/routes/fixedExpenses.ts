@@ -1,14 +1,15 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
-import { prisma } from '../lib/db.js';
 import { requireMembership, requireUser } from '../lib/auth.js';
-import { fail } from '../lib/http.js';
-import { ACTIVE_MEMBER, CATEGORIES } from '../lib/shared.js';
-
-const category = z.enum(CATEGORIES);
-const amount = z.number().int().min(0).max(1_000_000_000);
-const dayOfMonth = z.number().int().min(1).max(31).nullable().optional();
+import { amount, category, dayOfMonth } from '../lib/schemas.js';
+import {
+  createFixedExpense,
+  deactivateFixedExpense,
+  findFixedExpense,
+  listFixedExpensesByMember,
+  updateFixedExpense,
+} from '../services/fixed-expense.js';
 
 export async function fixedExpenseRoutes(app: FastifyInstance) {
   /** 가족 전체의 고정비를 사람별로 묶어서 돌려준다 */
@@ -17,17 +18,7 @@ export async function fixedExpenseRoutes(app: FastifyInstance) {
     const { familyId } = z.object({ familyId: z.string() }).parse(request.params);
     const mine = await requireMembership(user.id, familyId);
 
-    const members = await prisma.membership.findMany({
-      where: { familyId, ...ACTIVE_MEMBER },
-      orderBy: { sortOrder: 'asc' },
-      include: {
-        fixedExpenses: {
-          where: { active: true },
-          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-        },
-      },
-    });
-
+    const members = await listFixedExpensesByMember(familyId);
     return {
       myMembershipId: mine.id,
       groups: members.map((m) => ({
@@ -51,7 +42,7 @@ export async function fixedExpenseRoutes(app: FastifyInstance) {
     const { familyId } = z.object({ familyId: z.string() }).parse(request.params);
     await requireMembership(user.id, familyId);
 
-    const body = z
+    const { membershipId, ...input } = z
       .object({
         membershipId: z.string(),
         name: z.string().trim().min(1).max(30),
@@ -61,35 +52,13 @@ export async function fixedExpenseRoutes(app: FastifyInstance) {
       })
       .parse(request.body);
 
-    // 다른 가족의 멤버 id 를 넣어 남의 집에 항목을 꽂는 걸 막는다
-    const target = await prisma.membership.findUnique({ where: { id: body.membershipId } });
-    if (!target || target.familyId !== familyId || target.status !== 'ACTIVE') {
-      throw fail('BAD_MEMBERSHIP');
-    }
-
-    const count = await prisma.fixedExpense.count({ where: { membershipId: body.membershipId } });
-
-    const created = await prisma.fixedExpense.create({
-      data: {
-        familyId,
-        membershipId: body.membershipId,
-        name: body.name,
-        category: body.category,
-        defaultAmount: body.defaultAmount,
-        dayOfMonth: body.dayOfMonth ?? null,
-        sortOrder: count,
-      },
-    });
-
-    return { fixedExpense: created };
+    return { fixedExpense: await createFixedExpense(familyId, membershipId, input) };
   });
 
   app.patch('/fixed-expenses/:id', async (request) => {
     const user = await requireUser(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
-
-    const existing = await prisma.fixedExpense.findUnique({ where: { id } });
-    if (!existing) throw fail('FIXED_EXPENSE_NOT_FOUND');
+    const existing = await findFixedExpense(id);
     await requireMembership(user.id, existing.familyId);
 
     const body = z
@@ -101,23 +70,16 @@ export async function fixedExpenseRoutes(app: FastifyInstance) {
       })
       .parse(request.body);
 
-    const updated = await prisma.fixedExpense.update({ where: { id }, data: body });
-    return { fixedExpense: updated };
+    return { fixedExpense: await updateFixedExpense(id, body) };
   });
 
-  /**
-   * 삭제는 실제로 지우지 않고 active=false 로 내린다.
-   * 지난달 기록의 EntryLine 이 이 항목을 참조하고 있어, 지우면 과거 추이가 끊긴다.
-   */
   app.delete('/fixed-expenses/:id', async (request) => {
     const user = await requireUser(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
-
-    const existing = await prisma.fixedExpense.findUnique({ where: { id } });
-    if (!existing) throw fail('FIXED_EXPENSE_NOT_FOUND');
+    const existing = await findFixedExpense(id);
     await requireMembership(user.id, existing.familyId);
 
-    await prisma.fixedExpense.update({ where: { id }, data: { active: false } });
+    await deactivateFixedExpense(id);
     return { ok: true };
   });
 }
