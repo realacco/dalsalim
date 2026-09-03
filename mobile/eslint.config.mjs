@@ -9,6 +9,12 @@ import globals from 'globals';
  *
  * 각 레이어는 **자기보다 위층과 같은 층**을 임포트할 수 없다.
  * 규칙을 CLAUDE.md 에 적어두기만 했더니 아무도 확인하지 못했다 — 린트로 강제한다.
+ *
+ * ⚠️ no-restricted-imports 는 **파일 그룹당 한 번만** 정의해야 한다.
+ * flat config 는 같은 규칙을 뒤에서 다시 켜면 앞의 설정을 통째로 덮어쓴다.
+ * 레이어 규칙과 별도 제약(api() 직접 호출·model 순수성)을 따로 선언했더니
+ * 뒤엣것이 레이어 규칙을 지워서 screens·app·entities/model 에서 **방향 검사가 아예 안 돌았다.**
+ * 그래서 아래에서 patterns 와 paths 를 한 덩어리로 합쳐서 준다.
  */
 const LAYERS = ['app', 'screens', 'widgets', 'features', 'entities', 'shared'];
 
@@ -23,9 +29,21 @@ function forbiddenFor(layer) {
   return [...upper, `@/${layer}/*`];
 }
 
-const layerRules = LAYERS.map((layer) => ({
-  files: [`src/${layer}/**/*.{ts,tsx}`],
-  rules: {
+/** 서버 통신은 entities/<domain>/api 를 거친다 (CLAUDE.md). */
+const NO_DIRECT_API = {
+  name: '@/shared/api/client',
+  importNames: ['api'],
+  message: '화면에서 api() 를 직접 부르지 않는다. entities/<domain>/api 를 거친다 (CLAUDE.md)',
+};
+
+/** entities 의 model 은 순수해야 한다 — 도메인 규칙은 화면 없이도 검증 가능해야 한다. */
+const NO_REACT_IN_MODEL = [
+  { name: 'react', message: 'entities/model 은 순수 함수만 둔다 (CLAUDE.md)' },
+  { name: 'react-native', message: 'entities/model 은 순수 함수만 둔다 (CLAUDE.md)' },
+];
+
+function restrictedImports(layer, paths = []) {
+  return {
     'no-restricted-imports': [
       'error',
       {
@@ -35,9 +53,19 @@ const layerRules = LAYERS.map((layer) => ({
             message: `FSD 위반: ${layer} 는 위층과 같은 층을 임포트할 수 없다 (app → screens → widgets → features → entities → shared)`,
           },
         ],
+        paths,
       },
     ],
-  },
+  };
+}
+
+// 화면 계열(app~features)은 레이어 규칙 + api() 금지를 **함께** 받는다
+const layerRules = LAYERS.map((layer) => ({
+  files: [`src/${layer}/**/*.{ts,tsx}`],
+  rules: restrictedImports(
+    layer,
+    ['app', 'screens', 'widgets', 'features'].includes(layer) ? [NO_DIRECT_API] : [],
+  ),
 }));
 
 export default tseslint.config(
@@ -88,44 +116,8 @@ export default tseslint.config(
   ...layerRules,
 
   {
-    /**
-     * 서버 통신은 entities/<domain>/api 를 거친다 (CLAUDE.md).
-     * 화면에서 api() 를 직접 부르면 쿼리 키가 흩어지고 에러 처리가 제각각이 된다.
-     */
-    files: ['src/{app,screens,widgets,features}/**/*.{ts,tsx}'],
-    rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          paths: [
-            {
-              name: '@/shared/api/client',
-              importNames: ['api'],
-              message:
-                '화면에서 api() 를 직접 부르지 않는다. entities/<domain>/api 를 거친다 (CLAUDE.md)',
-            },
-          ],
-        },
-      ],
-    },
-  },
-
-  {
-    /**
-     * entities 의 model 은 순수해야 한다 — 도메인 규칙은 화면 없이도 검증 가능해야 한다.
-     * (react 를 임포트하는 순간 테스트에 렌더러가 필요해진다)
-     */
+    // entities/model 은 레이어 규칙에 더해 react 임포트까지 막는다 (한 덩어리로 준다)
     files: ['src/entities/*/model/**/*.ts'],
-    rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          paths: [
-            { name: 'react', message: 'entities/model 은 순수 함수만 둔다 (CLAUDE.md)' },
-            { name: 'react-native', message: 'entities/model 은 순수 함수만 둔다 (CLAUDE.md)' },
-          ],
-        },
-      ],
-    },
+    rules: restrictedImports('entities', NO_REACT_IN_MODEL),
   },
 );
