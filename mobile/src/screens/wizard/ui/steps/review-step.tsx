@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useMutation } from '@tanstack/react-query';
 
-import { ApiError } from '@/shared/api/client';
 import { type Entry, submitEntry } from '@/entities/entry';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Button, Card, Divider, ErrorText, Muted, Row } from '@/shared/ui';
 import { formatAmount, formatWon } from '@/shared/lib/format';
+import { MESSAGES } from '@/shared/config/messages';
+import { errorMessage } from '@/shared/lib/errors';
 import { useStepStyles } from '../styles';
 
 /**
@@ -32,8 +33,7 @@ export function ReviewStep({
   const submit = useMutation({
     mutationFn: () => submitEntry(entry.id),
     onSuccess: (result) => onDone(result.bookStatus === 'COMPLETE'),
-    onError: (caught) =>
-      setError(caught instanceof ApiError ? caught.message : '제출하지 못했어요.'),
+    onError: (caught) => setError(errorMessage(caught, MESSAGES.submitFailed)),
   });
 
   const { income, fixedTotal, extraTotal, surplus } = entry.summary;

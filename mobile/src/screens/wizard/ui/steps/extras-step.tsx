@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { ApiError } from '@/shared/api/client';
 import { type Entry, addExtraLine, deleteLine, entryKeys } from '@/entities/entry';
 import { CATEGORIES, type Category } from '@/shared/model/types';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { AmountInput, Button, Card, Chip, ErrorText, Field, Input, Muted } from '@/shared/ui';
 import { formatWon } from '@/shared/lib/format';
+import { MESSAGES } from '@/shared/config/messages';
+import { errorMessage } from '@/shared/lib/errors';
 import { useStepStyles } from '../styles';
 
 /**
@@ -40,8 +41,7 @@ export function ExtrasStep({ entry, onNext }: { entry: Entry; onNext: () => void
       setError(null);
       void refresh();
     },
-    onError: (caught) =>
-      setError(caught instanceof ApiError ? caught.message : '추가하지 못했어요.'),
+    onError: (caught) => setError(errorMessage(caught, MESSAGES.saveFailed)),
   });
 
   const remove = useMutation({

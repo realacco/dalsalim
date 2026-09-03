@@ -12,6 +12,10 @@ export const MESSAGES = {
   /** 버튼 하나짜리 동작의 실패 — Alert 로 뜬다 */
   actionFailed: '안 됐어요',
   actionFailedBody: '잠시 후 다시 시도해주세요.',
+  /** 기록을 여는 데 실패 (홈 → 위저드) */
+  openFailed: '기록을 열지 못했어요. 잠시 후 다시 시도해주세요.',
+  submitFailed: '제출하지 못했어요. 잠시 후 다시 시도해주세요.',
+  loginFailed: '로그인하지 못했어요. 잠시 후 다시 시도해주세요.',
   /** 서버에 닿지 못함. 주소는 client 가 뒤에 붙인다 */
   network: '서버에 닿지 못했어요.',
   unknown: '알 수 없는 문제가 생겼어요.',
