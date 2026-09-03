@@ -18,7 +18,7 @@ import {
 } from '@/entities/family';
 import { useSession } from '@/entities/session';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
-import { Button, Card, Divider, Loading, Muted } from '@/shared/ui';
+import { Button, Card, Divider, Loading, Muted, QueryError } from '@/shared/ui';
 
 export default function FamilyScreen() {
   const styles = useStyles();
@@ -148,6 +148,9 @@ export default function FamilyScreen() {
         <Text style={styles.title}>{detail.data?.family.name ?? '가족'}</Text>
 
         {detail.isLoading ? <Loading /> : null}
+        {detail.isError ? (
+          <QueryError error={detail.error} onRetry={() => void detail.refetch()} />
+        ) : null}
 
         {detail.data ? (
           <>
@@ -370,11 +373,8 @@ export default function FamilyScreen() {
                 {
                   text: '로그아웃',
                   style: 'destructive',
-                  onPress: async () => {
-                    await signOut();
-                    queryClient.clear();
-                    router.replace('/login');
-                  },
+                  // 토큰이 비면 앱 셸이 로그인으로 보낸다
+                  onPress: () => void signOut(),
                 },
               ])
             }

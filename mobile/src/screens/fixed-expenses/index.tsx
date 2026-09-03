@@ -37,6 +37,7 @@ import {
   Loading,
   Muted,
   Notice,
+  QueryError,
 } from '@/shared/ui';
 import { formatWon } from '@/shared/lib/format';
 
@@ -116,6 +117,9 @@ export default function FixedScreen() {
         }
       >
         {groups.isLoading ? <Loading /> : null}
+        {groups.isError ? (
+          <QueryError error={groups.error} onRetry={() => void groups.refetch()} />
+        ) : null}
 
         {groups.data ? (
           <Card style={styles.totalCard}>

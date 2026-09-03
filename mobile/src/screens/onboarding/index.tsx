@@ -135,7 +135,8 @@ export default function OnboardingScreen() {
 
       <View style={{ flex: 1 }} />
 
-      <Pressable onPress={() => signOut().then(() => router.replace('/login'))}>
+      {/* 토큰이 비면 앱 셸이 로그인으로 보낸다 */}
+      <Pressable onPress={() => void signOut()}>
         <Muted style={{ textAlign: 'center' }}>다른 계정으로 로그인</Muted>
       </Pressable>
     </SafeAreaView>
