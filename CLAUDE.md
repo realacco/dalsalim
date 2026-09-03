@@ -27,9 +27,10 @@
 server/src/
   index.ts        부팅 — 플러그인 · 전역 에러 핸들러 · 라우트 등록. 로직 없음
   env.ts          환경변수 파싱 (여기가 유일한 process.env 접근 지점)
-  routes/         HTTP 경계 — zod 검증 · 권한 확인 · 응답 조립. 얇게
-  services/       도메인 로직 — 도메인당 한 파일 (entry · book · …)
-  lib/            기반 — db(prisma) · auth(가드) · http(에러) · messages(코드→문장 사전) · shared(상수·순수함수)
+  routes/         HTTP 경계 — zod 검증 · 권한 확인 · 응답 조립. prisma 를 직접 부르지 않는다
+  services/       도메인 로직 — family · fixed-expense · book · entry. prisma 는 여기서만
+  lib/            기반 — db(prisma) · auth(가드) · http(에러) · messages(코드→문장 사전) ·
+                  schemas(라우트 공용 zod 조각) · shared(상수·순수함수)
 ```
 
 - **임포트 방향은 위에서 아래로만**: `routes → services → lib`.
@@ -41,6 +42,10 @@ server/src/
 - **앱처럼 FSD로 쪼개지 않는다.** 도메인이 5개(session·family·fixed-expense·book·entry)로 고정이고
   `routes/`·`services/`가 이미 그 축으로 갈려 있다. 여기서 또 슬라이스를 파면
   파일 하나짜리 폴더만 늘어난다. **앱은 화면이 계속 늘지만 서버는 안 는다** — 그 차이가 구조를 가른다.
+
+**라우트 파일은 도메인당 하나가 기본이되, "가족 문 앞"처럼 뚜렷이 다른 무대는 따로 둔다**
+(`families.ts` 가족 안 · `join-requests.ts` 참여 요청). 라우트끼리 공유할 zod 조각은 `lib/schemas.ts` 에 둔다 —
+라우트끼리는 서로 임포트할 수 없다.
 
 **라우트가 두꺼워지는 신호** (= services로 내릴 때다)
 
@@ -277,7 +282,7 @@ cd server && node scripts/smoke.mjs   # 2층
 - **하드룰을 건드리는 변경은 테스트에 케이스를 추가해야 완료다.** 예외 없다.
   특히: 사유 강제 · 사유 자동 삭제 · 프리필 우선순위 · 장부 상태 전이 · 요약 집계 범위
 - 🔴 **서버와 앱에 같은 함수를 두면 `tests/contract` 에 일치 케이스를 같이 넣는다.**
-  지금 세 쌍이다 — `needsReason` · `shiftYearMonth` · `CATEGORIES`.
+  지금 네 쌍이다 — `needsReason` · `shiftYearMonth` · `currentYearMonth` · `CATEGORIES`.
   한쪽만 고치면 아무 경고 없이 갈라지고, 결과는 "저장은 되는데 [다음] 이 안 눌린다"처럼
   원인을 찾기 어려운 형태로 나타난다. 이 파일이 그걸 막는 **유일한** 자동 장치다.
 - **버그 수정은 실패하는 케이스부터.** 재현 케이스를 먼저 넣어 빨간 것을 확인하고 고친다.
