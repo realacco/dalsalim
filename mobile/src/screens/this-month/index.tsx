@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -134,8 +134,8 @@ export default function ThisMonthScreen() {
                   참여 요청 {joinRequests.data.length}건이 기다리고 있어요
                 </Text>
                 <Muted>
-                  {joinRequests.data.map((request) => request.displayName).join(', ')}님이 초대코드로
-                  참여를 요청했어요. 승인해야 함께 적을 수 있어요.
+                  {joinRequests.data.map((request) => request.displayName).join(', ')}님이
+                  초대코드로 참여를 요청했어요. 승인해야 함께 적을 수 있어요.
                 </Muted>
                 <Button label="확인하러 가기" onPress={() => router.push('/(tabs)/family')} />
               </Card>
@@ -299,7 +299,8 @@ function statusLabel(
   progress: BookView['members'][number]['progress'],
 ): string {
   if (status === 'SUBMITTED') return '제출 완료';
-  if (status === 'DRAFT') return progress ? `작성 중 ${progress.step}/${progress.total}` : '작성 중';
+  if (status === 'DRAFT')
+    return progress ? `작성 중 ${progress.step}/${progress.total}` : '작성 중';
   return '시작 안 함';
 }
 
@@ -331,7 +332,12 @@ const useStyles = makeStyles((t) => ({
   arrowLabel: { ...t.font.glyph, color: t.colors.inkSoft },
   month: { ...t.font.title, fontWeight: t.weight.heavy, color: t.colors.ink },
 
-  content: { padding: t.space.lg, paddingTop: t.space.sm, gap: t.space.lg, paddingBottom: t.space.xxl },
+  content: {
+    padding: t.space.lg,
+    paddingTop: t.space.sm,
+    gap: t.space.lg,
+    paddingBottom: t.space.xxl,
+  },
 
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardTitle: { ...t.font.bodyLg, fontWeight: t.weight.bold, color: t.colors.ink },

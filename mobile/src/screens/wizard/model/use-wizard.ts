@@ -4,10 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { type Entry, type EntryLine, entryKeys, fetchEntry, patchEntry } from '@/entities/entry';
 
 export type Step =
-  | { kind: 'line'; line: EntryLine }
-  | { kind: 'extras' }
-  | { kind: 'note' }
-  | { kind: 'review' };
+  { kind: 'line'; line: EntryLine } | { kind: 'extras' } | { kind: 'note' } | { kind: 'review' };
 
 /**
  * 위저드의 흐름을 담는다 — 어떤 스텝들이 있고, 지금 몇 번째이며, 어떻게 넘어가는가.

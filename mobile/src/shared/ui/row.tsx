@@ -52,7 +52,11 @@ const useStyles = makeStyles((t) => ({
     fontWeight: t.weight.semibold,
     fontVariant: ['tabular-nums' as const],
   },
-  valueStrong: { ...t.font.bodyLg, fontWeight: t.weight.bold, fontVariant: ['tabular-nums' as const] },
+  valueStrong: {
+    ...t.font.bodyLg,
+    fontWeight: t.weight.bold,
+    fontVariant: ['tabular-nums' as const],
+  },
   up: { color: t.colors.up },
   down: { color: t.colors.down },
   divider: { height: 1, backgroundColor: t.colors.line, marginVertical: t.space.md },

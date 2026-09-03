@@ -95,7 +95,9 @@ export function AmountInput({
           onChangeText={(next) => {
             // 자릿수를 먼저 자른다. 상한을 넘겨 잘린 값이 화면에 남으면
             // 사용자가 친 것과 보이는 게 어긋난다.
-            const digits = digitsOnly(next).replace(/^0+(?=\d)/, '').slice(0, 10);
+            const digits = digitsOnly(next)
+              .replace(/^0+(?=\d)/, '')
+              .slice(0, 10);
             const typed = digits === '' ? null : Math.min(Number(digits), MAX_AMOUNT);
 
             setDraft(typed === null ? '' : String(typed));

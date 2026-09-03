@@ -1,9 +1,4 @@
-import type {
-  BookStatus,
-  EntrySummary,
-  LineKind,
-  MemberEntryStatus,
-} from '@/shared/model/types';
+import type { BookStatus, EntrySummary, LineKind, MemberEntryStatus } from '@/shared/model/types';
 
 export type Book = { id: string; yearMonth: string; status: BookStatus };
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { useMutation } from '@tanstack/react-query';
 
 import { ApiError } from '@/shared/api/client';
@@ -60,7 +60,9 @@ export function ReviewStep({
               <View key={line.id} style={{ gap: 2 }}>
                 <View style={styles.changeHead}>
                   <Text style={styles.changeName}>{line.name}</Text>
-                  <Text style={[styles.changeDelta, { color: delta > 0 ? colors.up : colors.down }]}>
+                  <Text
+                    style={[styles.changeDelta, { color: delta > 0 ? colors.up : colors.down }]}
+                  >
                     {delta > 0 ? '+' : '−'}
                     {formatAmount(Math.abs(delta))}
                   </Text>
@@ -93,7 +95,11 @@ export function ReviewStep({
 const useStyles = makeStyles((t) => ({
   changeHead: { flexDirection: 'row', justifyContent: 'space-between' },
   changeName: { ...t.font.body, color: t.colors.ink, fontWeight: t.weight.semibold },
-  changeDelta: { ...t.font.body, fontWeight: t.weight.bold, fontVariant: ['tabular-nums' as const] },
+  changeDelta: {
+    ...t.font.body,
+    fontWeight: t.weight.bold,
+    fontVariant: ['tabular-nums' as const],
+  },
   changeReason: { ...t.font.small, color: t.colors.inkSoft },
   noteText: { ...t.font.body, color: t.colors.inkSoft },
 }));

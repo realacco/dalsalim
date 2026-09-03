@@ -1,4 +1,4 @@
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -129,7 +129,12 @@ const useStyles = makeStyles((t) => ({
     gap: t.space.xs,
   },
   title: { ...t.font.title, fontWeight: t.weight.heavy, color: t.colors.ink },
-  content: { padding: t.space.lg, paddingTop: t.space.sm, gap: t.space.lg, paddingBottom: t.space.xxl },
+  content: {
+    padding: t.space.lg,
+    paddingTop: t.space.sm,
+    gap: t.space.lg,
+    paddingBottom: t.space.xxl,
+  },
   cardTitle: { ...t.font.bodyLg, fontWeight: t.weight.bold, color: t.colors.ink },
 
   row: {

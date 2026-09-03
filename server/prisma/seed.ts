@@ -26,7 +26,14 @@ const LAST_MONTH = shift(THIS_MONTH, -1);
 type Spec = {
   name: string;
   income: number;
-  fixed: { name: string; category: string; amount: number; day?: number; lastMonth?: number; reason?: string }[];
+  fixed: {
+    name: string;
+    category: string;
+    amount: number;
+    day?: number;
+    lastMonth?: number;
+    reason?: string;
+  }[];
   extras: { name: string; category: string; amount: number }[];
   note: string;
 };
@@ -37,7 +44,14 @@ const PEOPLE: Spec[] = [
     income: 3_450_000,
     fixed: [
       { name: '월세', category: '주거', amount: 800_000, day: 1 },
-      { name: '관리비', category: '주거', amount: 180_000, day: 20, lastMonth: 240_000, reason: '에어컨을 많이 틀었다' },
+      {
+        name: '관리비',
+        category: '주거',
+        amount: 180_000,
+        day: 20,
+        lastMonth: 240_000,
+        reason: '에어컨을 많이 틀었다',
+      },
       { name: '통신비', category: '통신', amount: 55_000, day: 25 },
       { name: '자동차보험', category: '보험', amount: 83_000, day: 5 },
     ],
@@ -60,14 +74,21 @@ const PEOPLE: Spec[] = [
 async function main() {
   const existing = await prisma.family.findUnique({ where: { inviteCode: CODE } });
   if (existing) {
-    console.log(`이미 데모 가족이 있습니다 (초대코드 ${CODE}). 다시 만들려면 npm run db:reset 후 실행하세요.`);
+    console.log(
+      `이미 데모 가족이 있습니다 (초대코드 ${CODE}). 다시 만들려면 npm run db:reset 후 실행하세요.`,
+    );
     return;
   }
 
   const family = await prisma.family.create({ data: { name: '김씨네', inviteCode: CODE } });
 
   const book = await prisma.monthlyBook.create({
-    data: { familyId: family.id, yearMonth: LAST_MONTH, status: 'COMPLETE', completedAt: new Date() },
+    data: {
+      familyId: family.id,
+      yearMonth: LAST_MONTH,
+      status: 'COMPLETE',
+      completedAt: new Date(),
+    },
   });
 
   for (const [index, person] of PEOPLE.entries()) {
