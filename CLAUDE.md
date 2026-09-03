@@ -29,12 +29,13 @@ server/src/
   env.ts          환경변수 파싱 (여기가 유일한 process.env 접근 지점)
   routes/         HTTP 경계 — zod 검증 · 권한 확인 · 응답 조립. 얇게
   services/       도메인 로직 — 도메인당 한 파일 (entry · book · …)
-  lib/            기반 — db(prisma) · auth(가드) · http(에러) · shared(상수·순수함수)
+  lib/            기반 — db(prisma) · auth(가드) · http(에러) · messages(코드→문장 사전) · shared(상수·순수함수)
 ```
 
 - **임포트 방향은 위에서 아래로만**: `routes → services → lib`.
   services가 routes를 임포트하거나, **라우트끼리 서로 임포트하는 것 금지.**
-- **`lib/shared.ts`는 순수해야 한다.** prisma·fastify를 임포트하지 않는다.
+- **`lib/shared.ts`·`lib/messages.ts`는 순수해야 한다.** prisma·fastify를 임포트하지 않는다.
+  실패는 `throw fail('CODE')` 한 가지 방법으로만 만든다 — 코드와 문장은 `messages.ts` 에만 있다.
   앱의 `entities/*/model`과 짝을 이루는 계약(카테고리 목록, `needsReason`, `yearMonth` 계산)이 여기 산다.
 - **`process.env`는 `env.ts`에서만 읽는다.** 다른 파일에서 직접 읽지 않는다.
 - **앱처럼 FSD로 쪼개지 않는다.** 도메인이 5개(session·family·fixed-expense·book·entry)로 고정이고
