@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,7 +8,7 @@ import { ApiError } from '@/shared/api/client';
 import { bookKeys } from '@/entities/book';
 import { entryKeys } from '@/entities/entry';
 import { useSession } from '@/entities/session';
-import { makeStyles, useTheme } from '@/shared/config/theme-provider';
+import { makeStyles } from '@/shared/config/theme-provider';
 import { Button, ErrorText, Loading, ProgressBar } from '@/shared/ui';
 import { formatYearMonth } from '@/shared/lib/format';
 

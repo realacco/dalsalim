@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { useMutation } from '@tanstack/react-query';
 
 import { ApiError } from '@/shared/api/client';

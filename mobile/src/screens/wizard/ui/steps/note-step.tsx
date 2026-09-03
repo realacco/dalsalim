@@ -4,7 +4,7 @@ import { View } from 'react-native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { type Entry, entryKeys, patchEntry } from '@/entities/entry';
-import { makeStyles, useTheme } from '@/shared/config/theme-provider';
+import { useTheme } from '@/shared/config/theme-provider';
 import { Button, Input, Muted } from '@/shared/ui';
 import { useStepStyles } from '../styles';
 
