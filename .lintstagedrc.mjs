@@ -20,6 +20,7 @@ export default {
     `npm --prefix mobile run lint:fix -- ${quote(files)}`,
   ],
   '*.{mjs,json}': 'prettier --write',
+  '{scripts,tests}/**/*.{mjs,ts}': 'prettier --write',
   '{server,mobile}/**/*.{mjs,js,json}': 'prettier --write',
   '.github/**/*.{yml,yaml}': 'prettier --write',
 };

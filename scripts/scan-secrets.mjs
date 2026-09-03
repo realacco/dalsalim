@@ -15,19 +15,25 @@
  * 빠져나가는 법 (정말 필요할 때만)
  *   - 그 줄 끝에 `secret-scan:allow` 를 적는다
  *   - 또는 `SKIP_SECRET_SCAN=1 git commit ...`
+ *
+ * 규칙이 무엇을 잡고 무엇을 놓아주는지는 tests/tools/scan-secrets.test.mjs 가 지킨다.
  */
 
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-/** 이 파일 자신은 검사 대상이 아니다 — 패턴 문자열이 그대로 들어 있다 */
-const SELF = 'scripts/scan-secrets.mjs';
+/**
+ * 검사하지 않는 파일 — 이 스크립트 자신과 그 테스트.
+ * 둘 다 "잡아야 하는 문자열"을 본문에 그대로 들고 있어야 하는 파일이다.
+ */
+const FIXTURE_FILES = new Set(['scripts/scan-secrets.mjs', 'tests/tools/scan-secrets.test.mjs']);
 
 /** 값이 이것 중 하나면 진짜 비밀이 아니라 자리표시자다 */
-const PLACEHOLDER =
+export const PLACEHOLDER =
   /(change[-_ ]?me|your[-_ ]|example|placeholder|dummy|sample|test|xxx|<[^>]*>|\.\.\.|여기|dev-secret|postgres:postgres@localhost)/i;
 
-const PATH_RULES = [
+export const PATH_RULES = [
   {
     test: (p) => /(^|\/)\.env(\.[^/]*)?$/.test(p) && !/\.example$/.test(p),
     why: '환경변수 파일이다. server/.env.example 만 커밋한다',
@@ -47,7 +53,7 @@ const PATH_RULES = [
   },
 ];
 
-const CONTENT_RULES = [
+export const CONTENT_RULES = [
   {
     name: '개인키',
     re: /-----BEGIN(?: [A-Z]+)* PRIVATE KEY-----/,
@@ -92,6 +98,24 @@ const CONTENT_RULES = [
   },
 ];
 
+/** 이 경로를 커밋하면 안 되는 이유. 괜찮으면 null */
+export function blockedPath(filePath) {
+  const rule = PATH_RULES.find((r) => r.test(filePath));
+  return rule ? rule.why : null;
+}
+
+/** 이 줄에서 걸리는 규칙 이름. 괜찮으면 null */
+export function matchSecret(text) {
+  if (text.includes('secret-scan:allow')) return null;
+  for (const rule of CONTENT_RULES) {
+    const m = text.match(rule.re);
+    if (!m) continue;
+    if (rule.ok && rule.ok(m)) continue;
+    return rule.name;
+  }
+  return null;
+}
+
 const git = (...args) =>
   execFileSync('git', args, { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
 
@@ -134,83 +158,15 @@ function scanAddedLines() {
 
     const text = raw.slice(1);
     const at = lineNo++;
-    if (!file || file === '/dev/null' || file === SELF) continue;
-    if (text.includes('secret-scan:allow')) continue;
+    if (!file || file === '/dev/null' || FIXTURE_FILES.has(file)) continue;
 
-    for (const rule of CONTENT_RULES) {
-      const m = text.match(rule.re);
-      if (!m) continue;
-      if (rule.ok && rule.ok(m)) continue;
-      found.push({ file, line: at, what: rule.name, why: text.trim().slice(0, 80) });
-    }
+    const what = matchSecret(text);
+    if (what) found.push({ file, line: at, what, why: text.trim().slice(0, 80) });
   }
   return found;
 }
 
-/** 규칙이 실제로 무엇을 잡고 무엇을 놓아주는지 — 러너 없이 확인하는 최소 장치 */
-function selfTest() {
-  const cases = [
-    ['JWT_SECRET="dalsalim-dev-secret-change-me"', false],
-    ['DATABASE_URL="postgresql://postgres:postgres@localhost:5432/dalsalim"', false],
-    ['KAKAO_REST_API_KEY=""', false],
-    ['| `JWT_SECRET` | `openssl rand -base64 32` 로 만든 값 |', false],
-    ['└▶ 302 exp://...?token=eyJ...', false],
-    ['#   postgresql://<user>:<password>@<host>:<port>/<db>', false],
-    ['const token = req.headers.authorization;', false],
-    ['JWT_SECRET="8Jq2vXn4pLd7RtYw0ZbC1aEfG5hK9mNs"', true],
-    ['KAKAO_REST_API_KEY=0a1b2c3d4e5f60718293a4b5c6d7e8f9', true],
-    ['DATABASE_URL="postgresql://dal:S3cretPw@containers.railway.app:5432/railway"', true],
-    ['-----BEGIN RSA PRIVATE KEY-----', true],
-    ['aws_key = AKIAIOSFODNN7EXAMPLE', true],
-    ['ghp_1234567890abcdefghijklmnopqrstuvwxyz', true],
-    [
-      'Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N',
-      true,
-    ],
-    ['JWT_SECRET="8Jq2vXn4pLd7RtYw0ZbC1aEfG5hK9mNs" // secret-scan:allow', false],
-  ];
-
-  let failed = 0;
-  for (const [text, shouldFlag] of cases) {
-    if (text.includes('secret-scan:allow')) {
-      if (shouldFlag) failed++;
-      continue;
-    }
-    const hit = CONTENT_RULES.some((rule) => {
-      const m = text.match(rule.re);
-      return m && !(rule.ok && rule.ok(m));
-    });
-    if (hit !== shouldFlag) {
-      failed++;
-      console.error(`  ✗ ${shouldFlag ? '잡아야 하는데 놓쳤다' : '오탐'}: ${text}`);
-    }
-  }
-
-  const paths = [
-    ['server/.env', true],
-    ['server/.env.example', false],
-    ['server/data-export.json', true],
-    ['docs/01-MVP-기획서.md', false],
-    ['mobile/android/app/release.keystore', true],
-  ];
-  for (const [p, shouldFlag] of paths) {
-    const hit = PATH_RULES.some((r) => r.test(p));
-    if (hit !== shouldFlag) {
-      failed++;
-      console.error(`  ✗ 경로 판정 틀림(${shouldFlag ? '막아야 함' : '통과해야 함'}): ${p}`);
-    }
-  }
-
-  if (failed) {
-    console.error(`\n비밀 스캔 자체 점검 실패 ${failed}건`);
-    process.exit(1);
-  }
-  console.log(`비밀 스캔 자체 점검 통과 (${cases.length + paths.length}건)`);
-}
-
 function main() {
-  if (process.argv.includes('--selftest')) return selfTest();
-
   if (process.env.SKIP_SECRET_SCAN === '1') {
     console.warn('⚠ 비밀 스캔을 건너뛴다 (SKIP_SECRET_SCAN=1)');
     return;
@@ -231,4 +187,4 @@ function main() {
   process.exit(1);
 }
 
-main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
