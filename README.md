@@ -26,12 +26,20 @@
 ```bash
 # 1번 터미널 — API 서버
 cd server
-cp .env.example .env          # 최초 1회
+cp .env.example .env          # 최초 1회 — DATABASE_URL 을 채운다 (아래 참조)
 npm install                   # 최초 1회
-npx prisma migrate dev        # 최초 1회 (SQLite 파일 + 스키마 생성)
+npm run db:deploy             # 최초 1회 (스키마 생성)
 npm run seed                  # 최초 1회 (데모 가족 '김씨네')
 npm run dev                   # → http://localhost:4000
 ```
+
+> **DB 는 Postgres 다.** SQLite 는 더 이상 쓰지 않는다 —
+> 운영과 같은 엔진으로 개발해야 "내 노트북에선 됐는데"가 안 생기고,
+> 연 고정비의 `months`(정수 배열)가 SQLite 에서는 표현되지 않는다. (기획서 7.4)
+>
+> `DATABASE_URL` 은 둘 중 하나로 채운다.
+> - **Railway 개발용 DB** (권장) — 운영과 완전히 같은 환경. 아래 "배포" 참조
+> - **로컬 Docker** — `docker run -d --name dalsalim-pg -p 5432:5432 -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=dalsalim postgres:16`
 
 ```bash
 # 2번 터미널 — 앱
@@ -64,7 +72,7 @@ dalsalim/
 │   ├── 01-MVP-기획서.md            무엇을 왜 만드는가 · 화면 · 데이터모델 · API
 │   └── 02-MVP-출시-체크리스트.md    실제로 쓰기 시작하기까지 남은 일
 │
-├── server/                   Fastify + Prisma + SQLite · 레이어드
+├── server/                   Fastify + Prisma + Postgres · 레이어드
 │   ├── prisma/schema.prisma    데이터 모델 (원본)
 │   ├── prisma/migrations/      마이그레이션 (커밋 대상)
 │   ├── src/routes/             auth · families · fixedExpenses · books · entries
@@ -109,7 +117,7 @@ cd mobile && npm run typecheck
 | 앱 상태 | **zustand** | 세션(토큰·가족) 하나만 전역이면 된다. Redux는 과하다 |
 | 스타일 | **StyleSheet + 토큰(`src/shared/config/theme.ts`)** | 아래 참조 |
 | 서버 | **Fastify + TypeScript** | 가볍고 빠르다. 라우트 20개 남짓이라 NestJS는 과하다 |
-| DB | **SQLite + Prisma** | 설치할 게 없다. Postgres로 옮길 때 스키마 한 줄만 바꾸면 된다 |
+| DB | **Postgres + Prisma** | SQLite 로 시작했다가 배포 직전에 옮겼다. 스키마 한 줄이었고, 마이그레이션만 새로 잡았다. 개발도 같은 엔진을 봐야 "내 노트북에선 됐는데"가 안 생긴다 |
 | 인증 | **카카오 REST OAuth + JWT** | 아래 참조 |
 
 **왜 NativeWind를 안 썼나** — Babel 플러그인 + Metro + Tailwind 설정 세 군데를 건드린다.
@@ -182,6 +190,55 @@ eas build --platform android --profile preview     # 클라우드 빌드 → APK
 
 ---
 
+## 배포 (Railway)
+
+서버와 Postgres 를 **한 프로젝트에** 둔다. 대시보드가 하나고, 내부 네트워크로 붙고,
+`DATABASE_URL` 이 자동으로 주입된다.
+
+### 1. 프로젝트 만들기
+
+1. [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo** → 이 저장소
+2. 생성된 서비스 → **Settings → Root Directory** 를 **`server`** 로 지정
+   (모노레포라 이걸 안 하면 루트에서 빌드하려다 실패한다)
+3. 같은 프로젝트에서 **New → Database → Add PostgreSQL**
+
+빌드·시작 명령과 헬스체크는 `server/railway.json` 에 들어 있어서 따로 설정할 게 없다.
+
+### 2. 환경변수 (서비스 → Variables)
+
+| 이름 | 값 |
+|---|---|
+| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` — Postgres 서비스를 참조한다 |
+| `NODE_ENV` | `production` |
+| `JWT_SECRET` | `openssl rand -base64 32` 로 만든 값. **기본값이면 서버가 안 뜬다** |
+| `PUBLIC_BASE_URL` | 배포된 공개 주소 (`https://...up.railway.app`) |
+| `KAKAO_REST_API_KEY` | 카카오 개발자 콘솔 값 |
+| `KAKAO_CLIENT_SECRET` | 쓰는 경우에만 |
+
+`PORT` 는 Railway 가 알아서 넣어준다. **`DEV_LOGIN` 은 넣지 않는다** —
+기본값이 꺼짐이고, 운영에서는 아예 켤 수 없다.
+
+### 3. 확인할 것
+
+- [ ] `GET /health` 가 `{"ok":true,"devLogin":false}` 를 준다 — **`devLogin` 이 false 인지 꼭 본다**
+- [ ] `POST /auth/dev` 가 **404** 다 (라우트가 등록조차 되지 않아야 한다)
+- [ ] 첫 배포 로그에 `prisma migrate deploy` 가 마이그레이션을 적용한 게 보인다
+- [ ] 앱의 `EXPO_PUBLIC_API_URL` 을 이 주소로 바꾸고 APK 를 다시 굽는다
+- [ ] 🔴 **자동 백업이 켜져 있는지 확인하고, 복구를 한 번 실제로 해본다.**
+      가계부는 날아가면 복구가 불가능한 데이터다. 백업이 부실하면 DB 만
+      Supabase 나 Neon 으로 빼는 것을 검토한다 (`DATABASE_URL` 만 바꾸면 된다)
+
+### 왜 이렇게 했나
+
+- **`start` 가 `prisma migrate deploy && tsx src/index.ts` 다.** 마이그레이션을 먼저 적용하고
+  서버를 띄운다 — 순서가 바뀌면 새 컬럼을 모르는 채로 서버가 뜬다
+- **`prisma` 와 `tsx` 가 `dependencies` 에 있다.** `NODE_ENV=production` 이면 npm 이
+  `devDependencies` 를 건너뛰는데, 그러면 위 `start` 가 통째로 깨진다
+- **유휴 슬립이 없는 플랜이어야 한다.** 이 앱은 한 달에 한 번 열려서
+  **항상 잠든 상태에서 시작**한다. 콜드 스타트를 매번 정면으로 맞는다
+
+---
+
 ## 개발 노트 (이 PC 기준 · 함정 모음)
 
 | 항목 | 값 |
@@ -240,6 +297,15 @@ foreach ($p in 4000,8081) {   # 4000=API, 8081=Metro
 ```
 ```bash
 cd server && npm run db:reset && npm run seed   # 서버를 먼저 끄고
+```
+
+DB 를 갈아엎기 전에 내용을 지키고 싶으면:
+
+```bash
+cd server
+npm run db:export             # -> data-export.json (gitignore 되어 있다)
+npm run db:reset
+npm run db:import             # 되돌리기
 ```
 
 ### AVD를 다시 만들어야 할 때
