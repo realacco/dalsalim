@@ -3,13 +3,14 @@ import { Keyboard, Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ApiError } from '@/shared/api/client';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { createFamily, familyKeys, joinFamily } from '@/entities/family';
 import { useSession } from '@/entities/session';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Button, Card, ErrorText, Field, Input, Muted } from '@/shared/ui';
+import { MESSAGES } from '@/shared/config/messages';
+import { errorMessage } from '@/shared/lib/errors';
 
 type Mode = 'create' | 'join';
 
@@ -67,7 +68,7 @@ export default function OnboardingScreen() {
       await selectFamily(family.id);
       router.replace('/(tabs)');
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : '문제가 생겼어요.');
+      setError(errorMessage(caught, MESSAGES.actionFailedBody));
     } finally {
       setBusy(false);
     }
@@ -135,7 +136,8 @@ export default function OnboardingScreen() {
 
       <View style={{ flex: 1 }} />
 
-      <Pressable onPress={() => signOut().then(() => router.replace('/login'))}>
+      {/* 토큰이 비면 앱 셸이 로그인으로 보낸다 */}
+      <Pressable onPress={() => void signOut()}>
         <Muted style={{ textAlign: 'center' }}>다른 계정으로 로그인</Muted>
       </Pressable>
     </SafeAreaView>

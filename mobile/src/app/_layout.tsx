@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
-import { Stack } from 'expo-router';
+import { Stack, router, usePathname } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -37,10 +37,31 @@ function AppShell() {
   const styles = useStyles();
   const { colors, scheme } = useTheme();
   const hydrate = useSession((state) => state.hydrate);
+  const ready = useSession((state) => state.ready);
+  const token = useSession((state) => state.token);
+  const pathname = usePathname();
 
   useEffect(() => {
     void hydrate();
   }, [hydrate]);
+
+  /**
+   * 토큰이 "있다가 없어지면" 로그인 화면으로 보낸다. 로그아웃 버튼도, 서버의 401 도
+   * 결국 토큰을 비우는 것이므로 화면마다 이동 코드를 두지 않고 여기 한 곳에서 본다.
+   * 처음부터 없던 것(앱 첫 실행, 만료된 토큰으로 hydrate 실패)은 Gate 가 보낸다 —
+   * ready 가 되기 전의 변화는 세지 않는다.
+   */
+  const hadToken = useRef(false);
+  useEffect(() => {
+    if (token) {
+      if (ready) hadToken.current = true;
+      return;
+    }
+    if (!hadToken.current) return;
+    hadToken.current = false;
+    queryClient.clear();
+    if (pathname !== '/login') router.replace('/login');
+  }, [token, ready, pathname]);
 
   /**
    * 화면 전환 중에 흰 배경이 한 프레임 비치던 문제.

@@ -1,6 +1,8 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
+import { MESSAGES } from '@/shared/config/messages';
+
 /**
  * 서버 주소.
  *
@@ -41,6 +43,19 @@ export function setAuthToken(token: string | null) {
   authToken = token;
 }
 
+let unauthorizedHandler: (() => void) | null = null;
+
+/**
+ * 401 을 받았을 때 부를 것. 세션이 등록한다.
+ *
+ * 화면은 401 을 처리하지 않는다 (CLAUDE.md 실패 표현 규약). 토큰이 만료됐거나(90일)
+ * 계정이 사라졌을 때 화면마다 "로그인으로 보내기"를 넣으면 빠뜨린 화면에서
+ * "탈퇴했거나 없는 사용자예요" 같은 문장이 그대로 박혀 있게 된다 — 실제로 홈에서 그랬다.
+ */
+export function onUnauthorized(handler: (() => void) | null) {
+  unauthorizedHandler = handler;
+}
+
 type Options = { method?: string; body?: unknown; token?: string | null };
 
 export async function api<T>(
@@ -60,7 +75,7 @@ export async function api<T>(
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
-    throw new ApiError(0, 'NETWORK', `서버에 닿지 못했어요.\n(${API_BASE})`);
+    throw new ApiError(0, 'NETWORK', `${MESSAGES.network}\n(${API_BASE})`);
   }
 
   const text = await response.text();
@@ -70,11 +85,8 @@ export async function api<T>(
     // 서버는 { code, message } 를 준다고 약속했지만, 프록시나 게이트웨이가
     // 다른 걸 끼워 넣을 수 있다. 형태를 확인하고 꺼낸다.
     const error = asErrorPayload(payload);
-    throw new ApiError(
-      response.status,
-      error.code ?? 'UNKNOWN',
-      error.message ?? '알 수 없는 오류가 생겼어요.',
-    );
+    if (response.status === 401) unauthorizedHandler?.();
+    throw new ApiError(response.status, error.code ?? 'UNKNOWN', error.message ?? MESSAGES.unknown);
   }
 
   return payload as T;

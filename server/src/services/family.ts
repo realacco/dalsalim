@@ -21,7 +21,7 @@ export async function generateInviteCode(): Promise<string> {
     if (!taken) return code;
   }
 
-  throw new Error('초대코드를 만들지 못했습니다.');
+  throw new Error('초대코드를 만들지 못했어요.');
 }
 
 /**

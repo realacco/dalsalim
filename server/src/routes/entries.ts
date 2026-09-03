@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { prisma } from '../lib/db.js';
 import { requireOwnEntry, requireUser } from '../lib/auth.js';
-import { badRequest, forbidden, notFound } from '../lib/http.js';
+import { fail } from '../lib/http.js';
 import { CATEGORIES, needsReason } from '../lib/shared.js';
 import { serializeEntry } from '../services/entry.js';
 import { refreshBookStatus } from '../services/book.js';
@@ -14,7 +14,7 @@ const reason = z.string().trim().max(200).nullable().optional();
 /** 제출된 기록은 먼저 되돌린 뒤에 고쳐야 한다. 앱은 [수정하기] 버튼으로 이걸 호출한다. */
 function assertDraft(status: string) {
   if (status !== 'DRAFT') {
-    throw forbidden('제출한 기록입니다. [수정하기]를 눌러 다시 열어주세요.');
+    throw fail('ENTRY_SUBMITTED');
   }
 }
 
@@ -66,15 +66,12 @@ export async function entryRoutes(app: FastifyInstance) {
       .parse(request.body);
 
     const line = await prisma.entryLine.findUnique({ where: { id: params.lineId } });
-    if (!line || line.entryId !== entry.id) throw notFound('입력 줄을 찾을 수 없습니다.');
+    if (!line || line.entryId !== entry.id) throw fail('LINE_NOT_FOUND');
 
     const trimmedReason = body.changeReason?.trim() || null;
 
     if (needsReason(line.plannedAmount, body.actualAmount) && !trimmedReason) {
-      throw badRequest(
-        'REASON_REQUIRED',
-        '금액이 달라졌어요. 이번 달에 왜 이랬는지 한 줄만 적어주세요.',
-      );
+      throw fail('REASON_REQUIRED');
     }
 
     const updated = await prisma.entryLine.update({
@@ -130,9 +127,8 @@ export async function entryRoutes(app: FastifyInstance) {
     assertDraft(entry.status);
 
     const line = await prisma.entryLine.findUnique({ where: { id: params.lineId } });
-    if (!line || line.entryId !== entry.id) throw notFound('입력 줄을 찾을 수 없습니다.');
-    if (line.kind !== 'EXTRA')
-      throw badRequest('NOT_DELETABLE', '추가 지출 항목만 지울 수 있습니다.');
+    if (!line || line.entryId !== entry.id) throw fail('LINE_NOT_FOUND');
+    if (line.kind !== 'EXTRA') throw fail('NOT_DELETABLE');
 
     await prisma.entryLine.delete({ where: { id: params.lineId } });
     return { ok: true };
@@ -152,20 +148,14 @@ export async function entryRoutes(app: FastifyInstance) {
     // 지나치지 않은 스텝이 남아 있으면 제출을 막는다
     const unfilled = lines.filter((l) => l.kind !== 'EXTRA' && l.actualAmount === null);
     if (unfilled.length > 0) {
-      throw badRequest(
-        'INCOMPLETE',
-        `아직 적지 않은 항목이 있어요: ${unfilled.map((l) => l.name).join(', ')}`,
-      );
+      throw fail('INCOMPLETE', unfilled.map((l) => l.name).join(', '));
     }
 
     const missingReason = lines.filter(
       (l) => needsReason(l.plannedAmount, l.actualAmount) && !l.changeReason,
     );
     if (missingReason.length > 0) {
-      throw badRequest(
-        'REASON_REQUIRED',
-        `사유가 비어 있어요: ${missingReason.map((l) => l.name).join(', ')}`,
-      );
+      throw fail('REASON_REQUIRED', missingReason.map((l) => l.name).join(', '));
     }
 
     await prisma.memberEntry.update({

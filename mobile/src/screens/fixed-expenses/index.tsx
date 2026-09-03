@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -13,7 +12,6 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ApiError } from '@/shared/api/client';
 import { CATEGORIES, type Category } from '@/shared/model/types';
 import {
   createFixedExpense,
@@ -37,8 +35,12 @@ import {
   Loading,
   Muted,
   Notice,
+  QueryError,
 } from '@/shared/ui';
 import { formatWon } from '@/shared/lib/format';
+import { MESSAGES } from '@/shared/config/messages';
+import { confirm } from '@/shared/lib/confirm';
+import { errorMessage } from '@/shared/lib/errors';
 
 type Draft = {
   id: string | null;
@@ -87,8 +89,7 @@ export default function FixedScreen() {
       void queryClient.invalidateQueries({ queryKey: fixedExpenseKeys.list(familyId) });
       void queryClient.invalidateQueries({ queryKey: bookKeys.family(familyId) });
     },
-    onError: (caught) =>
-      setError(caught instanceof ApiError ? caught.message : '저장하지 못했어요.'),
+    onError: (caught) => setError(errorMessage(caught, MESSAGES.saveFailed)),
   });
 
   const remove = useMutation({
@@ -116,6 +117,9 @@ export default function FixedScreen() {
         }
       >
         {groups.isLoading ? <Loading /> : null}
+        {groups.isError ? (
+          <QueryError error={groups.error} onRetry={() => void groups.refetch()} />
+        ) : null}
 
         {groups.data ? (
           <Card style={styles.totalCard}>
@@ -300,18 +304,13 @@ export default function FixedScreen() {
                     label="이 항목 지우기"
                     variant="ghost"
                     onPress={() =>
-                      Alert.alert(
-                        '고정비 지우기',
-                        '앞으로의 기록에서 빠져요. 지난 기록은 그대로 남습니다.',
-                        [
-                          { text: '취소', style: 'cancel' },
-                          {
-                            text: '지우기',
-                            style: 'destructive',
-                            onPress: () => draft.id && remove.mutate(draft.id),
-                          },
-                        ],
-                      )
+                      confirm({
+                        title: '고정비 지우기',
+                        body: '앞으로의 기록에서 빠져요. 지난 기록은 그대로 남아요.',
+                        confirmLabel: '지우기',
+                        destructive: true,
+                        onConfirm: () => draft.id && remove.mutate(draft.id),
+                      })
                     }
                   />
                 ) : null}
