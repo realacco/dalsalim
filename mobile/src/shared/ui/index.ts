@@ -9,5 +9,6 @@ export { Loading } from './loading';
 export { Notice } from './notice';
 export { PressableScale } from './pressable-scale';
 export { ProgressBar } from './progress-bar';
+export { QueryError } from './query-error';
 export { Divider, Row } from './row';
 export { ErrorText, Muted, SectionTitle } from './text';
