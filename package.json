@@ -1,0 +1,23 @@
+{
+  "name": "dalsalim",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "달살림 저장소 루트 — 커밋 규칙·훅·포매터만 둔다. 실제 코드는 server/ 와 mobile/ 에 있다",
+  "scripts": {
+    "prepare": "husky",
+    "typecheck": "npm --prefix server run typecheck && npm --prefix mobile run typecheck",
+    "lint": "npm --prefix server run lint && npm --prefix mobile run lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "scan:secrets": "node scripts/scan-secrets.mjs",
+    "scan:secrets:selftest": "node scripts/scan-secrets.mjs --selftest"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^20.1.0",
+    "@commitlint/config-conventional": "^20.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.4",
+    "prettier": "^3.9.6"
+  }
+}

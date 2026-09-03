@@ -43,7 +43,9 @@
     "web": "expo start --web",
     "dev": "node ./scripts/dev.js",
     "emu": "node ./scripts/emulator.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "lint:fix": "eslint --fix --no-warn-ignored"
   },
   "private": true,
   "overrides": {
