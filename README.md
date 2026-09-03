@@ -178,7 +178,7 @@ REST 키와 client secret이 앱 번들에 들어가지 않는다 — 보안상�
 폰에 Expo Go 를 설치하고 PC 와 같은 Wi-Fi 에 둔 뒤, **Enter URL manually** 에 개발 서버 주소를 넣는다.
 
 ```
-exp://<PC의 LAN IP>:8081        예: exp://192.168.45.56:8081
+exp://<PC의 LAN IP>:8081        예: exp://192.168.0.10:8081
 ```
 
 서버 주소는 앱이 개발 서버 호스트에서 자동으로 유추한다(`src/shared/api/client.ts`). 따로 설정할 게 없다.
@@ -193,7 +193,13 @@ eas build --platform android --profile preview     # 클라우드 빌드 → APK
 ```
 
 **독립 빌드에는 Expo 개발 서버가 없어서 호스트 자동 유추가 동작하지 않는다.** 그래서 `eas.json` 의
-`preview.env.EXPO_PUBLIC_API_URL` 에 서버 주소를 박아둔다. 지금은 이 PC 의 LAN 주소라서:
+`preview.env.EXPO_PUBLIC_API_URL` 에 서버 주소를 박아둔다.
+
+**빌드하기 전에 이 값을 자기 PC 의 LAN 주소로 바꿔야 한다.** 저장소에는 `SET-YOUR-LAN-IP`
+자리표시자가 들어 있다 — 공개 저장소에 집 네트워크 주소를 남기지 않기 위해서다.
+(윈도우는 `ipconfig`, 맥·리눅스는 `ifconfig` 로 확인한다.)
+
+LAN 주소를 쓰기 때문에:
 
 - **PC 가 켜져 있고 서버가 떠 있어야** 앱이 동작한다
 - **공유기가 PC 에 다른 IP 를 주면 깨진다.** `eas.json` 의 값을 고치고 다시 빌드해야 한다

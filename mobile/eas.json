@@ -10,7 +10,7 @@
       },
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://192.168.45.56:4000"
+        "EXPO_PUBLIC_API_URL": "http://SET-YOUR-LAN-IP:4000"
       }
     },
     "production": {
