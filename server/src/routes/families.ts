@@ -9,7 +9,7 @@ import {
   transferOwner,
 } from '../services/family.js';
 import { requireMembership, requireOwner, requireUser } from '../lib/auth.js';
-import { badRequest, conflict, forbidden, notFound } from '../lib/http.js';
+import { fail } from '../lib/http.js';
 import { ACTIVE_MEMBER, CATEGORIES } from '../lib/shared.js';
 
 const displayName = z.string().trim().min(1, '이름을 입력해주세요.').max(20);
@@ -63,15 +63,15 @@ export async function familyRoutes(app: FastifyInstance) {
       include: { memberships: true },
     });
 
-    if (!family) throw notFound('그런 초대코드를 가진 가족이 없습니다.');
+    if (!family) throw fail('INVITE_CODE_NOT_FOUND');
 
     const existing = family.memberships.find((m) => m.userId === user.id);
 
     if (existing?.status === 'ACTIVE') {
-      throw conflict('ALREADY_MEMBER', '이미 참여한 가족입니다.');
+      throw fail('ALREADY_MEMBER');
     }
     if (existing?.status === 'PENDING') {
-      throw conflict('ALREADY_REQUESTED', '이미 참여를 요청했어요. 가족장의 승인을 기다려주세요.');
+      throw fail('ALREADY_REQUESTED');
     }
 
     let membership;
@@ -145,7 +145,7 @@ export async function familyRoutes(app: FastifyInstance) {
 
     const mine = await prisma.membership.findUnique({ where: { id: membershipId } });
     if (!mine || mine.userId !== user.id || mine.status !== 'PENDING') {
-      throw notFound('그런 참여 요청이 없습니다.');
+      throw fail('REQUEST_NOT_FOUND');
     }
 
     // 승인 전이라 이 멤버십에 매달린 기록이 없다. 되살릴 게 없으니 그냥 지운다.
@@ -187,7 +187,7 @@ export async function familyRoutes(app: FastifyInstance) {
 
     const target = await prisma.membership.findUnique({ where: { id: params.membershipId } });
     if (!target || target.familyId !== params.familyId || target.status !== 'PENDING') {
-      throw notFound('그런 참여 요청이 없습니다.');
+      throw fail('REQUEST_NOT_FOUND');
     }
 
     await prisma.membership.update({
@@ -214,7 +214,7 @@ export async function familyRoutes(app: FastifyInstance) {
 
     const target = await prisma.membership.findUnique({ where: { id: params.membershipId } });
     if (!target || target.familyId !== params.familyId || target.status !== 'PENDING') {
-      throw notFound('그런 참여 요청이 없습니다.');
+      throw fail('REQUEST_NOT_FOUND');
     }
 
     // 승인 전이라 매달린 기록이 없다. LEFT 로 남기면 "한때 구성원이었던 사람"으로
@@ -298,12 +298,12 @@ export async function familyRoutes(app: FastifyInstance) {
 
     const target = await prisma.membership.findUnique({ where: { id: params.membershipId } });
     if (!target || target.familyId !== params.familyId || target.status !== 'ACTIVE') {
-      throw notFound('그런 구성원이 없습니다.');
+      throw fail('MEMBER_NOT_FOUND');
     }
 
     const isSelf = target.id === mine.id;
     if (!isSelf && mine.role !== 'OWNER') {
-      throw forbidden('가족장만 구성원을 내보낼 수 있습니다.');
+      throw fail('OWNER_ONLY_REMOVE');
     }
 
     const activeCount = await prisma.membership.count({
@@ -312,10 +312,7 @@ export async function familyRoutes(app: FastifyInstance) {
 
     // 가족장이 그냥 나가면 주인 없는 가족이 남는다. 남은 사람이 있으면 먼저 넘겨야 한다.
     if (target.role === 'OWNER' && activeCount > 1) {
-      throw badRequest(
-        'TRANSFER_OWNER_FIRST',
-        '가족장을 다른 구성원에게 넘긴 뒤에 나갈 수 있어요.',
-      );
+      throw fail('TRANSFER_OWNER_FIRST');
     }
 
     await deactivateMember(params.familyId, target.id);
@@ -332,10 +329,10 @@ export async function familyRoutes(app: FastifyInstance) {
 
     const target = await prisma.membership.findUnique({ where: { id: body.membershipId } });
     if (!target || target.familyId !== familyId || target.status !== 'ACTIVE') {
-      throw notFound('그런 구성원이 없습니다.');
+      throw fail('MEMBER_NOT_FOUND');
     }
     if (target.id === mine.id) {
-      throw badRequest('ALREADY_OWNER', '이미 가족장이에요.');
+      throw fail('ALREADY_OWNER');
     }
 
     await transferOwner(mine.id, target.id);

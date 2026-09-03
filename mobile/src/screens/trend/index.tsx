@@ -3,11 +3,10 @@ import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ApiError } from '@/shared/api/client';
 import { bookKeys, fetchTrend } from '@/entities/book';
 import { useSession } from '@/entities/session';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
-import { Button, Card, Divider, ErrorText, Loading, Muted, Notice } from '@/shared/ui';
+import { Card, Divider, Loading, Muted, Notice, QueryError } from '@/shared/ui';
 import { formatWon, formatYearMonth } from '@/shared/lib/format';
 
 import { TrendChart } from './ui/trend-chart';
@@ -49,12 +48,7 @@ export default function TrendScreen() {
         {trend.isLoading ? <Loading /> : null}
 
         {trend.isError ? (
-          <Card style={{ gap: space.md }}>
-            <ErrorText>
-              {trend.error instanceof ApiError ? trend.error.message : '불러오지 못했어요.'}
-            </ErrorText>
-            <Button label="다시 시도" variant="ghost" onPress={() => void trend.refetch()} />
-          </Card>
+          <QueryError error={trend.error} onRetry={() => void trend.refetch()} />
         ) : null}
 
         {trend.data && points.length < 2 ? (
