@@ -183,7 +183,7 @@ async function runWizard(name, { changeFirstFixed }) {
   const entry = start.body.entry;
 
   const income = entry.lines.find((l) => l.kind === 'INCOME');
-  check('지난달 월급이 기본값으로 깔린다', income.plannedAmount > 0, income);
+  check('★ 지난달에 적은 금액이 이번 달 기본값으로 깔린다', income.plannedAmount > 0, income);
 
   const fixedLines = entry.lines.filter((l) => l.kind === 'FIXED');
   check('내 고정비가 스텝으로 펼쳐진다', fixedLines.length > 0, fixedLines.length);
@@ -198,7 +198,7 @@ async function runWizard(name, { changeFirstFixed }) {
     token,
     body: { actualAmount: income.plannedAmount },
   });
-  check('같은 금액은 사유 없이 통과', sameIncome.status === 200, sameIncome.body);
+  check('★ 같은 금액은 아무것도 묻지 않는다', sameIncome.status === 200, sameIncome.body);
 
   // 2) 고정비 첫 항목 — 금액을 바꾸고 사유를 뺀다. 막혀야 한다.
   const first = fixedLines[0];
@@ -226,7 +226,7 @@ async function runWizard(name, { changeFirstFixed }) {
       body: { actualAmount: first.plannedAmount },
     });
     check(
-      '금액을 되돌리면 사유도 지워진다',
+      '★ 금액을 되돌리면 사유도 같이 지워진다',
       revert.status === 200 && revert.body.line.changeReason === null,
       revert.body,
     );
