@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useMutation } from '@tanstack/react-query';
 
-import { ApiError } from '@/shared/api/client';
 import { type EntryLine, needsReason, updateLine } from '@/entities/entry';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { AmountInput, Button, Card, ErrorText, Field, Input, Muted } from '@/shared/ui';
 import { formatAmount, formatWon } from '@/shared/lib/format';
+import { MESSAGES } from '@/shared/config/messages';
+import { errorMessage } from '@/shared/lib/errors';
 import { useStepStyles } from '../styles';
 
 /**
@@ -45,8 +46,7 @@ export function LineStep({
         changeReason: reason.trim() || null,
       }),
     onSuccess: onSaved,
-    onError: (caught) =>
-      setError(caught instanceof ApiError ? caught.message : '저장하지 못했어요.'),
+    onError: (caught) => setError(errorMessage(caught, MESSAGES.saveFailed)),
   });
 
   function next() {
