@@ -56,7 +56,9 @@ async function checkApi() {
       signal: AbortSignal.timeout(1500),
     });
     const body = await response.json();
-    console.log(`✅ API 서버 연결됨 (카카오 ${body.kakao ? '켜짐' : '꺼짐'} · 개발 로그인 ${body.devLogin ? '켜짐' : '꺼짐'})`);
+    console.log(
+      `✅ API 서버 연결됨 (카카오 ${body.kakao ? '켜짐' : '꺼짐'} · 개발 로그인 ${body.devLogin ? '켜짐' : '꺼짐'})`,
+    );
   } catch {
     console.log('');
     console.log('⚠️  API 서버(localhost:4000)가 꺼져 있습니다.');

@@ -1,0 +1,8 @@
+# git blame 에서 건너뛸 커밋 — 포맷만 바꾼 것들.
+#
+# 쓰는 법 (한 번만):
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# GitHub 는 이 파일이 있으면 알아서 적용한다.
+
+# style: Prettier 로 전체 포맷 통일
+6cae7713d4f24d811f3ed3992ec1f078998190f0

@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.expo/
+web-build/
+android/
+ios/
+*.md
+package-lock.json
+server/prisma/migrations/
+mobile/assets/

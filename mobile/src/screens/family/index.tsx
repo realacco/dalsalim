@@ -1,13 +1,5 @@
 import { useState } from 'react';
-import {
-  Alert,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
@@ -396,7 +388,12 @@ export default function FamilyScreen() {
 const useStyles = makeStyles((t) => ({
   screen: { flex: 1, backgroundColor: t.colors.bg },
   content: { padding: t.space.lg, gap: t.space.lg, paddingBottom: t.space.xxl },
-  title: { ...t.font.title, fontWeight: t.weight.heavy, color: t.colors.ink, paddingHorizontal: t.space.xs },
+  title: {
+    ...t.font.title,
+    fontWeight: t.weight.heavy,
+    color: t.colors.ink,
+    paddingHorizontal: t.space.xs,
+  },
   cardTitle: { ...t.font.bodyLg, fontWeight: t.weight.bold, color: t.colors.ink },
 
   codeBox: {

@@ -109,9 +109,7 @@ export default function PendingScreen() {
     <SafeAreaView style={styles.screen}>
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={checking} onRefresh={checkApproved} />
-        }
+        refreshControl={<RefreshControl refreshing={checking} onRefresh={checkApproved} />}
       >
         {pending.isLoading || resolving ? <Loading /> : null}
 
@@ -154,7 +152,11 @@ export default function PendingScreen() {
               onPress={() =>
                 Alert.alert('요청 취소', '참여 요청을 무를까요? 다시 요청할 수 있어요.', [
                   { text: '그대로 두기', style: 'cancel' },
-                  { text: '취소하기', style: 'destructive', onPress: () => cancel.mutate(request.membershipId) },
+                  {
+                    text: '취소하기',
+                    style: 'destructive',
+                    onPress: () => cancel.mutate(request.membershipId),
+                  },
                 ])
               }
             />

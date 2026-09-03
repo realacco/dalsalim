@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -136,7 +136,9 @@ export default function SummaryScreen() {
                     <View key={item.category} style={{ gap: space.xs }}>
                       <Row label={item.category} value={formatWon(item.amount)} />
                       <View style={styles.barTrack}>
-                        <View style={[styles.barFill, { width: `${(item.amount / max) * 100}%` }]} />
+                        <View
+                          style={[styles.barFill, { width: `${(item.amount / max) * 100}%` }]}
+                        />
                       </View>
                     </View>
                   );
@@ -195,7 +197,11 @@ const useStyles = makeStyles((t) => ({
 
   content: { padding: t.space.lg, gap: t.space.lg, paddingBottom: t.space.xxl },
 
-  heroCard: { gap: t.space.md, backgroundColor: t.colors.primarySoft, borderColor: t.colors.primarySoft },
+  heroCard: {
+    gap: t.space.md,
+    backgroundColor: t.colors.primarySoft,
+    borderColor: t.colors.primarySoft,
+  },
   heroLabel: { ...t.font.small, fontWeight: t.weight.bold, color: t.colors.primary },
   heroValue: { ...t.font.amount, fontWeight: t.weight.heavy, color: t.colors.ink },
 
@@ -204,10 +210,19 @@ const useStyles = makeStyles((t) => ({
   changeHead: { flexDirection: 'row', justifyContent: 'space-between', gap: t.space.md },
   changeName: { ...t.font.body, color: t.colors.ink, fontWeight: t.weight.semibold, flexShrink: 1 },
   changeWho: { ...t.font.small, color: t.colors.inkFaint, fontWeight: t.weight.regular },
-  changeDelta: { ...t.font.body, fontWeight: t.weight.bold, fontVariant: ['tabular-nums' as const] },
+  changeDelta: {
+    ...t.font.body,
+    fontWeight: t.weight.bold,
+    fontVariant: ['tabular-nums' as const],
+  },
   changeReason: { ...t.font.small, color: t.colors.inkSoft },
 
-  memberName: { ...t.font.body, fontWeight: t.weight.bold, color: t.colors.ink, marginTop: t.space.xs },
+  memberName: {
+    ...t.font.body,
+    fontWeight: t.weight.bold,
+    color: t.colors.ink,
+    marginTop: t.space.xs,
+  },
 
   barTrack: { height: 6, backgroundColor: t.colors.surfaceMuted, borderRadius: t.radius.pill },
   barFill: { height: 6, backgroundColor: t.colors.primary, borderRadius: t.radius.pill },

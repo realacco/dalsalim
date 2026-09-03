@@ -74,10 +74,9 @@ export function updateMyDisplayName(familyId: string, displayName: string) {
  * 서버는 지우지 않고 비활성화한다. 지난 장부의 합계가 바뀌면 안 되기 때문이다.
  */
 export function removeMember(familyId: string, membershipId: string) {
-  return api<{ ok: true; membershipId: string }>(
-    `/families/${familyId}/members/${membershipId}`,
-    { method: 'DELETE' },
-  );
+  return api<{ ok: true; membershipId: string }>(`/families/${familyId}/members/${membershipId}`, {
+    method: 'DELETE',
+  });
 }
 
 /** 가족장 넘기기. 넘긴 사람은 일반 멤버가 된다. */

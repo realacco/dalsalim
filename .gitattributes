@@ -1,0 +1,7 @@
+# 줄바꿈은 저장소에서 LF 로 통일한다.
+# 없으면 윈도우 체크아웃이 CRLF 로 바꾸고, Prettier(endOfLine: lf)가 매번 되돌려
+# "고치지도 않았는데 전 파일이 변경됨" 상태가 반복된다.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary

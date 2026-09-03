@@ -21,7 +21,11 @@
 
 ## 빠르게 실행하기
 
-터미널 두 개가 필요하다.
+터미널 두 개가 필요하다. 그 전에 **저장소 루트에서 한 번**:
+
+```bash
+npm install   # 최초 1회 — 커밋 훅(husky)이 여기서 설치된다
+```
 
 ```bash
 # 1번 터미널 — API 서버
@@ -93,10 +97,19 @@ dalsalim/
 ## 검증
 
 ```bash
-cd server && node scripts/smoke.mjs   # API 38개 — 로그인부터 요약까지
-cd server && npm run typecheck
-cd mobile && npm run typecheck
+npm test                              # 1층 — 순수 함수 (루트에서, 0.5초)
+cd server && node scripts/smoke.mjs   # 2층 — API 흐름 75개
+npm run typecheck                     # 루트에서 — tests + server + mobile
+npm run lint                          # 루트에서 — server + mobile
 ```
+
+검증은 3층이다 — **1층 순수 함수(vitest)** · **2층 API 흐름(스모크)** · **3층 화면(사람)**.
+3층은 자동화하지 않는다. 커서 밀림 같은 건 결국 에뮬레이터에서 눌러봐야 안다.
+
+커밋할 때는 훅이 알아서 돈다 — **비밀 스캔** · 바뀐 파일만 lint · **1층 테스트** ·
+건드린 쪽만 typecheck · 커밋 메시지 검사(commitlint). PR 을 올리면 **CI** 가 전체 lint·typecheck·테스트와
+스모크(Postgres 컨테이너)를 돈다 — `.github/workflows/ci.yml`. 규칙은 `CLAUDE.md` 「커밋 규칙」에 있다.
+비밀 스캔이 자리표시자를 잘못 잡으면 그 줄 끝에 `secret-scan:allow` 를 적는다.
 
 스모크 테스트는 기획서 10장의 성공 기준을 그대로 따라간다. 특히 이 넷은 이 앱의 규칙이라 반드시 통과해야 한다.
 

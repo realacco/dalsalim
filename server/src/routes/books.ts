@@ -71,7 +71,9 @@ export async function bookRoutes(app: FastifyInstance) {
           isMe: m.id === mine.id,
           entryId: entry?.id ?? null,
           status: entry?.status ?? 'NONE',
-          progress: entry ? { step: Math.min(entry.cursor + 1, totalSteps), total: totalSteps } : null,
+          progress: entry
+            ? { step: Math.min(entry.cursor + 1, totalSteps), total: totalSteps }
+            : null,
           /** 고정비가 0개면 이 앱의 템플릿이 비어 있다는 뜻이다. 홈이 그걸 먼저 안내한다. */
           fixedExpenseCount: m.fixedExpenses.length,
           summary: entry?.status === 'SUBMITTED' ? entrySummary(entry.lines) : null,

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { ApiError } from '@/shared/api/client';
@@ -147,6 +147,11 @@ const useStyles = makeStyles((t) => ({
   },
   extraName: { ...t.font.body, color: t.colors.ink, fontWeight: t.weight.semibold },
   extraMeta: { ...t.font.caption, color: t.colors.inkFaint },
-  extraAmount: { ...t.font.body, color: t.colors.ink, fontWeight: t.weight.bold, fontVariant: ['tabular-nums' as const] },
+  extraAmount: {
+    ...t.font.body,
+    color: t.colors.ink,
+    fontWeight: t.weight.bold,
+    fontVariant: ['tabular-nums' as const],
+  },
   removeIcon: { ...t.font.headline, color: t.colors.inkFaint },
 }));

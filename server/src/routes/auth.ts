@@ -61,53 +61,64 @@ export async function authRoutes(app: FastifyInstance) {
     dev: env.devLogin,
   }));
 
-  app.get('/auth/kakao/start', { config: { rateLimit: SENSITIVE_LIMIT } }, async (request, reply) => {
-    if (!kakaoConfigured) {
-      throw badRequest('KAKAO_NOT_CONFIGURED', '서버에 카카오 REST API 키가 설정되지 않았습니다.');
-    }
+  app.get(
+    '/auth/kakao/start',
+    { config: { rateLimit: SENSITIVE_LIMIT } },
+    async (request, reply) => {
+      if (!kakaoConfigured) {
+        throw badRequest(
+          'KAKAO_NOT_CONFIGURED',
+          '서버에 카카오 REST API 키가 설정되지 않았습니다.',
+        );
+      }
 
-    const { returnUrl } = z
-      .object({ returnUrl: z.string().min(1) })
-      .parse(request.query);
+      const { returnUrl } = z.object({ returnUrl: z.string().min(1) }).parse(request.query);
 
-    const params = new URLSearchParams({
-      client_id: env.kakao.restApiKey,
-      redirect_uri: `${env.publicBaseUrl}${REDIRECT_PATH}`,
-      response_type: 'code',
-      state: encodeState(returnUrl),
-    });
+      const params = new URLSearchParams({
+        client_id: env.kakao.restApiKey,
+        redirect_uri: `${env.publicBaseUrl}${REDIRECT_PATH}`,
+        response_type: 'code',
+        state: encodeState(returnUrl),
+      });
 
-    return reply.redirect(`https://kauth.kakao.com/oauth/authorize?${params}`);
-  });
+      return reply.redirect(`https://kauth.kakao.com/oauth/authorize?${params}`);
+    },
+  );
 
-  app.get('/auth/kakao/callback', { config: { rateLimit: SENSITIVE_LIMIT } }, async (request, reply) => {
-    const query = z
-      .object({ code: z.string().optional(), state: z.string(), error: z.string().optional() })
-      .parse(request.query);
+  app.get(
+    '/auth/kakao/callback',
+    { config: { rateLimit: SENSITIVE_LIMIT } },
+    async (request, reply) => {
+      const query = z
+        .object({ code: z.string().optional(), state: z.string(), error: z.string().optional() })
+        .parse(request.query);
 
-    const { returnUrl } = decodeState(query.state);
+      const { returnUrl } = decodeState(query.state);
 
-    // 사용자가 동의 화면에서 취소한 경우
-    if (query.error || !query.code) {
-      const separator = returnUrl.includes('?') ? '&' : '?';
-      return reply.redirect(`${returnUrl}${separator}error=${encodeURIComponent(query.error ?? 'cancelled')}`);
-    }
+      // 사용자가 동의 화면에서 취소한 경우
+      if (query.error || !query.code) {
+        const separator = returnUrl.includes('?') ? '&' : '?';
+        return reply.redirect(
+          `${returnUrl}${separator}error=${encodeURIComponent(query.error ?? 'cancelled')}`,
+        );
+      }
 
-    const profile = await fetchKakaoProfile(query.code, `${env.publicBaseUrl}${REDIRECT_PATH}`);
+      const profile = await fetchKakaoProfile(query.code, `${env.publicBaseUrl}${REDIRECT_PATH}`);
 
-    const user = await prisma.user.upsert({
-      where: { kakaoId: profile.kakaoId },
-      // 닉네임/프로필은 카카오가 원본이므로 로그인할 때마다 최신으로 맞춘다
-      update: { nickname: profile.nickname, profileImageUrl: profile.profileImageUrl },
-      create: {
-        kakaoId: profile.kakaoId,
-        nickname: profile.nickname,
-        profileImageUrl: profile.profileImageUrl,
-      },
-    });
+      const user = await prisma.user.upsert({
+        where: { kakaoId: profile.kakaoId },
+        // 닉네임/프로필은 카카오가 원본이므로 로그인할 때마다 최신으로 맞춘다
+        update: { nickname: profile.nickname, profileImageUrl: profile.profileImageUrl },
+        create: {
+          kakaoId: profile.kakaoId,
+          nickname: profile.nickname,
+          profileImageUrl: profile.profileImageUrl,
+        },
+      });
 
-    return reply.redirect(appendToken(returnUrl, issueToken(user.id)));
-  });
+      return reply.redirect(appendToken(returnUrl, issueToken(user.id)));
+    },
+  );
 
   /**
    * 개발용 로그인. 카카오 앱 등록 없이 에뮬레이터에서 바로 여러 명을 만들어

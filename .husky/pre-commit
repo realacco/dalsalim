@@ -1,0 +1,21 @@
+# 1) 밖에 나가면 안 되는 것부터. 저장소가 PUBLIC 이라 이게 제일 앞이다
+node scripts/scan-secrets.mjs || exit 1
+
+# 2) 바뀐 파일만 포맷 + 린트
+lint-staged || exit 1
+
+# 3) 1층 테스트 — 순수 함수. 0.5초라 매 커밋에 돌릴 값어치가 있다.
+#    2층(스모크)은 Postgres 가 필요해서 CI 로 보낸다
+vitest run || exit 1
+
+# 4) 타입체크는 **건드린 쪽만**. 양쪽 다 돌리면 8초가 되고, 느린 훅은 우회당한다
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+case "$staged" in
+  *server/*) npm --prefix server run typecheck || exit 1 ;;
+esac
+case "$staged" in
+  *mobile/*) npm --prefix mobile run typecheck || exit 1 ;;
+esac
+case "$staged" in
+  *tests/*|*vitest.config*) tsc --noEmit || exit 1 ;;
+esac

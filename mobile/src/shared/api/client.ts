@@ -43,7 +43,10 @@ export function setAuthToken(token: string | null) {
 
 type Options = { method?: string; body?: unknown; token?: string | null };
 
-export async function api<T>(path: string, { method = 'GET', body, token }: Options = {}): Promise<T> {
+export async function api<T>(
+  path: string,
+  { method = 'GET', body, token }: Options = {},
+): Promise<T> {
   const effectiveToken = token !== undefined ? token : authToken;
 
   let response: Response;
@@ -64,20 +67,34 @@ export async function api<T>(path: string, { method = 'GET', body, token }: Opti
   const payload = text ? safeParse(text) : null;
 
   if (!response.ok) {
+    // 서버는 { code, message } 를 준다고 약속했지만, 프록시나 게이트웨이가
+    // 다른 걸 끼워 넣을 수 있다. 형태를 확인하고 꺼낸다.
+    const error = asErrorPayload(payload);
     throw new ApiError(
       response.status,
-      payload?.code ?? 'UNKNOWN',
-      payload?.message ?? '알 수 없는 오류가 생겼어요.',
+      error.code ?? 'UNKNOWN',
+      error.message ?? '알 수 없는 오류가 생겼어요.',
     );
   }
 
   return payload as T;
 }
 
-function safeParse(text: string): any {
+/** 서버가 JSON 이 아닌 것을 보냈을 수도 있다. 형태를 모르니 unknown 으로 받고 호출부에서 좁힌다. */
+function safeParse(text: string): unknown {
   try {
     return JSON.parse(text);
   } catch {
     return null;
   }
+}
+
+function asErrorPayload(value: unknown): { code?: string; message?: string } {
+  if (typeof value !== 'object' || value === null) return {};
+
+  const { code, message } = value as Record<string, unknown>;
+  return {
+    code: typeof code === 'string' ? code : undefined,
+    message: typeof message === 'string' ? message : undefined,
+  };
 }

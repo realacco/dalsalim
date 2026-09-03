@@ -7,7 +7,6 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -186,7 +185,12 @@ export default function FixedScreen() {
         ))}
       </ScrollView>
 
-      <Modal visible={draft !== null} animationType="slide" transparent onRequestClose={() => setDraft(null)}>
+      <Modal
+        visible={draft !== null}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setDraft(null)}
+      >
         {/*
           키보드를 피하는 건 시트가 아니라 **화면 전체**여야 한다.
           시트만 감싸면 줄어들 여지가 없어서 [저장] 이 키보드에 그대로 덮인다.
@@ -209,9 +213,7 @@ export default function FixedScreen() {
                 keyboardShouldPersistTaps="handled"
                 contentContainerStyle={styles.sheetContent}
               >
-                <Text style={styles.sheetTitle}>
-                  {draft?.id ? '고정비 수정' : '고정비 추가'}
-                </Text>
+                <Text style={styles.sheetTitle}>{draft?.id ? '고정비 수정' : '고정비 추가'}</Text>
 
                 {/*
                   '생활비' 를 여기 넣는 사람이 있는데, 뜻이 두 가지다. (기획서 3장)
@@ -227,7 +229,9 @@ export default function FixedScreen() {
                 <Field label="항목 이름" hint="예: 통신비, 월세, 자동차보험">
                   <Input
                     value={draft?.name ?? ''}
-                    onChangeText={(text) => setDraft((prev) => (prev ? { ...prev, name: text } : prev))}
+                    onChangeText={(text) =>
+                      setDraft((prev) => (prev ? { ...prev, name: text } : prev))
+                    }
                     placeholder="통신비"
                     maxLength={30}
                   />
@@ -261,7 +265,9 @@ export default function FixedScreen() {
                     value={draft?.dayOfMonth ?? ''}
                     onChangeText={(text) =>
                       setDraft((prev) =>
-                        prev ? { ...prev, dayOfMonth: text.replace(/[^0-9]/g, '').slice(0, 2) } : prev,
+                        prev
+                          ? { ...prev, dayOfMonth: text.replace(/[^0-9]/g, '').slice(0, 2) }
+                          : prev,
                       )
                     }
                     placeholder="25"
@@ -322,11 +328,25 @@ export default function FixedScreen() {
 
 const useStyles = makeStyles((t) => ({
   screen: { flex: 1, backgroundColor: t.colors.bg },
-  header: { paddingHorizontal: t.space.lg, paddingTop: t.space.md, paddingBottom: t.space.sm, gap: t.space.xs },
+  header: {
+    paddingHorizontal: t.space.lg,
+    paddingTop: t.space.md,
+    paddingBottom: t.space.sm,
+    gap: t.space.xs,
+  },
   title: { ...t.font.title, fontWeight: t.weight.heavy, color: t.colors.ink },
-  content: { padding: t.space.lg, paddingTop: t.space.sm, gap: t.space.lg, paddingBottom: t.space.xxl },
+  content: {
+    padding: t.space.lg,
+    paddingTop: t.space.sm,
+    gap: t.space.lg,
+    paddingBottom: t.space.xxl,
+  },
 
-  totalCard: { backgroundColor: t.colors.primarySoft, borderColor: t.colors.primarySoft, gap: t.space.xs },
+  totalCard: {
+    backgroundColor: t.colors.primarySoft,
+    borderColor: t.colors.primarySoft,
+    gap: t.space.xs,
+  },
   totalLabel: { ...t.font.small, color: t.colors.primary, fontWeight: t.weight.bold },
   totalValue: { ...t.font.question, fontWeight: t.weight.heavy, color: t.colors.ink },
 
@@ -334,10 +354,20 @@ const useStyles = makeStyles((t) => ({
   groupName: { ...t.font.bodyLg, fontWeight: t.weight.bold, color: t.colors.ink },
   groupTotal: { ...t.font.body, color: t.colors.inkSoft, fontVariant: ['tabular-nums' as const] },
 
-  item: { flexDirection: 'row', alignItems: 'center', paddingVertical: t.space.sm, gap: t.space.md },
+  item: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: t.space.sm,
+    gap: t.space.md,
+  },
   itemName: { ...t.font.body, color: t.colors.ink, fontWeight: t.weight.semibold },
   itemMeta: { ...t.font.caption, color: t.colors.inkFaint },
-  itemAmount: { ...t.font.body, color: t.colors.ink, fontWeight: t.weight.bold, fontVariant: ['tabular-nums' as const] },
+  itemAmount: {
+    ...t.font.body,
+    color: t.colors.ink,
+    fontWeight: t.weight.bold,
+    fontVariant: ['tabular-nums' as const],
+  },
 
   backdrop: { flex: 1, backgroundColor: t.colors.overlay, justifyContent: 'flex-end' },
   sheet: {
