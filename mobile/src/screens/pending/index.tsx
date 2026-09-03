@@ -8,7 +8,7 @@ import { ApiError } from '@/shared/api/client';
 import { cancelJoinRequest, familyKeys, fetchMyPendingRequests } from '@/entities/family';
 import { useSession } from '@/entities/session';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
-import { Button, Card, Loading, Muted, Notice } from '@/shared/ui';
+import { Button, Card, Loading, Muted, Notice, QueryError } from '@/shared/ui';
 import { formatClock } from '@/shared/lib/format';
 
 /**
@@ -112,6 +112,9 @@ export default function PendingScreen() {
         refreshControl={<RefreshControl refreshing={checking} onRefresh={checkApproved} />}
       >
         {pending.isLoading || resolving ? <Loading /> : null}
+        {pending.isError ? (
+          <QueryError error={pending.error} onRetry={() => void pending.refetch()} />
+        ) : null}
 
         {request ? (
           <>
@@ -163,7 +166,7 @@ export default function PendingScreen() {
           </>
         ) : null}
 
-        {!pending.isLoading && !resolving && !request ? (
+        {!pending.isLoading && !pending.isError && !resolving && !request ? (
           <>
             <Text style={styles.title}>기다리는 요청이 없어요</Text>
             <Muted>거절됐거나 이미 처리된 요청이에요. 다시 참여를 요청할 수 있어요.</Muted>
@@ -179,11 +182,8 @@ export default function PendingScreen() {
           <Button
             label="로그아웃"
             variant="ghost"
-            onPress={async () => {
-              await signOut();
-              queryClient.clear();
-              router.replace('/login');
-            }}
+            // 토큰이 비면 앱 셸이 로그인으로 보낸다
+            onPress={() => void signOut()}
           />
         </Card>
       </ScrollView>

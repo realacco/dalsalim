@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { familyKeys, fetchMyPendingRequests } from '@/entities/family';
 import { makeStyles } from '@/shared/config/theme-provider';
 import { useSession } from '@/entities/session';
-import { Loading } from '@/shared/ui';
+import { Loading, QueryError } from '@/shared/ui';
 
 /**
  * 앱을 열면 여기로 온다. 토큰과 가족 유무만 보고 갈 곳을 정한다.
@@ -41,6 +41,19 @@ export default function Gate() {
     );
   }
 
+  // 대기 목록을 못 받았으면 어디로 보낼지 모른다. 온보딩으로 보내면 이미 요청한 사람이
+  // 초대코드 화면을 다시 만나 또 요청한다 — 보내지 말고 여기서 다시 시도하게 한다
+  if (noFamily && pending.isError) {
+    return (
+      <View style={styles.splash}>
+        <Text style={styles.logo}>달살림</Text>
+        <View style={styles.errorBox}>
+          <QueryError error={pending.error} onRetry={() => void pending.refetch()} />
+        </View>
+      </View>
+    );
+  }
+
   if (!token) return <Redirect href="/login" />;
 
   if (noFamily) {
@@ -62,4 +75,5 @@ const useStyles = makeStyles((t) => ({
   },
   logo: { ...t.font.display, fontWeight: t.weight.heavy, color: t.colors.ink },
   tagline: { ...t.font.small, color: t.colors.inkFaint, marginBottom: t.space.xl },
+  errorBox: { alignSelf: 'stretch', paddingHorizontal: t.space.xl, marginTop: t.space.xl },
 }));
