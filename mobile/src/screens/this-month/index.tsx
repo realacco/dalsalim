@@ -1,113 +1,40 @@
-import { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ApiError } from '@/shared/api/client';
-import { type BookView, bookKeys, fetchBook } from '@/entities/book';
-import { familyKeys, fetchJoinRequests } from '@/entities/family';
-import { openMyEntry, reopenEntry } from '@/entities/entry';
-import { useSession } from '@/entities/session';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
-import {
-  Button,
-  Card,
-  Divider,
-  ErrorText,
-  Loading,
-  Muted,
-  Notice,
-  QueryError,
-  Row,
-} from '@/shared/ui';
-import { currentYearMonth, formatWon, formatYearMonth, shiftYearMonth } from '@/shared/lib/format';
+import { Button, Card, Divider, ErrorText, Loading, Muted, Notice, QueryError } from '@/shared/ui';
+import { formatYearMonth } from '@/shared/lib/format';
 
+import { bookBadge, statusLabel, statusStyleKey } from './model/status';
+import { useThisMonth } from './model/use-this-month';
+import { MyCard } from './ui/my-card';
+
+/**
+ * 이번 달 홈 — 내 기록 · 가족 진행 현황 · 요약 입구.
+ * 상태와 서버 통신은 useThisMonth 에, 표시 문구 규칙은 model/status 에 있다. 여기는 배치만 한다.
+ */
 export default function ThisMonthScreen() {
   const styles = useStyles();
   const { space } = useTheme();
-  const router = useRouter();
-  const queryClient = useQueryClient();
-  const { me, familyId } = useSession();
-
-  const [yearMonth, setYearMonth] = useState(currentYearMonth());
-  const [error, setError] = useState<string | null>(null);
-
-  const family = me?.memberships.find((m) => m.family.id === familyId)?.family;
-
-  const book = useQuery({
-    queryKey: bookKeys.view(familyId, yearMonth),
-    queryFn: () => fetchBook(familyId as string, yearMonth),
-    enabled: Boolean(familyId),
-  });
-
-  const iAmOwner = me?.memberships.find((m) => m.family.id === familyId)?.role === 'OWNER';
-
-  /**
-   * 들어온 참여 요청. 홈에서도 알려줘야 한다 —
-   * 아직 푸시 알림이 없어서, 가족장이 [가족] 탭을 일부러 열어보지 않으면
-   * 누가 참여를 기다리고 있는지 영영 모른다. 이 화면은 매달 어차피 열어보는 곳이다.
-   */
-  const joinRequests = useQuery({
-    queryKey: familyKeys.joinRequests(familyId),
-    queryFn: () => fetchJoinRequests(familyId as string),
-    enabled: Boolean(familyId) && iAmOwner,
-  });
-
-  /** 기록을 시작하거나 이어서 연다. 서버가 지난달 값으로 채운 초안을 돌려준다. */
-  const openWizard = useMutation({
-    mutationFn: () => openMyEntry(familyId as string, yearMonth),
-    onSuccess: (entry) => {
-      setError(null);
-      router.push(`/wizard/${entry.id}`);
-    },
-    onError: (caught) =>
-      setError(caught instanceof ApiError ? caught.message : '기록을 열지 못했어요.'),
-  });
-
-  /** 제출한 기록을 다시 연다 — 장부가 완성돼 있었다면 다시 진행 중으로 내려간다 */
-  const reopen = useMutation({
-    mutationFn: async (entryId: string) => {
-      await reopenEntry(entryId);
-      return entryId;
-    },
-    onSuccess: (entryId) => {
-      void queryClient.invalidateQueries({ queryKey: bookKeys.family(familyId) });
-      router.push(`/wizard/${entryId}`);
-    },
-    onError: (caught) =>
-      setError(caught instanceof ApiError ? caught.message : '기록을 열지 못했어요.'),
-  });
-
-  const isCurrentMonth = yearMonth === currentYearMonth();
-  const members = book.data?.members ?? [];
-  const mine = members.find((m) => m.isMe);
-  const others = members.filter((m) => !m.isMe);
-  const pending = members.filter((m) => m.status !== 'SUBMITTED');
-  const submittedCount = members.length - pending.length;
-  const remaining = pending.length;
+  const m = useThisMonth();
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <View style={styles.header}>
-        <Pressable
-          onPress={() => setYearMonth(shiftYearMonth(yearMonth, -1))}
-          hitSlop={12}
-          style={styles.arrow}
-        >
+        <Pressable onPress={m.goPrevMonth} hitSlop={12} style={styles.arrow}>
           <Text style={styles.arrowLabel}>‹</Text>
         </Pressable>
 
         <View style={{ alignItems: 'center' }}>
-          <Text style={styles.month}>{formatYearMonth(yearMonth)}</Text>
-          <Muted>{family?.name ?? ''}</Muted>
+          <Text style={styles.month}>{formatYearMonth(m.yearMonth)}</Text>
+          <Muted>{m.familyName}</Muted>
         </View>
 
         <Pressable
-          onPress={() => !isCurrentMonth && setYearMonth(shiftYearMonth(yearMonth, 1))}
+          onPress={m.goNextMonth}
           hitSlop={12}
-          style={[styles.arrow, isCurrentMonth && { opacity: 0.25 }]}
-          disabled={isCurrentMonth}
+          style={[styles.arrow, m.isCurrentMonth && { opacity: 0.25 }]}
+          disabled={m.isCurrentMonth}
         >
           <Text style={styles.arrowLabel}>›</Text>
         </Pressable>
@@ -115,34 +42,23 @@ export default function ThisMonthScreen() {
 
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl
-            refreshing={book.isFetching}
-            onRefresh={() => {
-              void book.refetch();
-              void joinRequests.refetch();
-            }}
-          />
-        }
+        refreshControl={<RefreshControl refreshing={m.isFetching} onRefresh={m.refetch} />}
       >
-        {book.isLoading ? <Loading /> : null}
+        {m.isLoading ? <Loading /> : null}
+        {m.isError ? <QueryError error={m.error} onRetry={m.refetch} /> : null}
 
-        {book.isError ? (
-          <QueryError error={book.error} onRetry={() => void book.refetch()} />
-        ) : null}
-
-        {book.data && mine ? (
+        {m.book && m.mine ? (
           <>
-            {joinRequests.data && joinRequests.data.length > 0 ? (
+            {m.requests.length > 0 ? (
               <Card style={{ gap: space.md }}>
                 <Text style={styles.cardTitle}>
-                  참여 요청 {joinRequests.data.length}건이 기다리고 있어요
+                  참여 요청 {m.requests.length}건이 기다리고 있어요
                 </Text>
                 <Muted>
-                  {joinRequests.data.map((request) => request.displayName).join(', ')}님이
-                  초대코드로 참여를 요청했어요. 승인해야 함께 적을 수 있어요.
+                  {m.requests.map((request) => request.displayName).join(', ')}님이 초대코드로
+                  참여를 요청했어요. 승인해야 함께 적을 수 있어요.
                 </Muted>
-                <Button label="확인하러 가기" onPress={() => router.push('/(tabs)/family')} />
+                <Button label="확인하러 가기" onPress={m.goFamily} />
               </Card>
             ) : null}
 
@@ -151,27 +67,27 @@ export default function ThisMonthScreen() {
               "등록한 고정비가 매달 템플릿이 된다"는 이 앱의 핵심을 첫 사용자가 그대로 건너뛰고,
               두 번째 달에 프리필될 것도 남지 않는다. 그래서 순서를 먼저 안내한다.
             */}
-            {mine.fixedExpenseCount === 0 && mine.status === 'NONE' ? (
+            {m.mine.fixedExpenseCount === 0 && m.mine.status === 'NONE' ? (
               <Card style={{ gap: space.md }}>
                 <Text style={styles.cardTitle}>먼저 고정비부터 등록해요</Text>
                 <Muted>
                   매달 나가는 돈을 한 번 등록해두면, 다음 달부터는 그 금액이 미리 채워진 채로
                   열려요. 엑셀에서 템플릿을 만드는 일을 여기서 딱 한 번만 하는 거예요.
                 </Muted>
-                <Button label="고정비 등록하러 가기" onPress={() => router.push('/(tabs)/fixed')} />
+                <Button label="고정비 등록하러 가기" onPress={m.goFixed} />
               </Card>
             ) : null}
 
             <MyCard
-              status={mine.status}
-              progress={mine.progress}
-              summary={mine.summary}
-              busy={openWizard.isPending || reopen.isPending}
-              onStart={() => openWizard.mutate()}
-              onEdit={() => mine.entryId && reopen.mutate(mine.entryId)}
+              status={m.mine.status}
+              progress={m.mine.progress}
+              summary={m.mine.summary}
+              busy={m.busy}
+              onStart={m.start}
+              onEdit={m.edit}
             />
 
-            <ErrorText>{error}</ErrorText>
+            <ErrorText>{m.actionError}</ErrorText>
 
             <Card style={{ gap: space.md }}>
               <View style={styles.cardHead}>
@@ -179,16 +95,16 @@ export default function ThisMonthScreen() {
                 <Text
                   style={[
                     styles.badge,
-                    book.data.book.status === 'COMPLETE' ? styles.badgeDone : styles.badgeOpen,
+                    m.book.book.status === 'COMPLETE' ? styles.badgeDone : styles.badgeOpen,
                   ]}
                 >
-                  {book.data.book.status === 'COMPLETE' ? '완성' : `${remaining}명 남음`}
+                  {bookBadge(m.book.book.status, m.notSubmitted.length)}
                 </Text>
               </View>
 
               <Divider />
 
-              {book.data.members.map((member) => (
+              {m.members.map((member) => (
                 <View key={member.membershipId} style={styles.memberRow}>
                   <Text style={styles.memberName}>
                     {member.displayName}
@@ -200,7 +116,7 @@ export default function ThisMonthScreen() {
                 </View>
               ))}
 
-              {others.length === 0 ? (
+              {m.alone ? (
                 <Muted>
                   아직 가족이 나뿐이에요. [가족] 탭에서 초대코드를 보내 함께 적어보세요.
                 </Muted>
@@ -208,25 +124,25 @@ export default function ThisMonthScreen() {
             </Card>
 
             <Card style={{ gap: space.md }}>
-              <Text style={styles.cardTitle}>{formatYearMonth(yearMonth)} 요약</Text>
+              <Text style={styles.cardTitle}>{formatYearMonth(m.yearMonth)} 요약</Text>
 
               {/*
                 예전에는 전원이 제출해야 열렸다. 한 명이 앱을 안 쓰기 시작하면 그 달부터
                 아무도 아무것도 못 보게 돼서 잠금을 없앴다. 대신 몇 명 기준인지 밝힌다.
               */}
-              {submittedCount === 0 ? (
+              {m.submittedCount === 0 ? (
                 <Muted>아직 아무도 적지 않았어요. 먼저 시작해보세요.</Muted>
               ) : (
                 <>
-                  {pending.length > 0 ? (
+                  {m.notSubmitted.length > 0 ? (
                     <Notice>
-                      {pending.map((m) => m.displayName).join(', ')}님이 아직 안 적었어요 — 아래
-                      숫자는 {submittedCount}명 기준이에요.
+                      {m.notSubmitted.map((member) => member.displayName).join(', ')}님이 아직 안
+                      적었어요 — 아래 숫자는 {m.submittedCount}명 기준이에요.
                     </Notice>
                   ) : (
                     <Muted>가족 모두가 기록을 마쳤어요.</Muted>
                   )}
-                  <Button label="요약 보기" onPress={() => router.push(`/summary/${yearMonth}`)} />
+                  <Button label="요약 보기" onPress={m.goSummary} />
                 </>
               )}
             </Card>
@@ -235,89 +151,6 @@ export default function ThisMonthScreen() {
       </ScrollView>
     </SafeAreaView>
   );
-}
-
-function MyCard({
-  status,
-  progress,
-  summary,
-  busy,
-  onStart,
-  onEdit,
-}: {
-  status: BookView['members'][number]['status'];
-  progress: BookView['members'][number]['progress'];
-  summary: BookView['members'][number]['summary'];
-  busy: boolean;
-  onStart: () => void;
-  onEdit: () => void;
-}) {
-  const styles = useStyles();
-  const { space } = useTheme();
-  if (status === 'SUBMITTED' && summary) {
-    return (
-      <Card style={{ gap: space.md }}>
-        <View style={styles.cardHead}>
-          <Text style={styles.cardTitle}>내 기록</Text>
-          <Text style={[styles.badge, styles.badgeDone]}>제출 완료</Text>
-        </View>
-
-        <Row label="수입" value={formatWon(summary.income)} />
-        <Row label="고정비" value={`− ${formatWon(summary.fixedTotal)}`} />
-        <Row label="추가 지출" value={`− ${formatWon(summary.extraTotal)}`} />
-        <Divider />
-        <Row
-          label="남은 돈"
-          value={formatWon(summary.surplus)}
-          strong
-          tone={summary.surplus < 0 ? 'up' : 'down'}
-        />
-
-        <Button label="수정하기" variant="ghost" onPress={onEdit} loading={busy} />
-      </Card>
-    );
-  }
-
-  const writing = status === 'DRAFT';
-
-  return (
-    <Card style={{ gap: space.md }}>
-      <Text style={styles.cardTitle}>내 기록</Text>
-      <Text style={styles.prompt}>
-        {writing
-          ? `적다가 멈춘 곳부터 이어서 쓸 수 있어요.${
-              progress ? `\n${progress.step}단계 / ${progress.total}단계` : ''
-            }`
-          : '월급부터 고정비까지 한 항목씩 물어볼게요.\n오래 걸리지 않아요.'}
-      </Text>
-      <Button
-        label={writing ? '이어서 작성하기' : '이번 달 기록 시작하기'}
-        onPress={onStart}
-        loading={busy}
-      />
-    </Card>
-  );
-}
-
-function statusLabel(
-  status: BookView['members'][number]['status'],
-  progress: BookView['members'][number]['progress'],
-): string {
-  if (status === 'SUBMITTED') return '제출 완료';
-  if (status === 'DRAFT')
-    return progress ? `작성 중 ${progress.step}/${progress.total}` : '작성 중';
-  return '시작 안 함';
-}
-
-/**
- * 상태별 색은 스타일 시트에서 고른다.
- * 여기서 useTheme() 을 부르면 렌더 중에 조건부로 훅이 불려 훅 순서가 깨진다.
- * (실제로 "React has detected a change in the order of Hooks" 가 났다)
- */
-function statusStyleKey(status: BookView['members'][number]['status']) {
-  if (status === 'SUBMITTED') return 'statusSubmitted' as const;
-  if (status === 'DRAFT') return 'statusDraft' as const;
-  return 'statusNone' as const;
 }
 
 const useStyles = makeStyles((t) => ({
@@ -346,7 +179,6 @@ const useStyles = makeStyles((t) => ({
 
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardTitle: { ...t.font.bodyLg, fontWeight: t.weight.bold, color: t.colors.ink },
-  prompt: { ...t.font.body, color: t.colors.inkSoft },
 
   badge: {
     ...t.font.caption,

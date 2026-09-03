@@ -4,13 +4,14 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ApiError } from '@/shared/api/client';
 import { bookKeys } from '@/entities/book';
 import { entryKeys } from '@/entities/entry';
 import { useSession } from '@/entities/session';
 import { makeStyles } from '@/shared/config/theme-provider';
 import { Button, ErrorText, Loading, ProgressBar } from '@/shared/ui';
 import { formatYearMonth } from '@/shared/lib/format';
+import { MESSAGES } from '@/shared/config/messages';
+import { errorMessage } from '@/shared/lib/errors';
 
 import { useWizard } from './model/use-wizard';
 import { ExtrasStep } from './ui/steps/extras-step';
@@ -43,9 +44,7 @@ export default function WizardScreen() {
     return (
       <SafeAreaView style={styles.screen}>
         <View style={styles.centered}>
-          <ErrorText>
-            {loadError instanceof ApiError ? loadError.message : '열지 못했어요.'}
-          </ErrorText>
+          <ErrorText>{errorMessage(loadError, MESSAGES.loadFailed)}</ErrorText>
           <Button label="돌아가기" variant="ghost" onPress={() => router.back()} />
         </View>
       </SafeAreaView>
