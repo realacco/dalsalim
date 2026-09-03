@@ -65,7 +65,8 @@ const MEMBER = '스모크엄마';
 
 async function login(name) {
   const response = await call('POST', '/auth/dev', { body: { name } });
-  if (response.status !== 200) throw new Error(`로그인 실패: ${name} ${JSON.stringify(response.body)}`);
+  if (response.status !== 200)
+    throw new Error(`로그인 실패: ${name} ${JSON.stringify(response.body)}`);
   return response.body.token;
 }
 
@@ -81,11 +82,9 @@ async function approve(ownerToken, familyId, displayName) {
   const target = requests.body.requests?.find((r) => r.displayName === displayName);
   if (!target) return false;
 
-  const result = await call(
-    'POST',
-    `/families/${familyId}/join-requests/${target.id}/approve`,
-    { token: ownerToken },
-  );
+  const result = await call('POST', `/families/${familyId}/join-requests/${target.id}/approve`, {
+    token: ownerToken,
+  });
   return result.status === 200;
 }
 
@@ -94,7 +93,8 @@ async function fillAndSubmit(token, entry, incomeAmount) {
   for (const line of entry.lines) {
     if (line.actualAmount !== null) continue;
     // plannedAmount 가 null 인 건 비교 대상이 없다는 뜻이라 사유가 필요 없다
-    const value = line.kind === 'INCOME' ? (line.plannedAmount ?? incomeAmount) : line.plannedAmount ?? 0;
+    const value =
+      line.kind === 'INCOME' ? (line.plannedAmount ?? incomeAmount) : (line.plannedAmount ?? 0);
     await call('PATCH', `/entries/${entry.id}/lines/${line.id}`, {
       token,
       body: { actualAmount: value },
@@ -150,8 +150,13 @@ async function bootstrap() {
   }
 
   // 지난달 기록 — "지난달 월급이 기본값으로 깔린다"와 추이 검사가 이걸 본다
-  for (const [token, incomeAmount] of [[ownerToken, 3_000_000], [memberToken, 2_000_000]]) {
-    const start = await call('POST', `/families/${familyId}/books/${lastMonth}/my-entry`, { token });
+  for (const [token, incomeAmount] of [
+    [ownerToken, 3_000_000],
+    [memberToken, 2_000_000],
+  ]) {
+    const start = await call('POST', `/families/${familyId}/books/${lastMonth}/my-entry`, {
+      token,
+    });
     if (start.body.entry.status !== 'SUBMITTED') {
       await fillAndSubmit(token, start.body.entry, incomeAmount);
     }
@@ -297,7 +302,9 @@ async function resetMonth(names) {
     const familyId = await findFamily(token);
     if (!familyId) continue;
 
-    const start = await call('POST', `/families/${familyId}/books/${thisMonth}/my-entry`, { token });
+    const start = await call('POST', `/families/${familyId}/books/${thisMonth}/my-entry`, {
+      token,
+    });
     if (start.body?.entry?.status === 'SUBMITTED') {
       await call('POST', `/entries/${start.body.entry.id}/reopen`, { token });
     }
@@ -352,11 +359,10 @@ async function main() {
       partial.body.progress?.pendingMembers?.length === 1,
     partial.body.progress,
   );
-  check(
-    '★ 부분 제출 합계는 제출한 사람 것만 센다',
-    partial.body.totals.income === dadIncome,
-    { got: partial.body.totals.income, expected: dadIncome },
-  );
+  check('★ 부분 제출 합계는 제출한 사람 것만 센다', partial.body.totals.income === dadIncome, {
+    got: partial.body.totals.income,
+    expected: dadIncome,
+  });
   check(
     '미제출자는 0원으로 서 있고 submitted=false 다',
     partial.body.perMember?.length === 2 &&
@@ -375,13 +381,21 @@ async function main() {
 
   const s = summary.body;
   check('사람별 집계 2명', s.perMember?.length === 2, s.perMember);
-  check('전원 제출이면 pendingMembers 가 비어 있다', s.progress?.pendingMembers?.length === 0, s.progress);
+  check(
+    '전원 제출이면 pendingMembers 가 비어 있다',
+    s.progress?.pendingMembers?.length === 0,
+    s.progress,
+  );
   check(
     '합계가 맞는다',
     s.totals.surplus === s.totals.income - s.totals.fixedTotal - s.totals.extraTotal,
     s.totals,
   );
-  check('달라진 것에 사유가 붙어 있다', s.changes?.some((c) => c.reason), s.changes);
+  check(
+    '달라진 것에 사유가 붙어 있다',
+    s.changes?.some((c) => c.reason),
+    s.changes,
+  );
   check('특이사항이 모인다', s.notes?.length === 2, s.notes);
   console.log(
     `     수입 ${s.totals.income.toLocaleString()} / 고정비 ${s.totals.fixedTotal.toLocaleString()} / ` +
@@ -512,11 +526,9 @@ async function main() {
     token: dad.token,
   });
   const momRequest = momRequests.body.requests.find((r) => r.displayName === MEMBER);
-  await call(
-    'POST',
-    `/families/${dad.familyId}/join-requests/${momRequest.id}/approve`,
-    { token: dad.token },
-  );
+  await call('POST', `/families/${dad.familyId}/join-requests/${momRequest.id}/approve`, {
+    token: dad.token,
+  });
 
   const momEntryAgain = await call('GET', `/entries/${mom.entryId}`, { token: mom.token });
   check(
@@ -528,11 +540,10 @@ async function main() {
   const afterRejoin = await call('GET', `/families/${dad.familyId}/books/${thisMonth}`, {
     token: dad.token,
   });
-  check(
-    '★ 사람이 늘면 장부가 다시 열린다',
-    afterRejoin.body.members.length === 2,
-    { members: afterRejoin.body.members.length, status: afterRejoin.body.book.status },
-  );
+  check('★ 사람이 늘면 장부가 다시 열린다', afterRejoin.body.members.length === 2, {
+    members: afterRejoin.body.members.length,
+    status: afterRejoin.body.book.status,
+  });
 
   console.log('\n[참여 승인]');
   // 초대코드는 카톡으로 오가다 새어나갈 수 있다. 코드를 맞혔다고 바로 들어오면 안 된다.
@@ -589,7 +600,11 @@ async function main() {
   const memberPeeksRequests = await call('GET', `/families/${dad.familyId}/join-requests`, {
     token: mom.token,
   });
-  check('일반 멤버는 요청 목록을 못 본다', memberPeeksRequests.status === 403, memberPeeksRequests.body);
+  check(
+    '일반 멤버는 요청 목록을 못 본다',
+    memberPeeksRequests.status === 403,
+    memberPeeksRequests.body,
+  );
 
   const requests = await call('GET', `/families/${dad.familyId}/join-requests`, {
     token: dad.token,
@@ -604,11 +619,9 @@ async function main() {
   );
   check('일반 멤버는 승인하지 못한다', memberApproves.status === 403, memberApproves.body);
 
-  const reject = await call(
-    'POST',
-    `/families/${dad.familyId}/join-requests/${pendingId}/reject`,
-    { token: dad.token },
-  );
+  const reject = await call('POST', `/families/${dad.familyId}/join-requests/${pendingId}/reject`, {
+    token: dad.token,
+  });
   check('★ 가족장이 거절한다', reject.status === 200, reject.body);
 
   const afterReject = await call('GET', `/families/${dad.familyId}`, { token: neighborToken });
@@ -638,11 +651,10 @@ async function main() {
   const afterApprove = await call('GET', `/families/${dad.familyId}/books/${thisMonth}`, {
     token: dad.token,
   });
-  check(
-    '★ 승인해야 비로소 정원에 들어간다',
-    afterApprove.body.members.length === 3,
-    { members: afterApprove.body.members.length, status: afterApprove.body.book.status },
-  );
+  check('★ 승인해야 비로소 정원에 들어간다', afterApprove.body.members.length === 3, {
+    members: afterApprove.body.members.length,
+    status: afterApprove.body.book.status,
+  });
 
   // 원래대로 두 명으로 되돌린다
   await clearOutsider(dad.token, dad.familyId, '이웃');
@@ -660,8 +672,9 @@ async function main() {
   }
   check('★ 초대코드를 연달아 찍으면 막힌다', limited?.body?.code === 'RATE_LIMITED', limited?.body);
 
-
-  console.log(`\n${failed === 0 ? '✅ 전부 통과' : '❌ 실패 있음'} — ${passed}개 통과, ${failed}개 실패`);
+  console.log(
+    `\n${failed === 0 ? '✅ 전부 통과' : '❌ 실패 있음'} — ${passed}개 통과, ${failed}개 실패`,
+  );
   process.exitCode = failed === 0 ? 0 : 1;
 }
 

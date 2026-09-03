@@ -139,8 +139,17 @@ function DiffHint({
 }
 
 const useStyles = makeStyles((t) => ({
-  category: { ...t.font.small, color: t.colors.primary, fontWeight: t.weight.bold, marginBottom: t.space.xs },
+  category: {
+    ...t.font.small,
+    color: t.colors.primary,
+    fontWeight: t.weight.bold,
+    marginBottom: t.space.xs,
+  },
   hintSame: { ...t.font.small, color: t.colors.inkFaint, textAlign: 'right' },
   hintDiff: { ...t.font.small, fontWeight: t.weight.bold, textAlign: 'right' },
-  reasonCard: { marginTop: t.space.lg, backgroundColor: t.colors.upSoft, borderColor: t.colors.upSoft },
+  reasonCard: {
+    marginTop: t.space.lg,
+    backgroundColor: t.colors.upSoft,
+    borderColor: t.colors.upSoft,
+  },
 }));

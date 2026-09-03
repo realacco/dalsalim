@@ -43,7 +43,10 @@ export function setAuthToken(token: string | null) {
 
 type Options = { method?: string; body?: unknown; token?: string | null };
 
-export async function api<T>(path: string, { method = 'GET', body, token }: Options = {}): Promise<T> {
+export async function api<T>(
+  path: string,
+  { method = 'GET', body, token }: Options = {},
+): Promise<T> {
   const effectiveToken = token !== undefined ? token : authToken;
 
   let response: Response;

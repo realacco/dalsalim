@@ -49,10 +49,14 @@ export function deleteLine(entryId: string, lineId: string) {
 }
 
 export function submitEntry(entryId: string) {
-  return api<{ entry: Entry; bookStatus: string }>(`/entries/${entryId}/submit`, { method: 'POST' });
+  return api<{ entry: Entry; bookStatus: string }>(`/entries/${entryId}/submit`, {
+    method: 'POST',
+  });
 }
 
 /** 제출한 기록을 다시 연다. 장부가 완성돼 있었다면 다시 진행 중으로 내려간다. */
 export function reopenEntry(entryId: string) {
-  return api<{ entry: Entry; bookStatus: string }>(`/entries/${entryId}/reopen`, { method: 'POST' });
+  return api<{ entry: Entry; bookStatus: string }>(`/entries/${entryId}/reopen`, {
+    method: 'POST',
+  });
 }

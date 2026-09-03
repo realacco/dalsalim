@@ -129,7 +129,12 @@ const useStyles = makeStyles((t) => ({
     gap: t.space.xs,
   },
   title: { ...t.font.title, fontWeight: t.weight.heavy, color: t.colors.ink },
-  content: { padding: t.space.lg, paddingTop: t.space.sm, gap: t.space.lg, paddingBottom: t.space.xxl },
+  content: {
+    padding: t.space.lg,
+    paddingTop: t.space.sm,
+    gap: t.space.lg,
+    paddingBottom: t.space.xxl,
+  },
   cardTitle: { ...t.font.bodyLg, fontWeight: t.weight.bold, color: t.colors.ink },
 
   row: {

@@ -8,13 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/shared/api/client';
 import { API_BASE } from '@/shared/api/client';
-import {
-  authKeys,
-  devLogin,
-  fetchAuthConfig,
-  kakaoStartUrl,
-  useSession,
-} from '@/entities/session';
+import { authKeys, devLogin, fetchAuthConfig, kakaoStartUrl, useSession } from '@/entities/session';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Button, Card, ErrorText, Input, Muted } from '@/shared/ui';
 
@@ -128,9 +122,7 @@ export default function LoginScreen() {
         {config.data?.dev ? (
           <Card style={styles.devCard}>
             <Text style={styles.devTitle}>개발용 로그인</Text>
-            <Muted>
-              이름만 적으면 그 이름의 계정으로 들어갑니다. 같은 이름은 같은 사람입니다.
-            </Muted>
+            <Muted>이름만 적으면 그 이름의 계정으로 들어갑니다. 같은 이름은 같은 사람입니다.</Muted>
             <Input
               value={devName}
               onChangeText={setDevName}
@@ -149,7 +141,12 @@ export default function LoginScreen() {
 }
 
 const useStyles = makeStyles((t) => ({
-  screen: { flex: 1, backgroundColor: t.colors.bg, padding: t.space.xl, justifyContent: 'space-between' },
+  screen: {
+    flex: 1,
+    backgroundColor: t.colors.bg,
+    padding: t.space.xl,
+    justifyContent: 'space-between',
+  },
   hero: { flex: 1, justifyContent: 'center', gap: t.space.md },
   logo: { ...t.font.displayLg, fontWeight: t.weight.heavy, color: t.colors.ink },
   tagline: { ...t.font.title, color: t.colors.inkSoft },

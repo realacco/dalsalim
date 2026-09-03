@@ -5,7 +5,8 @@ export const bookKeys = {
   view: (familyId: string | null, yearMonth: string) => ['book', familyId, yearMonth] as const,
   /** 가족 단위로 한 번에 무효화할 때 쓰는 접두 키 */
   family: (familyId: string | null) => ['book', familyId] as const,
-  summary: (familyId: string | null, yearMonth: string) => ['summary', familyId, yearMonth] as const,
+  summary: (familyId: string | null, yearMonth: string) =>
+    ['summary', familyId, yearMonth] as const,
   trend: (familyId: string | null, months: number) => ['trend', familyId, months] as const,
 };
 

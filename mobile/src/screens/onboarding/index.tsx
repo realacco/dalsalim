@@ -91,7 +91,12 @@ export default function OnboardingScreen() {
       <Card style={{ gap: space.lg }}>
         {mode === 'create' ? (
           <Field label="가족 이름" hint="예: 김씨네, 우리집">
-            <Input value={familyName} onChangeText={setFamilyName} placeholder="김씨네" maxLength={20} />
+            <Input
+              value={familyName}
+              onChangeText={setFamilyName}
+              placeholder="김씨네"
+              maxLength={20}
+            />
           </Field>
         ) : (
           <Field label="초대코드" hint="가족에게 받은 6자리 코드. 가족장이 승인해야 들어가요.">
@@ -107,8 +112,16 @@ export default function OnboardingScreen() {
           </Field>
         )}
 
-        <Field label="내 이름" hint="가족 안에서 불리는 이름이에요. 카카오 닉네임과 달라도 괜찮아요.">
-          <Input value={displayName} onChangeText={setDisplayName} placeholder="아빠" maxLength={20} />
+        <Field
+          label="내 이름"
+          hint="가족 안에서 불리는 이름이에요. 카카오 닉네임과 달라도 괜찮아요."
+        >
+          <Input
+            value={displayName}
+            onChangeText={setDisplayName}
+            placeholder="아빠"
+            maxLength={20}
+          />
         </Field>
 
         <ErrorText>{error}</ErrorText>

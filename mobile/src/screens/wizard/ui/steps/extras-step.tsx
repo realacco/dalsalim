@@ -147,6 +147,11 @@ const useStyles = makeStyles((t) => ({
   },
   extraName: { ...t.font.body, color: t.colors.ink, fontWeight: t.weight.semibold },
   extraMeta: { ...t.font.caption, color: t.colors.inkFaint },
-  extraAmount: { ...t.font.body, color: t.colors.ink, fontWeight: t.weight.bold, fontVariant: ['tabular-nums' as const] },
+  extraAmount: {
+    ...t.font.body,
+    color: t.colors.ink,
+    fontWeight: t.weight.bold,
+    fontVariant: ['tabular-nums' as const],
+  },
   removeIcon: { ...t.font.headline, color: t.colors.inkFaint },
 }));

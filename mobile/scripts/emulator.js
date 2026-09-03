@@ -70,7 +70,9 @@ function ensureEmulator(avdName = DEFAULT_AVD) {
   const devices = connectedDevices();
 
   if (devices === null) {
-    console.log('⚠️  adb 를 찾지 못했습니다. Android SDK platform-tools 가 PATH 에 있는지 확인하세요.');
+    console.log(
+      '⚠️  adb 를 찾지 못했습니다. Android SDK platform-tools 가 PATH 에 있는지 확인하세요.',
+    );
     return false;
   }
 

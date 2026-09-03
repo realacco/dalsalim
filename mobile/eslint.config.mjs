@@ -101,7 +101,8 @@ export default tseslint.config(
             {
               name: '@/shared/api/client',
               importNames: ['api'],
-              message: '화면에서 api() 를 직접 부르지 않는다. entities/<domain>/api 를 거친다 (CLAUDE.md)',
+              message:
+                '화면에서 api() 를 직접 부르지 않는다. entities/<domain>/api 를 거친다 (CLAUDE.md)',
             },
           ],
         },

@@ -58,7 +58,11 @@ export async function entryRoutes(app: FastifyInstance) {
     assertDraft(entry.status);
 
     const body = z
-      .object({ actualAmount: amount, changeReason: reason, name: z.string().trim().min(1).max(30).optional() })
+      .object({
+        actualAmount: amount,
+        changeReason: reason,
+        name: z.string().trim().min(1).max(30).optional(),
+      })
       .parse(request.body);
 
     const line = await prisma.entryLine.findUnique({ where: { id: params.lineId } });
@@ -127,7 +131,8 @@ export async function entryRoutes(app: FastifyInstance) {
 
     const line = await prisma.entryLine.findUnique({ where: { id: params.lineId } });
     if (!line || line.entryId !== entry.id) throw notFound('입력 줄을 찾을 수 없습니다.');
-    if (line.kind !== 'EXTRA') throw badRequest('NOT_DELETABLE', '추가 지출 항목만 지울 수 있습니다.');
+    if (line.kind !== 'EXTRA')
+      throw badRequest('NOT_DELETABLE', '추가 지출 항목만 지울 수 있습니다.');
 
     await prisma.entryLine.delete({ where: { id: params.lineId } });
     return { ok: true };
