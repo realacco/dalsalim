@@ -74,11 +74,12 @@ export async function familyRoutes(app: FastifyInstance) {
       throw conflict('ALREADY_REQUESTED', '이미 참여를 요청했어요. 가족장의 승인을 기다려주세요.');
     }
 
+    let membership;
     if (existing) {
       // 나갔던 사람이 돌아왔다. (familyId, userId) 가 unique 라 새로 만들 수 없고,
       // 지난 기록이 이 멤버십에 매달려 있으므로 되살리는 게 맞다.
       // 나갔던 사람도 다시 승인을 받는다 — 내보낸 사람이 코드만으로 돌아오면 안 되니까.
-      await prisma.membership.update({
+      membership = await prisma.membership.update({
         where: { id: existing.id },
         data: {
           status: 'PENDING',
@@ -88,7 +89,7 @@ export async function familyRoutes(app: FastifyInstance) {
         },
       });
     } else {
-      await prisma.membership.create({
+      membership = await prisma.membership.create({
         data: {
           familyId: family.id,
           userId: user.id,
@@ -103,7 +104,15 @@ export async function familyRoutes(app: FastifyInstance) {
 
     // 아직 구성원이 아니므로 가족 이름 말고는 알려주지 않는다.
     // 초대코드를 돌려주면 승인도 안 난 사람이 그 코드를 퍼뜨릴 수 있다.
-    return { status: 'PENDING' as const, family: { id: family.id, name: family.name } };
+    // 만들어진 리소스는 그 리소스로 돌려준다 (CLAUDE.md 응답 형태 규칙) — 대기 중인 멤버십이다
+    return {
+      membership: {
+        id: membership.id,
+        status: 'PENDING' as const,
+        displayName: membership.displayName,
+        family: { id: family.id, name: family.name },
+      },
+    };
   });
 
   /**
@@ -255,7 +264,8 @@ export async function familyRoutes(app: FastifyInstance) {
       data: { inviteCode: await generateInviteCode() },
     });
 
-    return { inviteCode: family.inviteCode };
+    // 바뀐 리소스는 그 리소스로 — 가족 만들기와 같은 모양이라 앱이 한 타입으로 받는다
+    return { family: { id: family.id, name: family.name, inviteCode: family.inviteCode } };
   });
 
   /** 내 표시 이름 바꾸기 */

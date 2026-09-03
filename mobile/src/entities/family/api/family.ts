@@ -3,7 +3,7 @@ import type {
   Family,
   FamilyDetail,
   JoinRequest,
-  JoinResult,
+  PendingMembership,
   MyPendingRequest,
 } from '../model/types';
 
@@ -23,8 +23,12 @@ export async function createFamily(input: { name: string; displayName: string })
 }
 
 /** 참여 "요청". 성공해도 아직 구성원이 아니다 — 가족장의 승인을 기다린다. */
-export function joinFamily(input: { inviteCode: string; displayName: string }) {
-  return api<JoinResult>('/families/join', { method: 'POST', body: input });
+export async function joinFamily(input: { inviteCode: string; displayName: string }) {
+  const { membership } = await api<{ membership: PendingMembership }>('/families/join', {
+    method: 'POST',
+    body: input,
+  });
+  return membership;
 }
 
 /** 내가 승인을 기다리는 가족들. 대기 화면이 이걸 본다. */
@@ -61,8 +65,11 @@ export function rejectJoinRequest(familyId: string, membershipId: string) {
 }
 
 /** 초대코드 재발급 — 예전 코드를 아는 사람을 막고 싶을 때. OWNER 전용 */
-export function regenerateInviteCode(familyId: string) {
-  return api<{ inviteCode: string }>(`/families/${familyId}/invite-code`, { method: 'POST' });
+export async function regenerateInviteCode(familyId: string) {
+  const { family } = await api<{ family: Family }>(`/families/${familyId}/invite-code`, {
+    method: 'POST',
+  });
+  return family;
 }
 
 export function updateMyDisplayName(familyId: string, displayName: string) {
