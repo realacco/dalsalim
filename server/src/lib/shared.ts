@@ -61,6 +61,33 @@ export function needsReason(plannedAmount: number | null, actualAmount: number |
   return plannedAmount !== actualAmount;
 }
 
+/** 합계를 내는 데 필요한 최소한의 모양. prisma 타입을 쓰지 않으려고 여기서 다시 적는다 */
+export type SummableLine = { kind: string; actualAmount: number | null };
+
+/**
+ * 수입 · 고정비 · 추가지출을 더하고 남은 돈을 낸다.
+ *
+ * 장부(요약 · 추이)와 기록(위저드)이 똑같이 쓰는 계산이라 어느 한쪽에 두면
+ * 다른 쪽이 그쪽을 임포트하게 된다. 순수 계산이므로 둘 다의 아래층인 여기가 맞다.
+ *
+ * 금액이 비어 있는 줄(아직 안 적은 것)은 0 으로 센다. 호출하는 쪽이 제출된 기록만
+ * 넘겨야 하는 이유가 이것이다 — 작성 중인 사람의 빈 줄을 넣으면 "수입 0원"이 된다.
+ */
+export function entrySummary(lines: SummableLine[]) {
+  let income = 0;
+  let fixedTotal = 0;
+  let extraTotal = 0;
+
+  for (const line of lines) {
+    const amount = line.actualAmount ?? 0;
+    if (line.kind === 'INCOME') income += amount;
+    else if (line.kind === 'FIXED') fixedTotal += amount;
+    else extraTotal += amount;
+  }
+
+  return { income, fixedTotal, extraTotal, surplus: income - fixedTotal - extraTotal };
+}
+
 /**
  * 위저드 진행 표시. 총 스텝 = 수입 1 + 고정비 n + 추가지출 1 + 특이사항 1 + 확인 1.
  * cursor 는 0 부터 세는 위치라 사람에게는 +1 로 보여주되, 스텝 수를 넘지 않는다.
