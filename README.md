@@ -74,23 +74,32 @@ npm run dev -- --android      # 에뮬레이터 자동 부팅 + adb reverse + Ex
 dalsalim/
 ├── docs/
 │   ├── 01-MVP-기획서.md            무엇을 왜 만드는가 · 화면 · 데이터모델 · API
-│   └── 02-MVP-출시-체크리스트.md    실제로 쓰기 시작하기까지 남은 일
+│   ├── 02-MVP-출시-체크리스트.md    실제로 쓰기 시작하기까지 남은 일
+│   └── 03-MVP-시행착오.md          실제로 데인 것들
+│
+├── tests/                    루트 테스트 — contract(서버/앱 사본 일치) · tools(커밋 훅)
+├── .github/workflows/ci.yml  check(lint·typecheck·1층) + smoke(Postgres)
 │
 ├── server/                   Fastify + Prisma + Postgres · 레이어드
 │   ├── prisma/schema.prisma    데이터 모델 (원본)
 │   ├── prisma/migrations/      마이그레이션 (커밋 대상)
-│   ├── src/routes/             auth · families · fixedExpenses · books · entries
-│   ├── src/services/           entry(프리필) · book(완성 판정·집계) · family(초대코드)
-│   ├── src/lib/                db · auth(가드) · http(에러) · shared(상수·순수함수)
-│   └── scripts/smoke.mjs       전 구간 스모크 테스트 38개
+│   ├── src/routes/             auth · families · join-requests · fixedExpenses · books · entries
+│   │                           (얇게 — prisma 를 직접 부르지 않는다)
+│   ├── src/services/           family · fixed-expense · book(완성 판정·집계) · entry(프리필)
+│   ├── src/lib/                db · auth(가드) · http(에러) · messages(코드→문장) ·
+│   │                           schemas(공용 zod) · shared(상수·순수함수)
+│   └── scripts/smoke.mjs       전 구간 스모크 테스트 78개
 │
 └── mobile/                   Expo (React Native) + expo-router · FSD
     ├── src/app/                expo-router 라우트 — screens 를 re-export 만 한다
-    ├── src/screens/            gate · login · onboarding · this-month ·
-    │                           fixed-expenses · family · wizard · month-summary
+    ├── src/screens/            gate · login · onboarding · pending · this-month ·
+    │                           fixed-expenses · family · wizard · month-summary · trend
+    │                           (큰 화면은 index.tsx + model/ + ui/)
     ├── src/entities/           session · family · fixed-expense · book · entry
     │                           (도메인별 api + model)
-    ├── src/shared/             ui · config(theme) · lib(format) · api(client) · model(types)
+    ├── src/widgets/            tab-bar
+    ├── src/shared/             ui · config(theme · messages) · lib(format · errors · confirm) ·
+    │                           api(client) · model(types)
     └── scripts/                dev.js · emulator.js
 ```
 
@@ -98,7 +107,7 @@ dalsalim/
 
 ```bash
 npm test                              # 1층 — 순수 함수 (루트에서, 0.5초)
-cd server && node scripts/smoke.mjs   # 2층 — API 흐름 75개
+cd server && node scripts/smoke.mjs   # 2층 — API 흐름 78개
 npm run typecheck                     # 루트에서 — tests + server + mobile
 npm run lint                          # 루트에서 — server + mobile
 ```
