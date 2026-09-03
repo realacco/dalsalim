@@ -2,10 +2,14 @@ import { describe, it, expect } from 'vitest';
 import {
   ACTIVE_MEMBER,
   CATEGORIES,
+  INVITE_CODE_ALPHABET,
   LINE_KINDS,
   MEMBERSHIP_STATUSES,
+  bookProgress,
+  currentYearMonth,
   isYearMonth,
   needsReason,
+  randomInviteCode,
   shiftYearMonth,
 } from './shared.js';
 
@@ -107,5 +111,47 @@ describe('공유 상수', () => {
     // 정원 · 목록 · 권한이 전부 ACTIVE_MEMBER 하나만 봐야 어긋나지 않는다
     expect(ACTIVE_MEMBER).toEqual({ status: 'ACTIVE' });
     expect(MEMBERSHIP_STATUSES).toEqual(['PENDING', 'ACTIVE', 'LEFT']);
+  });
+});
+
+describe('currentYearMonth', () => {
+  it('주어진 날짜의 달을 YYYY-MM 으로', () => {
+    expect(currentYearMonth(new Date(2026, 8, 4))).toBe('2026-09');
+    expect(currentYearMonth(new Date(2026, 0, 1))).toBe('2026-01');
+  });
+});
+
+describe('bookProgress — 위저드 진행 표시', () => {
+  it('총 스텝 = 고정비 n + 4 (수입 · 추가지출 · 특이사항 · 확인)', () => {
+    expect(bookProgress(0, 3)).toEqual({ step: 1, total: 7 });
+  });
+
+  it('cursor 는 0 부터라 사람에게는 +1, 스텝 수를 넘지 않는다', () => {
+    expect(bookProgress(2, 3)).toEqual({ step: 3, total: 7 });
+    expect(bookProgress(99, 3)).toEqual({ step: 7, total: 7 });
+  });
+
+  it('고정비가 없어도 4 스텝은 있다', () => {
+    expect(bookProgress(0, 0)).toEqual({ step: 1, total: 4 });
+  });
+});
+
+describe('randomInviteCode — 초대코드 규칙', () => {
+  it('6자리이고 허용 알파벳만 쓴다', () => {
+    for (let i = 0; i < 200; i += 1) {
+      const code = randomInviteCode();
+      expect(code).toHaveLength(6);
+      for (const ch of code) expect(INVITE_CODE_ALPHABET).toContain(ch);
+    }
+  });
+
+  it('★ 헷갈리는 글자(0 · O · 1 · I)는 절대 나오지 않는다 — 카톡으로 불러주는 코드다', () => {
+    expect(INVITE_CODE_ALPHABET).not.toMatch(/[0O1I]/);
+    expect(INVITE_CODE_ALPHABET).toHaveLength(32);
+  });
+
+  it('난수원을 주면 결정적이다', () => {
+    expect(randomInviteCode(() => 0)).toBe('AAAAAA');
+    expect(randomInviteCode(() => 0.999)).toBe('999999');
   });
 });

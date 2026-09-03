@@ -1,6 +1,193 @@
 import { prisma } from '../lib/db.js';
-import { entrySummary } from './entry.js';
-import { ACTIVE_MEMBER } from '../lib/shared.js';
+import { fail } from '../lib/http.js';
+import {
+  ACTIVE_MEMBER,
+  bookProgress,
+  currentYearMonth,
+  entrySummary,
+  shiftYearMonth,
+} from '../lib/shared.js';
+
+/**
+ * 월 장부를 다루는 곳 — 장부 열기 · 홈 뷰 · 기록 시작(프리필) · 요약 · 추이 · 완성 판정.
+ *
+ * ★ 이 파일은 services/entry 를 임포트하지 않는다. 둘이 서로를 임포트하면 원이 생기고,
+ *   나중에 누가 파일 맨 위에서 상대 함수를 쓰는 순간 "함수가 아니다" 오류로 터진다.
+ *   둘이 같이 쓰는 순수 계산(entrySummary)은 아래층인 lib/shared 에 있다.
+ */
+const INCOME_CATEGORY = '수입';
+
+/**
+ * 월 장부는 필요할 때 만든다. 미래의 달은 만들지 않는다 —
+ * 아직 오지 않은 달의 장부를 열어두면 "이 달은 아무도 안 적었다"는 잘못된 신호가 된다.
+ */
+export async function getOrCreateBook(familyId: string, yearMonth: string) {
+  const existing = await prisma.monthlyBook.findUnique({
+    where: { familyId_yearMonth: { familyId, yearMonth } },
+  });
+  if (existing) return existing;
+
+  if (yearMonth > currentYearMonth()) throw fail('FUTURE_MONTH');
+
+  return prisma.monthlyBook.create({ data: { familyId, yearMonth } });
+}
+
+/** 홈 화면의 사람별 진행 현황 — 구성원은 ACTIVE 만 (하드룰 8) */
+export async function buildBookView(familyId: string, bookId: string, myMembershipId: string) {
+  const members = await prisma.membership.findMany({
+    where: { familyId, ...ACTIVE_MEMBER },
+    orderBy: { sortOrder: 'asc' },
+    include: {
+      entries: { where: { bookId }, include: { lines: true } },
+      fixedExpenses: { where: { active: true } },
+    },
+  });
+
+  return members.map((m) => {
+    const entry = m.entries[0] ?? null;
+    return {
+      membershipId: m.id,
+      displayName: m.displayName,
+      isMe: m.id === myMembershipId,
+      entryId: entry?.id ?? null,
+      status: entry?.status ?? 'NONE',
+      progress: entry ? bookProgress(entry.cursor, m.fixedExpenses.length) : null,
+      /** 고정비가 0개면 이 앱의 템플릿이 비어 있다는 뜻이다. 홈이 그걸 먼저 안내한다. */
+      fixedExpenseCount: m.fixedExpenses.length,
+      summary: entry?.status === 'SUBMITTED' ? entrySummary(entry.lines) : null,
+    };
+  });
+}
+
+/**
+ * 기록을 시작한 뒤에 고정비 항목이 추가됐다면 줄을 채워 넣는다.
+ * 삭제된 항목의 줄은 지우지 않는다 — 이미 금액을 적었을 수 있고,
+ * 그 달에 실제로 나간 돈이라는 사실은 항목을 지운다고 사라지지 않는다.
+ */
+export async function syncFixedLines(
+  entryId: string,
+  membershipId: string,
+  familyId: string,
+  yearMonth: string,
+) {
+  const entry = await prisma.memberEntry.findUniqueOrThrow({
+    where: { id: entryId },
+    include: { lines: true },
+  });
+
+  if (entry.status !== 'DRAFT') return;
+
+  const existingIds = new Set(
+    entry.lines.filter((l) => l.fixedExpenseId).map((l) => l.fixedExpenseId as string),
+  );
+
+  const missing = await prisma.fixedExpense.findMany({
+    where: { membershipId, active: true, id: { notIn: [...existingIds] } },
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+  });
+
+  if (missing.length === 0) return;
+
+  const previous = shiftYearMonth(yearMonth, -1);
+  const lastMonthLines = await prisma.entryLine.findMany({
+    where: {
+      kind: 'FIXED',
+      fixedExpenseId: { in: missing.map((f) => f.id) },
+      entry: { membershipId, book: { familyId, yearMonth: previous } },
+    },
+  });
+  const lastByFixedId = new Map(
+    lastMonthLines
+      .filter((l) => l.actualAmount !== null)
+      .map((l) => [l.fixedExpenseId as string, l.actualAmount as number]),
+  );
+
+  // 추가 지출(1000번대)보다 앞에 오도록 100번대 뒤에 붙인다
+  const maxFixedOrder = entry.lines
+    .filter((l) => l.kind === 'FIXED')
+    .reduce((max, l) => Math.max(max, l.sortOrder), 99);
+
+  await prisma.entryLine.createMany({
+    data: missing.map((f, index) => ({
+      entryId,
+      kind: 'FIXED',
+      fixedExpenseId: f.id,
+      name: f.name,
+      category: f.category,
+      plannedAmount: lastByFixedId.get(f.id) ?? f.defaultAmount,
+      plannedSource: lastByFixedId.has(f.id) ? 'LAST_MONTH' : 'FIXED_DEFAULT',
+      sortOrder: maxFixedOrder + 1 + index,
+    })),
+  });
+}
+
+/**
+ * 내 기록을 시작하거나 이어서 연다. 만든 기록의 id 를 돌려준다.
+ *
+ * ★ 프리필 우선순위 (기획서 7.4): 지난달에 내가 실제로 적은 금액 → 없으면 고정비에 등록한 기본 금액.
+ *   EntryLine 의 name·category 는 FixedExpense 에서 **복사**한다 (하드룰 4) — 항목 이름을 바꿔도
+ *   과거 기록이 흔들리면 안 된다. fixedExpenseId 는 참조로 남긴다.
+ */
+export async function openMyEntry(familyId: string, yearMonth: string, membershipId: string) {
+  const book = await getOrCreateBook(familyId, yearMonth);
+
+  const existing = await prisma.memberEntry.findUnique({
+    where: { bookId_membershipId: { bookId: book.id, membershipId } },
+  });
+  if (existing) {
+    // 기록을 시작한 뒤에 고정비를 추가했을 수 있다. 작성 중이면 맞춰준다.
+    await syncFixedLines(existing.id, membershipId, familyId, yearMonth);
+    return existing.id;
+  }
+
+  const previous = shiftYearMonth(yearMonth, -1);
+  const lastMonthLines = await prisma.entryLine.findMany({
+    where: { entry: { membershipId, book: { familyId, yearMonth: previous } } },
+  });
+
+  const lastIncome = lastMonthLines.find((l) => l.kind === 'INCOME')?.actualAmount ?? null;
+  const lastByFixedId = new Map(
+    lastMonthLines
+      // 금액이 비어 있는 줄(제출하지 않은 초안)은 기본값의 근거가 될 수 없다
+      .filter((l) => l.kind === 'FIXED' && l.fixedExpenseId && l.actualAmount !== null)
+      .map((l) => [l.fixedExpenseId as string, l.actualAmount as number]),
+  );
+
+  const fixedExpenses = await prisma.fixedExpense.findMany({
+    where: { membershipId, active: true },
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+  });
+
+  const entry = await prisma.memberEntry.create({
+    data: {
+      bookId: book.id,
+      membershipId,
+      lines: {
+        create: [
+          {
+            kind: 'INCOME',
+            name: '월급',
+            category: INCOME_CATEGORY,
+            plannedAmount: lastIncome,
+            plannedSource: lastIncome === null ? null : 'LAST_MONTH',
+            sortOrder: 0,
+          },
+          ...fixedExpenses.map((f, index) => ({
+            kind: 'FIXED',
+            fixedExpenseId: f.id,
+            name: f.name,
+            category: f.category,
+            plannedAmount: lastByFixedId.get(f.id) ?? f.defaultAmount,
+            plannedSource: lastByFixedId.has(f.id) ? 'LAST_MONTH' : 'FIXED_DEFAULT',
+            sortOrder: 100 + index,
+          })),
+        ],
+      },
+    },
+  });
+
+  return entry.id;
+}
 
 /**
  * 장부 상태를 다시 계산한다.
