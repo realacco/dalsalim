@@ -1,48 +1,40 @@
 import { describe, it, expect } from 'vitest';
-import {
-  AppError,
-  badRequest,
-  conflict,
-  forbidden,
-  notFound,
-  tooManyRequests,
-  unauthorized,
-} from './http.js';
+import { AppError, fail } from './http.js';
+import { messageFor } from './messages.js';
 
 /**
  * message 는 화면에 그대로 뜬다 (CLAUDE.md 코드 규칙).
  * code 는 앱이 분기하는 용도라 문구가 바뀌어도 흔들리면 안 된다.
  */
-describe('AppError — 클라이언트에 그대로 노출되는 에러', () => {
-  it('상태코드 · code · message 를 그대로 들고 있다', () => {
-    const error = badRequest('AMOUNT_REQUIRED', '금액을 적어주세요.');
+describe('fail() — 라우트가 실패를 만드는 유일한 방법', () => {
+  it('사전의 상태코드 · code · message 를 그대로 든 AppError 를 만든다', () => {
+    const error = fail('OWNER_ONLY');
     // 전역 에러 핸들러가 AppError 인지로 "노출해도 되는 에러"를 가른다
     expect(error).toBeInstanceOf(AppError);
     expect(error).toBeInstanceOf(Error);
-    expect(error.statusCode).toBe(400);
-    expect(error.code).toBe('AMOUNT_REQUIRED');
-    expect(error.message).toBe('금액을 적어주세요.');
-  });
-
-  it('상태코드별 헬퍼가 약속된 code 를 만든다', () => {
-    expect([unauthorized().statusCode, unauthorized().code]).toEqual([401, 'UNAUTHORIZED']);
-    expect([forbidden().statusCode, forbidden().code]).toEqual([403, 'FORBIDDEN']);
-    expect([notFound().statusCode, notFound().code]).toEqual([404, 'NOT_FOUND']);
-    expect([tooManyRequests().statusCode, tooManyRequests().code]).toEqual([429, 'RATE_LIMITED']);
-    expect(conflict('CODE_TAKEN', '이미 쓰는 코드예요.').statusCode).toBe(409);
-  });
-
-  it('forbidden 은 code 를 바꿔 달 수 있다 — 앱이 상황별로 분기한다', () => {
-    const error = forbidden('가족장만 할 수 있어요.', 'OWNER_ONLY');
-    expect(error.code).toBe('OWNER_ONLY');
     expect(error.statusCode).toBe(403);
+    expect(error.code).toBe('OWNER_ONLY');
+    expect(error.message).toBe(messageFor('OWNER_ONLY'));
   });
 
-  it('★ 기본 메시지는 전부 한국어다 — 그대로 화면에 뜬다', () => {
-    const defaults = [unauthorized(), forbidden(), notFound(), tooManyRequests()];
-    for (const error of defaults) {
-      expect(error.message).toMatch(/[가-힣]/);
-      expect(error.message).not.toMatch(/[A-Za-z]{4,}/);
+  it('상태코드는 코드마다 사전이 정한 대로다', () => {
+    expect(fail('UNAUTHORIZED').statusCode).toBe(401);
+    expect(fail('ENTRY_NOT_FOUND').statusCode).toBe(404);
+    expect(fail('ALREADY_MEMBER').statusCode).toBe(409);
+    expect(fail('RATE_LIMITED').statusCode).toBe(429);
+  });
+
+  it('★ 사유 강제는 어느 항목이 비었는지를 같이 말한다 (제출), 줄 저장은 항목 없이', () => {
+    expect(fail('REASON_REQUIRED', '월세, 통신비').message).toBe(
+      '사유가 비어 있어요: 월세, 통신비',
+    );
+    expect(fail('REASON_REQUIRED').code).toBe('REASON_REQUIRED');
+  });
+
+  it('★ 기본 메시지는 전부 한국어 해요체다 — 그대로 화면에 뜬다', () => {
+    for (const error of [fail('UNAUTHORIZED'), fail('NOT_MEMBER'), fail('LINE_NOT_FOUND')]) {
+      expect(error.message).toMatch(/요\.$/);
+      expect(error.message).not.toMatch(/니다/);
     }
   });
 });

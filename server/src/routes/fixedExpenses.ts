@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { prisma } from '../lib/db.js';
 import { requireMembership, requireUser } from '../lib/auth.js';
-import { badRequest, notFound } from '../lib/http.js';
+import { fail } from '../lib/http.js';
 import { ACTIVE_MEMBER, CATEGORIES } from '../lib/shared.js';
 
 const category = z.enum(CATEGORIES);
@@ -64,7 +64,7 @@ export async function fixedExpenseRoutes(app: FastifyInstance) {
     // 다른 가족의 멤버 id 를 넣어 남의 집에 항목을 꽂는 걸 막는다
     const target = await prisma.membership.findUnique({ where: { id: body.membershipId } });
     if (!target || target.familyId !== familyId || target.status !== 'ACTIVE') {
-      throw badRequest('BAD_MEMBERSHIP', '이 가족의 구성원이 아닙니다.');
+      throw fail('BAD_MEMBERSHIP');
     }
 
     const count = await prisma.fixedExpense.count({ where: { membershipId: body.membershipId } });
@@ -89,7 +89,7 @@ export async function fixedExpenseRoutes(app: FastifyInstance) {
     const { id } = z.object({ id: z.string() }).parse(request.params);
 
     const existing = await prisma.fixedExpense.findUnique({ where: { id } });
-    if (!existing) throw notFound('고정비 항목을 찾을 수 없습니다.');
+    if (!existing) throw fail('FIXED_EXPENSE_NOT_FOUND');
     await requireMembership(user.id, existing.familyId);
 
     const body = z
@@ -114,7 +114,7 @@ export async function fixedExpenseRoutes(app: FastifyInstance) {
     const { id } = z.object({ id: z.string() }).parse(request.params);
 
     const existing = await prisma.fixedExpense.findUnique({ where: { id } });
-    if (!existing) throw notFound('고정비 항목을 찾을 수 없습니다.');
+    if (!existing) throw fail('FIXED_EXPENSE_NOT_FOUND');
     await requireMembership(user.id, existing.familyId);
 
     await prisma.fixedExpense.update({ where: { id }, data: { active: false } });

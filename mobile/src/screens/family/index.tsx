@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ApiError } from '@/shared/api/client';
 import {
   approveJoinRequest,
   familyKeys,
@@ -19,6 +18,9 @@ import {
 import { useSession } from '@/entities/session';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Button, Card, Divider, Loading, Muted, QueryError } from '@/shared/ui';
+import { MESSAGES } from '@/shared/config/messages';
+import { confirm } from '@/shared/lib/confirm';
+import { errorMessage } from '@/shared/lib/errors';
 
 export default function FamilyScreen() {
   const styles = useStyles();
@@ -55,7 +57,7 @@ export default function FamilyScreen() {
       void refreshMe();
     },
     onError: (caught) =>
-      Alert.alert('안 됐어요', caught instanceof ApiError ? caught.message : '다시 시도해주세요.'),
+      Alert.alert(MESSAGES.actionFailed, errorMessage(caught, MESSAGES.actionFailedBody)),
   });
 
   /** 구성원이 바뀌면 장부의 완성 판정도 바뀐다. 가족·요청·장부 캐시를 같이 비운다. */
@@ -67,7 +69,7 @@ export default function FamilyScreen() {
   }
 
   const failed = (caught: unknown) =>
-    Alert.alert('안 됐어요', caught instanceof ApiError ? caught.message : '다시 시도해주세요.');
+    Alert.alert(MESSAGES.actionFailed, errorMessage(caught, MESSAGES.actionFailedBody));
 
   const remove = useMutation({
     mutationFn: (membershipId: string) => removeMember(familyId as string, membershipId),
@@ -172,10 +174,12 @@ export default function FamilyScreen() {
                   variant="ghost"
                   loading={rotate.isPending}
                   onPress={() =>
-                    Alert.alert('새 코드 만들기', '지금 코드는 더 이상 쓸 수 없게 돼요.', [
-                      { text: '취소', style: 'cancel' },
-                      { text: '만들기', onPress: () => rotate.mutate() },
-                    ])
+                    confirm({
+                      title: '새 코드 만들기',
+                      body: '지금 코드는 더 이상 쓸 수 없게 돼요.',
+                      confirmLabel: '만들기',
+                      onConfirm: () => rotate.mutate(),
+                    })
                   }
                 />
               ) : null}
@@ -207,14 +211,12 @@ export default function FamilyScreen() {
                         disabled={busy}
                         style={{ flex: 1 }}
                         onPress={() =>
-                          Alert.alert(
-                            `${request.displayName}님 승인`,
-                            '승인하면 우리 가족의 가계부를 볼 수 있고, 이번 달 장부에도 함께 들어가요.',
-                            [
-                              { text: '취소', style: 'cancel' },
-                              { text: '승인', onPress: () => approve.mutate(request.id) },
-                            ],
-                          )
+                          confirm({
+                            title: `${request.displayName}님 승인`,
+                            body: '승인하면 우리 가족의 가계부를 볼 수 있고, 이번 달 장부에도 함께 들어가요.',
+                            confirmLabel: '승인',
+                            onConfirm: () => approve.mutate(request.id),
+                          })
                         }
                       />
                       <Button
@@ -223,18 +225,13 @@ export default function FamilyScreen() {
                         disabled={busy}
                         style={{ flex: 1 }}
                         onPress={() =>
-                          Alert.alert(
-                            `${request.displayName}님 거절`,
-                            '요청이 사라져요. 모르는 사람이면 초대코드도 새로 만드는 게 좋아요.',
-                            [
-                              { text: '취소', style: 'cancel' },
-                              {
-                                text: '거절',
-                                style: 'destructive',
-                                onPress: () => reject.mutate(request.id),
-                              },
-                            ],
-                          )
+                          confirm({
+                            title: `${request.displayName}님 거절`,
+                            body: '요청이 사라져요. 모르는 사람이면 초대코드도 새로 만드는 게 좋아요.',
+                            confirmLabel: '거절',
+                            destructive: true,
+                            onConfirm: () => reject.mutate(request.id),
+                          })
                         }
                       />
                     </View>
@@ -268,14 +265,12 @@ export default function FamilyScreen() {
                         disabled={busy}
                         style={{ flex: 1 }}
                         onPress={() =>
-                          Alert.alert(
-                            '가족장 넘기기',
-                            `${member.displayName}님이 가족장이 되고, 나는 일반 구성원이 돼요.`,
-                            [
-                              { text: '취소', style: 'cancel' },
-                              { text: '넘기기', onPress: () => handOver.mutate(member.id) },
-                            ],
-                          )
+                          confirm({
+                            title: '가족장 넘기기',
+                            body: `${member.displayName}님이 가족장이 되고, 나는 일반 구성원이 돼요.`,
+                            confirmLabel: '넘기기',
+                            onConfirm: () => handOver.mutate(member.id),
+                          })
                         }
                       />
                       <Button
@@ -284,18 +279,13 @@ export default function FamilyScreen() {
                         disabled={busy}
                         style={{ flex: 1 }}
                         onPress={() =>
-                          Alert.alert(
-                            `${member.displayName}님 내보내기`,
-                            '앞으로의 장부에서 빠져요. 지금까지 적은 기록은 그대로 남습니다.',
-                            [
-                              { text: '취소', style: 'cancel' },
-                              {
-                                text: '내보내기',
-                                style: 'destructive',
-                                onPress: () => remove.mutate(member.id),
-                              },
-                            ],
-                          )
+                          confirm({
+                            title: `${member.displayName}님 내보내기`,
+                            body: '앞으로의 장부에서 빠져요. 지금까지 적은 기록은 그대로 남아요.',
+                            confirmLabel: '내보내기',
+                            destructive: true,
+                            onConfirm: () => remove.mutate(member.id),
+                          })
                         }
                       />
                     </View>
@@ -320,18 +310,13 @@ export default function FamilyScreen() {
                   variant="ghost"
                   disabled={busy || !myMembership}
                   onPress={() =>
-                    Alert.alert(
-                      '가족에서 나가기',
-                      '앞으로의 장부에서 빠져요. 지금까지 적은 기록은 그대로 남습니다.',
-                      [
-                        { text: '취소', style: 'cancel' },
-                        {
-                          text: '나가기',
-                          style: 'destructive',
-                          onPress: () => myMembership && leave.mutate(myMembership.id),
-                        },
-                      ],
-                    )
+                    confirm({
+                      title: '가족에서 나가기',
+                      body: '앞으로의 장부에서 빠져요. 지금까지 적은 기록은 그대로 남아요.',
+                      confirmLabel: '나가기',
+                      destructive: true,
+                      onConfirm: () => myMembership && leave.mutate(myMembership.id),
+                    })
                   }
                 />
               )}
@@ -368,15 +353,14 @@ export default function FamilyScreen() {
             label="로그아웃"
             variant="ghost"
             onPress={() =>
-              Alert.alert('로그아웃', '이 기기에서 나갈까요?', [
-                { text: '취소', style: 'cancel' },
-                {
-                  text: '로그아웃',
-                  style: 'destructive',
-                  // 토큰이 비면 앱 셸이 로그인으로 보낸다
-                  onPress: () => void signOut(),
-                },
-              ])
+              confirm({
+                title: '로그아웃',
+                body: '이 기기에서 나갈까요?',
+                confirmLabel: '로그아웃',
+                destructive: true,
+                // 토큰이 비면 앱 셸이 로그인으로 보낸다
+                onConfirm: () => void signOut(),
+              })
             }
           />
         </Card>
