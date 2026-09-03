@@ -302,6 +302,19 @@ diff를 읽으면 아는 "무엇을 바꿨는지"는 반복하지 않는다.
 
 - **검사하지 않는 것**: 체언 종결(`~ 추가`) · 본문의 "왜" · 스모크.
   기계가 판정할 수 없어서 뺀 것이지 규칙이 아니어서가 아니다. 스모크는 CI 의 몫이다
+
+### CI (GitHub Actions — `.github/workflows/ci.yml`)
+
+훅이 "바뀐 것만" 보는 대신 CI 는 **전체**를 본다. PR 과 `main` push 에 돈다.
+
+| job | 무엇을 | 왜 따로인가 |
+|---|---|---|
+| `check` | 포맷 검사 · 전체 lint · 전체 typecheck · 1층 테스트 | 훅을 `--no-verify` 로 우회한 커밋이 여기서 걸린다 |
+| `smoke` | Postgres 컨테이너 → `migrate deploy` → 서버 기동 → 스모크 75개 | 훅에서는 DB 를 띄울 수 없다. **운영과 같은 마이그레이션 경로**를 매번 밟는다 |
+
+- 두 job 은 서로 기다리지 않는다. 둘 다 빨간 것과 하나만 빨간 것은 원인이 다르다.
+- CI 가 빨간 채로 머지하지 않는다. 로컬에서 `npm run lint && npm run typecheck && npm test` 와
+  스모크를 돌리면 CI 와 같은 것을 본 것이다.
 - 비밀 스캔이 자리표시자를 잘못 잡으면 그 줄 끝에 `secret-scan:allow` 를 적는다.
   규칙 자체를 고치면 `tests/tools/scan-secrets.test.mjs` 에 케이스를 같이 넣는다
 - **`--no-verify` 는 쓰지 않는다.** 훅이 막았으면 막힐 이유가 있다

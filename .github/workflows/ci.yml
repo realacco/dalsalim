@@ -1,0 +1,131 @@
+# CI — 로컬 훅이 못 하는 것을 여기서 한다.
+#
+# 훅(pre-commit)은 4~6초 안에 끝나야 해서 "바뀐 파일만 · 건드린 쪽만" 본다.
+# 여기서는 전체를 본다 — 그리고 훅이 아예 못 도는 스모크(Postgres 필요)를 돈다.
+#
+#   check   전체 lint · 전체 typecheck · 1층 테스트 · 포맷 검사        ~2분
+#   smoke   Postgres 컨테이너 → migrate → 서버 기동 → 스모크 75개       ~2분
+#
+# 두 job 은 서로 기다리지 않는다. check 가 깨져도 smoke 결과는 봐야 한다 —
+# 둘 다 빨간 것과 하나만 빨간 것은 원인이 다르다.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# 같은 브랜치에 push 가 겹치면 앞의 것은 취소한다. 끝난 결과가 이미 낡았다
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # 루트 npm ci 가 prepare(husky) 를 부른다. CI 에는 커밋 훅이 필요 없다
+  HUSKY: 0
+
+jobs:
+  check:
+    name: lint · typecheck · test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+            mobile/package-lock.json
+
+      - name: 의존성 (루트 · 서버 · 앱)
+        run: |
+          npm ci
+          npm ci --prefix server
+          npm ci --prefix mobile
+
+      # 서버 typecheck 는 생성된 Prisma Client 타입을 본다
+      - name: Prisma Client 생성
+        run: npm run db:generate --prefix server
+
+      - name: 포맷 검사
+        run: npm run format:check
+
+      - name: 린트 (server + mobile)
+        run: npm run lint
+
+      - name: 타입체크 (tests + server + mobile)
+        run: npm run typecheck
+
+      - name: 1층 테스트
+        run: npm test
+
+  smoke:
+    name: smoke (Postgres)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dalsalim
+        ports: ['5432:5432']
+        # 컨테이너가 떴다고 DB 가 받는 건 아니다. 준비될 때까지 기다린다
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # server/.env.example 과 같다. 운영 값은 하나도 없다 — 기본 시크릿은 개발 모드에서만 통과한다
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/dalsalim
+      NODE_ENV: development
+      DEV_LOGIN: 'true'
+      PORT: 4000
+      HOST: 127.0.0.1
+      PUBLIC_BASE_URL: http://localhost:4000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: 서버 의존성
+        run: npm ci --prefix server
+
+      - name: 마이그레이션 (migrate deploy — 운영과 같은 경로)
+        run: npm run db:deploy --prefix server
+
+      - name: 서버 기동
+        working-directory: server
+        run: |
+          nohup npx tsx src/index.ts > server.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:4000/health > /dev/null; then
+              echo "서버 준비 (${i}초)"; exit 0
+            fi
+            sleep 1
+          done
+          echo "서버가 30초 안에 뜨지 않았다"; cat server.log; exit 1
+
+      - name: 스모크 75개
+        working-directory: server
+        run: node scripts/smoke.mjs
+
+      - name: 서버 로그 (실패했을 때만)
+        if: failure()
+        working-directory: server
+        run: cat server.log
