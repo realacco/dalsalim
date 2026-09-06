@@ -13,7 +13,9 @@
 관리비   [ 240,000 ]  ← 6만원 더 나왔네? "왜 이랬어?" (필수 입력)
 ```
 
-📄 **[MVP 기획서](docs/01-MVP-기획서.md)** · **[MVP 출시 체크리스트](docs/02-MVP-출시-체크리스트.md)**
+📄 **[MVP 기획서](https://app.notion.com/p/83a8a87802e0403c9b36968fedc61487)** ·
+**[기능 정의서](https://app.notion.com/p/e0553e31bebf46babb92a38c9b1deb34)** (원본은 Notion) ·
+**[MVP 출시 체크리스트](docs/02-MVP-출시-체크리스트.md)**
 
 > 지금은 **MVP 단계**다. 빠르게 만들어 몇 달 써보고 방향을 잡는 게 목적이다.
 
@@ -73,9 +75,10 @@ npm run dev -- --android      # 에뮬레이터 자동 부팅 + adb reverse + Ex
 ```
 dalsalim/
 ├── docs/
-│   ├── 01-MVP-기획서.md            무엇을 왜 만드는가 · 화면 · 데이터모델 · API
+│   ├── 01-MVP-기획서.md            차례 + Notion 링크 (본문은 Notion 이 원본)
 │   ├── 02-MVP-출시-체크리스트.md    실제로 쓰기 시작하기까지 남은 일
-│   └── 03-MVP-시행착오.md          실제로 데인 것들
+│   ├── 03-MVP-시행착오.md          실제로 데인 것들
+│   └── 04-기능-정의서-인덱스.md     코드 경로 → 기능 ID 역인덱스. 코드 만지기 전에 grep
 │
 ├── tests/                    루트 테스트 — contract(서버/앱 사본 일치) · tools(커밋 훅)
 ├── .github/workflows/ci.yml  check(lint·typecheck·1층) + smoke(Postgres)
