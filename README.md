@@ -13,7 +13,9 @@
 관리비   [ 240,000 ]  ← 6만원 더 나왔네? "왜 이랬어?" (필수 입력)
 ```
 
-📄 **[MVP 기획서](docs/01-MVP-기획서.md)** · **[MVP 출시 체크리스트](docs/02-MVP-출시-체크리스트.md)**
+📄 **[MVP 기획서](https://app.notion.com/p/83a8a87802e0403c9b36968fedc61487)** ·
+**[기능 정의서](https://app.notion.com/p/e0553e31bebf46babb92a38c9b1deb34)** (원본은 Notion) ·
+**[MVP 출시 체크리스트](docs/02-MVP-출시-체크리스트.md)**
 
 > 지금은 **MVP 단계**다. 빠르게 만들어 몇 달 써보고 방향을 잡는 게 목적이다.
 
@@ -73,9 +75,10 @@ npm run dev -- --android      # 에뮬레이터 자동 부팅 + adb reverse + Ex
 ```
 dalsalim/
 ├── docs/
-│   ├── 01-MVP-기획서.md            무엇을 왜 만드는가 · 화면 · 데이터모델 · API
+│   ├── 01-MVP-기획서.md            차례 + Notion 링크 (본문은 Notion 이 원본)
 │   ├── 02-MVP-출시-체크리스트.md    실제로 쓰기 시작하기까지 남은 일
-│   └── 03-MVP-시행착오.md          실제로 데인 것들
+│   ├── 03-MVP-시행착오.md          실제로 데인 것들
+│   └── 04-기능-정의서-인덱스.md     기능 ID ↔ 코드 경로. 코드 만지기 전에 grep
 │
 ├── tests/                    루트 테스트 — contract(서버/앱 사본 일치) · tools(커밋 훅)
 ├── .github/workflows/ci.yml  check(lint·typecheck·1층) + smoke(Postgres)
@@ -88,7 +91,7 @@ dalsalim/
 │   ├── src/services/           family · fixed-expense · book(완성 판정·집계) · entry(프리필)
 │   ├── src/lib/                db · auth(가드) · http(에러) · messages(코드→문장) ·
 │   │                           schemas(공용 zod) · shared(상수·순수함수)
-│   └── scripts/smoke.mjs       전 구간 스모크 테스트 78개
+│   └── scripts/smoke.mjs       전 구간 스모크 테스트
 │
 └── mobile/                   Expo (React Native) + expo-router · FSD
     ├── src/app/                expo-router 라우트 — screens 를 re-export 만 한다
@@ -103,11 +106,74 @@ dalsalim/
     └── scripts/                dev.js · emulator.js
 ```
 
+## 개발 프로세스
+
+**GitHub 이슈를 축으로 돈다.** 기능 하나 = 이슈 하나 = 브랜치 하나 = PR 하나이고,
+이슈가 닫히면 다시 보지 않는다.
+
+```
+① 기능 정의서(Notion) + 기획서의 해당 절을 읽는다
+② 주석·인덱스로 지금 코드가 어디까지 와 있는지 본다
+③ 태스크를 산정해 확인받는다            ← 여기서 한 번 멈춘다
+④ 이슈        [F-FAM-05] 참여 요청 승인·거절
+⑤ 브랜치      feat/F-FAM-05-approve-join
+⑥ 커밋        Feature: F-FAM-05  /  Closes #12
+⑦ PR → CI → 머지 → 이슈 닫힘
+```
+
+### 이슈를 만드는 네 가지 경우
+
+**대부분의 일은 이 사이클을 밟지 않는다.** 기본은 브랜치 → 작업 → PR 이고 이슈는 없다.
+PR 이 기록이다. 즉흥으로 부탁한 작은 수정에까지 문서와 이슈를 요구하면 규칙이 통째로 우회당한다.
+
+가르는 축은 **"중요한가" 가 아니라 "되돌릴 수 있나"** 다. 되돌리기 어려운 네 가지일 때만 이슈를 만든다.
+
+| 트리거 | 어떻게 알아채나 |
+|---|---|
+| `/task` 를 부르거나 "새 기능" 이라고 말한다 | 명시적이다 |
+| 커밋이 `feat` 가 된다 (사용자에게 보이는 새 동작) | type 은 어차피 골라야 하는 값이다 |
+| **하드룰이 걸린 파일**을 고친다 | 파일을 열 때 훅이 띄워준다 |
+| **`server/prisma/schema.prisma`** 를 고친다 | 마이그레이션은 되돌리기 어렵다 |
+
+걸리면 **묻지 말고 이슈를 만든다.** "애매한가?" 를 판단하기 시작하면 그 판단이 매번 흔들린다.
+문서는 앞이 아니라 **PR 에서 코드와 같이** 고친다 — 무엇을 만들었는지는 만들고 나야 안다.
+
+### 이름 규칙
+
+| | 형식 | 예 |
+|---|---|---|
+| 브랜치 | `<type>/<F-ID>-<kebab>` | `feat/F-FAM-05-approve-join` |
+| 이슈·PR 제목 | `[F-ID] 기능 이름` | `[F-FAM-05] 참여 요청 승인·거절` |
+| 커밋 트레일러 | `Feature: F-ID` (여럿이면 쉼표) | `Feature: F-FAM-05, F-BOOK-04` |
+| 테스트 이름 | `★ F-ID 행동` | `★ F-ENT-04 금액이 달라지면 사유 없이는 막힌다` |
+| 이슈 라벨 | 도메인 5개 | `session` `family` `fixed-expense` `book` `entry` |
+
+`feat/` 만 기능 ID 가 필수다. **`chore/` `docs/` `ci/` `deps/` 는 없어도 된다** —
+오타 수정·의존성 갱신에까지 이슈를 요구하면 규칙이 우회당하므로, 구멍의 모양을 미리 정해 둔 것이다.
+
+### 기계가 지키는 것 / 사람이 지키는 것
+
+| | 무엇을 |
+|---|---|
+| **파일 편집 직전** | `main` 편집 차단 · `feat/` 인데 기능 ID 없으면 차단 · 걸린 기능과 하드룰 알림 |
+| **커밋 직전** | 비밀 스캔 · 포맷 · 1층 테스트 · 타입체크 · **인덱스와 코드 주석 일치** |
+| **커밋 메시지** | type · scope · 제목 길이 · `Feature:` 트레일러 형식과 실존 |
+| **PR** | CI 전체 (린트 · 타입 · 1층 · 2층) |
+| **사람** | 문서를 실제로 읽었는가 · 테스트 이름의 기능 ID · Notion 과 인덱스의 일치 · 3층(에뮬레이터) |
+
+마지막 줄은 기계가 판정할 수 없어서 남긴 것이지 덜 중요해서가 아니다.
+**특히 Notion 을 고칠 때는 `docs/04-기능-정의서-인덱스.md` 도 같이 고친다** — 그쪽은 막아주는 장치가 없다.
+
+절차 본문은 `.claude/process/start-task.md`, 규칙은 `CLAUDE.md` 「작업 흐름」에 있다.
+`/task <기능 ID>` 로 ① 부터 자동으로 밟을 수 있고, `/spec <파일 · ID · 도메인>` 으로 조회만 할 수도 있다.
+
+---
+
 ## 검증
 
 ```bash
 npm test                              # 1층 — 순수 함수 (루트에서, 0.5초)
-cd server && node scripts/smoke.mjs   # 2층 — API 흐름 78개
+cd server && node scripts/smoke.mjs   # 2층 — API 흐름
 npm run typecheck                     # 루트에서 — tests + server + mobile
 npm run lint                          # 루트에서 — server + mobile
 ```

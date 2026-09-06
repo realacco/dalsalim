@@ -1,3 +1,4 @@
+// 기능: F-FIX-01 F-FIX-02 F-FIX-03 F-FIX-04
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 

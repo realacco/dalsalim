@@ -1,3 +1,4 @@
+// 기능: F-SES-01 F-SES-02 F-SES-03
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 

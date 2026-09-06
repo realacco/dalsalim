@@ -1,3 +1,4 @@
+// 기능: F-SES-03
 import { Redirect } from 'expo-router';
 import { Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';

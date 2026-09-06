@@ -1,3 +1,4 @@
+// 기능: F-SES-05
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 

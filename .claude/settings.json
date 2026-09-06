@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/prompt-context.mjs",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/guard-branch.mjs",
+            "timeout": 15,
+            "statusMessage": "브랜치 확인"
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/inject-feature.mjs",
+            "timeout": 15,
+            "statusMessage": "기능 확인"
+          }
+        ]
+      }
+    ]
+  }
+}

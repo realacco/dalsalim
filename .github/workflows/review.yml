@@ -1,0 +1,90 @@
+name: 코드 리뷰
+
+# CI(ci.yml)가 "기계가 판정할 수 있는 것"을 본다면, 이 워크플로는 그 나머지를 본다 —
+# 명세대로 만들었나 · 하드룰 위반 · 프로젝트 규칙. 성격이 달라서 서로를 대신하지 못한다.
+#
+# ⚠️ pull_request_target 을 쓰지 않는다. fork 의 코드가 secret 에 닿게 되는 트리거다.
+#    지금은 개인 저장소라 fork PR 이 없고, 생기면 그때는 리뷰가 안 도는 게 맞다.
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+  # 액션이 OIDC 로 GitHub App 토큰을 받아온다. 없으면
+  # "Could not fetch an OIDC token" 으로 3번 재시도하고 죽는다 (PR #4 에서 겪음)
+  id-token: write
+
+concurrency:
+  # 같은 PR 에 연속으로 push 하면 앞의 리뷰는 버린다 — 구독 사용량을 두 번 쓸 이유가 없다
+  group: review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 기능 ID 를 커밋 트레일러에서도 읽으므로 전체 이력이 필요하다
+
+      - name: 리뷰 컨텍스트 조립
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          # 기능 정의서 본문을 읽어 온다. 없으면 그 축만 빠지고 리뷰는 그대로 돈다 —
+          # 차단하는 검사였다면 외부 서비스에 매달 수 없지만, 리뷰는 코멘트라 괜찮다
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        run: node .github/scripts/review-context.mjs
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          # `claude setup-token` 으로 만든 구독 토큰. API 키 대신 쓴다
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          use_sticky_comment: true
+
+          claude_args: |
+            --model claude-opus-5
+            --max-turns 15
+            --allowedTools Read,Grep,Glob,Bash(git diff:*),Bash(git log:*)
+
+          prompt: |
+            이 PR 을 리뷰한다. **`.github/review-context.md` 를 먼저 읽는다** —
+            바뀐 파일에서 거꾸로 뽑은 "걸린 기능" · "건드리는 하드룰" · **기능 정의서 본문**이 거기 있다.
+
+            프로젝트 규칙은 `CLAUDE.md` 에 있다. 리뷰 중 필요한 절을 열어 본다.
+
+            ## 무엇을 보나 — 이 순서로
+
+            1. **★ 하드룰 위반.** 컨텍스트 파일이 뽑아준 항목만 본다. 하나라도 어기면
+               나머지를 다 잘해도 이 PR 은 반려다. 특히 자주 새는 곳:
+               - 사유 강제를 앱에서만 막고 서버에서 안 막는다 (하드룰 3)
+               - `EntryLine` 의 `name`·`category` 를 복사가 아니라 참조로 바꾼다 (하드룰 4)
+               - 실제 삭제로 바꾼다 — soft delete 를 되돌린다 (하드룰 6)
+               - `PENDING` 이 구성원 목록·장부 정원·조회에 새어 나온다 (하드룰 8)
+            2. **명세대로 도나.** 컨텍스트 파일에 「기능 정의서 본문」이 있으면 코드와 대조한다 —
+               동작 정책 · 화면 구성 · 메시지가 적힌 대로인지. 이게 이 리뷰의 핵심 축이다.
+               **본문이 "가져오지 않았어요"로 되어 있으면 이 축은 건너뛴다.** 명세를 모르는 채로
+               추측해서 지적하지 않는다.
+            3. **프로젝트 규칙.** 임포트 방향(서버 `routes→services→lib`, 앱 FSD 단방향) ·
+               디자인 값 하드코딩(색·간격·라운드·폰트는 `theme.ts` 토큰만) ·
+               말투(해요체, 사용자를 탓하지 않음) · 서버 응답 형태 · 실패 표현.
+            4. **테스트.** 하드룰을 건드렸는데 케이스가 없으면 그것만으로 지적 대상이다.
+               시나리오 케이스에는 `★ F-XXX-NN` 이 붙어 있어야 한다(권장).
+            5. **일반 버그.** 위 넷과 무관한 논리 오류·경계값.
+
+            ## 무엇을 보지 않나
+
+            - 포맷·린트·타입·테스트 통과 여부 — `ci.yml` 이 이미 본다. 다시 말하지 않는다
+            - 컨텍스트 파일에 없는 명세 — 짐작해서 지적하지 않는다.
+              의심되면 **"확인 필요"로만 적는다**
+            - 취향 문제. 규칙에 없는 스타일 선호는 적지 않는다
+
+            ## 어떻게 쓰나
+
+            - 지적마다 `파일:줄` 과 **어느 규칙인지**(하드룰 번호 또는 CLAUDE.md 절)를 댄다.
+              근거를 못 대는 지적은 적지 않는다
+            - 심각한 것부터. 하드룰 → 명세 불일치 → 프로젝트 규칙 → 테스트 → 버그
+            - **지적할 것이 없으면 그렇게 쓴다.** 채우려고 만들어내지 않는다
+            - 한국어 해요체로 쓴다

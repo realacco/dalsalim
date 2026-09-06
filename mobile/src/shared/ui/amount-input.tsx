@@ -1,3 +1,4 @@
+// 기능: F-ENT-09
 import { useEffect, useState } from 'react';
 import { Keyboard, Text, TextInput, View } from 'react-native';
 
