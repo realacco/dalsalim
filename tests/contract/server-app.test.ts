@@ -1,13 +1,17 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 
 import {
   CATEGORIES as SERVER_CATEGORIES,
+  currentYearMonth as serverCurrentYearMonth,
   needsReason as serverNeedsReason,
   shiftYearMonth as serverShiftYearMonth,
 } from '../../server/src/lib/shared.js';
 
 import { needsReason as appNeedsReason } from '../../mobile/src/entities/entry/model/reason';
-import { shiftYearMonth as appShiftYearMonth } from '../../mobile/src/shared/lib/format';
+import {
+  currentYearMonth as appCurrentYearMonth,
+  shiftYearMonth as appShiftYearMonth,
+} from '../../mobile/src/shared/lib/format';
 import { CATEGORIES as APP_CATEGORIES } from '../../mobile/src/shared/model/types';
 
 /**
@@ -76,5 +80,18 @@ describe('CATEGORIES — 분류 목록이 양쪽에서 같다', () => {
     const app = new Set<string>(APP_CATEGORIES);
     expect([...server].filter((c) => !app.has(c))).toEqual([]);
     expect([...app].filter((c) => !server.has(c))).toEqual([]);
+  });
+});
+
+describe('currentYearMonth — 서버와 앱이 같은 "이번 달"을 본다', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('연말 · 연초 · 한가운데에서 결과가 같다', () => {
+    for (const at of [new Date(2026, 0, 1), new Date(2026, 8, 4), new Date(2026, 11, 31, 23, 59)]) {
+      vi.useFakeTimers();
+      vi.setSystemTime(at);
+      expect(appCurrentYearMonth()).toBe(serverCurrentYearMonth());
+      vi.useRealTimers();
+    }
   });
 });

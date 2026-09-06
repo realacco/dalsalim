@@ -6,11 +6,12 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ApiError } from '@/shared/api/client';
 import { API_BASE } from '@/shared/api/client';
 import { authKeys, devLogin, fetchAuthConfig, kakaoStartUrl, useSession } from '@/entities/session';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Button, Card, ErrorText, Input, Muted } from '@/shared/ui';
+import { MESSAGES } from '@/shared/config/messages';
+import { errorMessage } from '@/shared/lib/errors';
 
 export default function LoginScreen() {
   const styles = useStyles();
@@ -62,7 +63,8 @@ export default function LoginScreen() {
 
       await finish(token);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : String((caught as Error).message));
+      // 카카오 흐름은 취소·오류를 Error 로 던진다. ApiError 도 Error 라 message 하나로 충분하다
+      setError(caught instanceof Error ? caught.message : MESSAGES.loginFailed);
     } finally {
       setBusy(false);
     }
@@ -82,7 +84,7 @@ export default function LoginScreen() {
     try {
       await finish(await devLogin(name));
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : '로그인하지 못했어요.');
+      setError(errorMessage(caught, MESSAGES.loginFailed));
     } finally {
       setBusy(false);
     }
