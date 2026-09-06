@@ -13,6 +13,9 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  # 액션이 OIDC 로 GitHub App 토큰을 받아온다. 없으면
+  # "Could not fetch an OIDC token" 으로 3번 재시도하고 죽는다 (PR #4 에서 겪음)
+  id-token: write
 
 concurrency:
   # 같은 PR 에 연속으로 push 하면 앞의 리뷰는 버린다 — 구독 사용량을 두 번 쓸 이유가 없다
