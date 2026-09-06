@@ -204,6 +204,20 @@ export const font = {
   glyph: { fontSize: 28, lineHeight: 32 },
 } satisfies Record<string, TextStyle>;
 
+/**
+ * 흐리게 처리하는 정도.
+ *
+ * 비활성은 한 값으로 통일한다. 화살표 0.25 · [+] 0.35 · 버튼 0.4 로 제각각이었는데,
+ * 같은 "눌러도 안 된다"를 세 가지 세기로 말할 이유가 없었다. 셋 다 그때그때 정한 값이지
+ * 서로 다르게 두려고 정한 값이 아니다.
+ *
+ * 0.4 로 맞춘 이유: 눌러도 안 되는 건 맞지만 **무엇이 있었는지는 읽혀야** 한다.
+ * 0.25 는 다음 달 화살표가 거의 사라져 "여기 버튼이 있다"는 것조차 안 보였다.
+ */
+export const opacity = {
+  disabled: 0.4,
+} as const;
+
 export const weight = {
   regular: '400',
   medium: '500',
@@ -281,6 +295,7 @@ export type Theme = {
   radius: typeof radius;
   font: typeof font;
   weight: typeof weight;
+  opacity: typeof opacity;
   motion: typeof motion;
   shadow: ShadowSet;
 };
@@ -294,6 +309,7 @@ export function buildTheme(scheme: ColorScheme): Theme {
     radius,
     font,
     weight,
+    opacity,
     motion,
     shadow: shadow[scheme],
   };

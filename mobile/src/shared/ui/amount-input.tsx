@@ -188,7 +188,7 @@ const useStyles = makeStyles((t) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  plusOff: { opacity: 0.35 },
+  plusOff: { opacity: t.opacity.disabled },
   plusLabel: { ...t.font.title, fontWeight: t.weight.heavy, color: t.colors.primary },
 
   sumRow: {
