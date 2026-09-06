@@ -117,15 +117,30 @@ async function fetchSpecs(features) {
 
 const changed = git('diff', '--name-only', `${BASE}...HEAD`).split('\n').filter(Boolean);
 
-const sources = changed.filter((f) => /\.tsx?$/.test(f) && existsSync(f));
+const sources = changed.filter((f) => /\.(tsx?|mjs)$/.test(f) && existsSync(f));
 const ids = new Set();
 const byFile = new Map();
 
-for (const file of sources) {
+/**
+ * 파일이 어느 기능을 떠받치는지 알아내는 두 가지 길.
+ *
+ * 소스는 맨 위 `// 기능:` 주석 한 줄이지만, **테스트는 케이스 이름에 ID 를 적는다**
+ * (`★ F-ENT-04 금액이 달라지면 …`). 주석만 보면 테스트만 바꾼 PR 에서 컨텍스트가
+ * 통째로 비고, 리뷰어가 맨땅에서 탐색하다 턴을 다 쓴다 — PR #6 에서 실제로 그랬다.
+ */
+function idsIn(file) {
+  const text = readFileSync(file, 'utf8');
+  const isTest = /\.test\.(tsx?|mjs)$|smoke\.mjs$/.test(file);
+  if (isTest) return [...new Set(text.match(ID) ?? [])];
+
   // trim 이 지우는 건 공백이 아니라 CRLF 의 `\r` 이다 — JS 의 `.` 은 `\r` 을 안 먹는다
-  const first = (readFileSync(file, 'utf8').split('\n', 1)[0] ?? '').trim();
-  if (!first.startsWith('// 기능:')) continue;
-  const found = first.match(ID) ?? [];
+  const first = (text.split('\n', 1)[0] ?? '').trim();
+  return first.startsWith('// 기능:') ? (first.match(ID) ?? []) : [];
+}
+
+for (const file of sources) {
+  const found = idsIn(file);
+  if (found.length === 0) continue;
   byFile.set(file, found);
   for (const id of found) ids.add(id);
 }
