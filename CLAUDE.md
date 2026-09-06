@@ -67,7 +67,8 @@
 - **시행착오 기록** = `docs/03-MVP-시행착오.md` — 실제로 데인 것들. 같은 함정을 다시 밟지 않기 위한 기록
 - **작업 목록** = `docs/MVP-개발-태스크.md` — "코드에 무슨 일을 하는가". **gitignore 대상**(로컬 전용)
 - **데이터 모델 원본** = `server/prisma/schema.prisma` — 기획서 8장은 요약일 뿐이다
-- **개발 환경·함정** = `README.md` 하단 "개발 노트"
+- **개발 환경·함정** = `docs/개발-노트.md` — **gitignore 대상**(로컬 전용).
+  로컬 경로·AVD 이름이라 공개 저장소에 두지 않는다
 - 기획서의 장 번호(3장, 7.5 …)와 기능 ID(`F-ENT-04` …)를 코드 주석·커밋·대화의 공용어로 쓴다.
 
 ### 기능 ID 로 코드를 찾는 두 가지 길
@@ -323,4 +324,4 @@ cd mobile && npm run dev -- --android             # 에뮬레이터 + Metro
 ⚠️ **네이티브 빌드를 하지 않는다.** 카카오를 REST OAuth 로 붙여 `expo prebuild` 도 `android/` 도 없다.
 네이티브 모듈이 필요한 라이브러리를 들이기 전에 **먼저 상의한다** — Expo Go 로 바로 도는 루프를 잃는 결정이다.
 
-📖 전문: `.claude/rules/commands.md` · 개발 환경 함정은 `README.md` 개발 노트
+📖 전문: `.claude/rules/commands.md` · 개발 환경 함정은 `docs/개발-노트.md` (로컬 전용)

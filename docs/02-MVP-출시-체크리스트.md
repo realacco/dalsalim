@@ -166,7 +166,7 @@ POST /auth/dev { "name": "아빠" }  →  토큰 발급
 - [ ] (선택) `eas update` — JS 변경은 심사 없이 배포 가능. **MVP 단계에서 특히 유용하다**
 
 > 카카오를 REST OAuth로 붙였기 때문에 **네이티브 모듈이 없다.** `expo prebuild`도,
-> 22분짜리 Gradle 빌드도 필요 없다 (`README.md` 개발 노트 참조).
+> 22분짜리 Gradle 빌드도 필요 없다 (`docs/개발-노트.md` 참조 — 로컬 전용 문서다).
 
 ### iOS를 낼 거라면
 
