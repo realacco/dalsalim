@@ -39,7 +39,7 @@ export function MembersCard({
       {members.map((member) => (
         <View key={member.id} style={styles.member}>
           <View style={styles.memberRow}>
-            <View style={{ gap: 2 }}>
+            <View style={{ gap: space.xxs }}>
               <Text style={styles.memberName}>
                 {member.displayName}
                 {member.isMe ? ' (나)' : ''}

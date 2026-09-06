@@ -21,12 +21,11 @@ export function ErrorText({ children }: { children: ReactNode }) {
 
 const useStyles = makeStyles((t) => ({
   sectionTitle: {
-    ...t.font.small,
+    ...t.font.sectionTitle,
     color: t.colors.inkFaint,
     fontWeight: t.weight.bold,
-    letterSpacing: 0.4,
     marginBottom: t.space.sm,
   },
-  muted: { ...t.font.small, color: t.colors.inkFaint, lineHeight: 20 },
-  error: { ...t.font.small, color: t.colors.danger, lineHeight: 20 },
+  muted: { ...t.font.note, color: t.colors.inkFaint },
+  error: { ...t.font.note, color: t.colors.danger },
 }));

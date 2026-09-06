@@ -73,7 +73,7 @@ const useStyles = makeStyles((t) => ({
   ghost: { backgroundColor: t.colors.surfaceMuted },
   kakao: { backgroundColor: t.colors.kakao },
   danger: { backgroundColor: t.colors.danger },
-  disabled: { opacity: 0.4 },
+  disabled: { opacity: t.opacity.disabled },
 
   label: { ...t.font.bodyLg, fontWeight: t.weight.bold },
   labelOnPrimary: { color: t.colors.primaryInk },

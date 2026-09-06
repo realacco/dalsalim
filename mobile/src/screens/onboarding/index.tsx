@@ -170,5 +170,5 @@ const useStyles = makeStyles((t) => ({
   tabLabel: { ...t.font.body, color: t.colors.inkFaint, fontWeight: t.weight.semibold },
   tabLabelActive: { color: t.colors.ink },
 
-  codeInput: { letterSpacing: 6, fontWeight: t.weight.bold, textAlign: 'center' },
+  codeInput: { ...t.font.codeInput, fontWeight: t.weight.bold, textAlign: 'center' },
 }));

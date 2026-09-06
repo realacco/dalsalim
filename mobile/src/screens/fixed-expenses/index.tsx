@@ -61,7 +61,7 @@ export default function FixedScreen() {
                   onPress={() => x.openEdit(item, group.membershipId)}
                   style={styles.item}
                 >
-                  <View style={{ flex: 1, gap: 2 }}>
+                  <View style={{ flex: 1, gap: space.xxs }}>
                     <Text style={styles.itemName}>{item.name}</Text>
                     <Text style={styles.itemMeta}>
                       {item.category}

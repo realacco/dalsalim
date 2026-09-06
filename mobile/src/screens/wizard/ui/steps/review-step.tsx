@@ -57,7 +57,7 @@ export function ReviewStep({
           {changes.map((line) => {
             const delta = (line.actualAmount ?? 0) - (line.plannedAmount ?? 0);
             return (
-              <View key={line.id} style={{ gap: 2 }}>
+              <View key={line.id} style={{ gap: space.xxs }}>
                 <View style={styles.changeHead}>
                   <Text style={styles.changeName}>{line.name}</Text>
                   <Text

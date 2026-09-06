@@ -16,7 +16,7 @@ import { MyCard } from './ui/my-card';
  */
 export default function ThisMonthScreen() {
   const styles = useStyles();
-  const { space } = useTheme();
+  const { space, opacity } = useTheme();
   const m = useThisMonth();
 
   return (
@@ -34,7 +34,7 @@ export default function ThisMonthScreen() {
         <Pressable
           onPress={m.goNextMonth}
           hitSlop={12}
-          style={[styles.arrow, m.isCurrentMonth && { opacity: 0.25 }]}
+          style={[styles.arrow, m.isCurrentMonth && { opacity: opacity.disabled }]}
           disabled={m.isCurrentMonth}
         >
           <Text style={styles.arrowLabel}>›</Text>

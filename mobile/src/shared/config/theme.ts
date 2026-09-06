@@ -132,6 +132,8 @@ export const palettes = { light, dark } as const;
 export type ColorScheme = keyof typeof palettes;
 
 export const space = {
+  /** 이름과 그 설명처럼 **한 덩어리로 읽혀야 하는 두 줄** 사이. xs 는 이미 벌어져 보인다 */
+  xxs: 2,
   xs: 4,
   sm: 8,
   md: 12,
@@ -140,6 +142,19 @@ export const space = {
   xxl: 32,
   /** 화면 바깥 여백. 토스처럼 넉넉하게 둔다 */
   screen: 20,
+} as const;
+
+/**
+ * 테두리 두께.
+ *
+ * 두 값의 차이는 실수가 아니라 역할이다 — 가만히 있는 면은 얇게 두고,
+ * 손이 닿는 컨트롤은 한 단계 굵게 잡아 "여기를 누르거나 입력한다"를 드러낸다.
+ */
+export const border = {
+  /** 카드 · 리스트 행처럼 가만히 있는 면 */
+  hairline: 1,
+  /** 칩 · 입력창처럼 누르거나 입력하는 것 */
+  control: 1.5,
 } as const;
 
 export const radius = {
@@ -159,6 +174,13 @@ export const radius = {
 export const font = {
   caption: { fontSize: 12, lineHeight: 16 },
   small: { fontSize: 13, lineHeight: 18 },
+  /**
+   * 여러 줄로 감기는 보조 문구 — 힌트 · 안내 · 오류 한 줄.
+   * caption·small 의 줄 간격은 한 줄짜리 라벨 기준이라, 문장이 감기면 답답하게 붙는다.
+   * 화면 다섯 곳이 각자 lineHeight 를 덧칠하고 있어서 토큰으로 올렸다.
+   */
+  hint: { fontSize: 12, lineHeight: 18 },
+  note: { fontSize: 13, lineHeight: 20 },
   body: { fontSize: 15, lineHeight: 22 },
   bodyLg: { fontSize: 17, lineHeight: 24 },
   title: { fontSize: 20, lineHeight: 28 },
@@ -172,11 +194,29 @@ export const font = {
   /** 금액 — 자릿수가 흔들리지 않게 tabular */
   amount: { fontSize: 34, lineHeight: 42, fontVariant: ['tabular-nums'] },
   amountLg: { fontSize: 38, lineHeight: 46, fontVariant: ['tabular-nums'] },
+  /** 섹션 제목 — 작고 굵게, 자간을 살짝 벌려 라벨처럼 읽히게 한다 */
+  sectionTitle: { fontSize: 13, lineHeight: 18, letterSpacing: 0.4 },
   /** 초대코드처럼 한 글자씩 읽는 것 */
   code: { fontSize: 30, lineHeight: 38, letterSpacing: 8 },
+  /** 초대코드를 "입력"하는 칸. 표시용 code 보다 작고 자간도 그만큼 좁다 */
+  codeInput: { fontSize: 17, lineHeight: 24, letterSpacing: 6 },
   /** 헤더의 ‹ › 같은 글리프 */
   glyph: { fontSize: 28, lineHeight: 32 },
 } satisfies Record<string, TextStyle>;
+
+/**
+ * 흐리게 처리하는 정도.
+ *
+ * 비활성은 한 값으로 통일한다. 화살표 0.25 · [+] 0.35 · 버튼 0.4 로 제각각이었는데,
+ * 같은 "눌러도 안 된다"를 세 가지 세기로 말할 이유가 없었다. 셋 다 그때그때 정한 값이지
+ * 서로 다르게 두려고 정한 값이 아니다.
+ *
+ * 0.4 로 맞춘 이유: 눌러도 안 되는 건 맞지만 **무엇이 있었는지는 읽혀야** 한다.
+ * 0.25 는 다음 달 화살표가 거의 사라져 "여기 버튼이 있다"는 것조차 안 보였다.
+ */
+export const opacity = {
+  disabled: 0.4,
+} as const;
 
 export const weight = {
   regular: '400',
@@ -251,9 +291,11 @@ export type Theme = {
   scheme: ColorScheme;
   colors: Palette;
   space: typeof space;
+  border: typeof border;
   radius: typeof radius;
   font: typeof font;
   weight: typeof weight;
+  opacity: typeof opacity;
   motion: typeof motion;
   shadow: ShadowSet;
 };
@@ -263,9 +305,11 @@ export function buildTheme(scheme: ColorScheme): Theme {
     scheme,
     colors: palettes[scheme],
     space,
+    border,
     radius,
     font,
     weight,
+    opacity,
     motion,
     shadow: shadow[scheme],
   };

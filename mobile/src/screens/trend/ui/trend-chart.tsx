@@ -120,6 +120,6 @@ const useStyles = makeStyles((t) => ({
   monthLabel: { ...t.font.caption, color: t.colors.inkFaint },
   legend: { flexDirection: 'row', justifyContent: 'center', gap: t.space.lg },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: t.space.xs },
-  dot: { width: 8, height: 8, borderRadius: 4 },
+  dot: { width: 8, height: 8, borderRadius: t.radius.pill },
   legendLabel: { ...t.font.caption, color: t.colors.inkSoft },
 }));

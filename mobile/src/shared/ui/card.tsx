@@ -37,7 +37,7 @@ const useStyles = makeStyles((t) => ({
     backgroundColor: t.colors.surface,
     borderRadius: t.radius.card,
     padding: t.space.lg,
-    borderWidth: 1,
+    borderWidth: t.border.hairline,
     borderColor: t.colors.line,
     ...t.shadow.card,
   },

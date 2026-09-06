@@ -84,7 +84,7 @@ export function AmountInput({
   }
 
   return (
-    <View style={{ gap: 0 }}>
+    <View>
       <View style={styles.row}>
         <TextInput
           value={text}
@@ -188,7 +188,7 @@ const useStyles = makeStyles((t) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  plusOff: { opacity: 0.35 },
+  plusOff: { opacity: t.opacity.disabled },
   plusLabel: { ...t.font.title, fontWeight: t.weight.heavy, color: t.colors.primary },
 
   sumRow: {
@@ -198,7 +198,7 @@ const useStyles = makeStyles((t) => ({
     gap: t.space.sm,
     marginTop: t.space.sm,
   },
-  sumText: { ...t.font.caption, color: t.colors.inkFaint, flex: 1, lineHeight: 18 },
+  sumText: { ...t.font.hint, color: t.colors.inkFaint, flex: 1 },
   sumTotal: { fontWeight: t.weight.bold, color: t.colors.inkSoft },
   undoSlot: {},
   undo: { paddingHorizontal: t.space.sm, paddingVertical: t.space.xs },

@@ -29,9 +29,9 @@ export function Chip({
 const useStyles = makeStyles((t) => ({
   chip: {
     paddingHorizontal: t.space.lg,
-    paddingVertical: t.space.sm + 2,
+    paddingVertical: t.space.sm + t.space.xxs,
     borderRadius: t.radius.pill,
-    borderWidth: 1.5,
+    borderWidth: t.border.control,
     borderColor: t.colors.line,
     backgroundColor: t.colors.surface,
   },
