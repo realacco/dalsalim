@@ -24,8 +24,9 @@ npm-debug.*
 .DS_Store
 Thumbs.db
 
-# 작업용 태스크 문서 (로컬 전용)
+# 로컬 전용 문서 — 이 PC 에서만 뜻이 있는 것 (로컬 경로 · AVD 이름 · 진행 중 메모)
 docs/MVP-개발-태스크.md
+docs/개발-노트.md
 
 # Claude Code 개인 설정 (팀 공유 설정은 .claude/settings.json)
 .claude/settings.local.json
