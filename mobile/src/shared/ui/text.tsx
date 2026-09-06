@@ -27,6 +27,6 @@ const useStyles = makeStyles((t) => ({
     letterSpacing: 0.4,
     marginBottom: t.space.sm,
   },
-  muted: { ...t.font.small, color: t.colors.inkFaint, lineHeight: 20 },
-  error: { ...t.font.small, color: t.colors.danger, lineHeight: 20 },
+  muted: { ...t.font.note, color: t.colors.inkFaint },
+  error: { ...t.font.note, color: t.colors.danger },
 }));

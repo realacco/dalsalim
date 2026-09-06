@@ -75,7 +75,10 @@ export default function SummaryScreen() {
                 </View>
                 <Divider />
                 {summary.data.changes.map((change, order) => (
-                  <View key={`${change.displayName}-${change.name}-${order}`} style={{ gap: 2 }}>
+                  <View
+                    key={`${change.displayName}-${change.name}-${order}`}
+                    style={{ gap: space.xxs }}
+                  >
                     <View style={styles.changeHead}>
                       <Text style={styles.changeName}>
                         {change.name}

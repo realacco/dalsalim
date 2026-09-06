@@ -86,7 +86,7 @@ export default function TrendScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`${formatYearMonth(point.yearMonth)} 요약 보기`}
                 >
-                  <View style={{ gap: 2 }}>
+                  <View style={{ gap: space.xxs }}>
                     <Text style={styles.month}>{formatYearMonth(point.yearMonth)}</Text>
                     <Text style={styles.meta}>
                       {point.submittedCount === point.memberCount
@@ -94,7 +94,7 @@ export default function TrendScreen() {
                         : `${point.submittedCount}/${point.memberCount}명 기록`}
                     </Text>
                   </View>
-                  <View style={{ alignItems: 'flex-end', gap: 2 }}>
+                  <View style={{ alignItems: 'flex-end', gap: space.xxs }}>
                     <Text
                       style={[
                         styles.surplus,

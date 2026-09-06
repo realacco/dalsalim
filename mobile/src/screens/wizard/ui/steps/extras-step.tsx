@@ -57,7 +57,7 @@ export function ExtrasStep({ entry, onNext }: { entry: Entry; onNext: () => void
       <View style={{ gap: space.sm, marginTop: space.lg }}>
         {extras.map((line) => (
           <View key={line.id} style={styles.extraRow}>
-            <View style={{ flex: 1, gap: 2 }}>
+            <View style={{ flex: 1, gap: space.xxs }}>
               <Text style={styles.extraName}>{line.name}</Text>
               <Text style={styles.extraMeta}>{line.category}</Text>
             </View>

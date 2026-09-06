@@ -156,7 +156,7 @@ const useStyles = makeStyles((t) => ({
     borderRadius: t.radius.md,
     borderWidth: 1,
     borderColor: t.colors.line,
-    gap: 2,
+    gap: t.space.xxs,
   },
   familyRowActive: { borderColor: t.colors.primary, backgroundColor: t.colors.primarySoft },
 }));

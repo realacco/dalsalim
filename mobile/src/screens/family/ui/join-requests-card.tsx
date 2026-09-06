@@ -32,7 +32,7 @@ export function JoinRequestsCard({
 
       {requests.map((request) => (
         <View key={request.id} style={styles.member}>
-          <View style={{ gap: 2 }}>
+          <View style={{ gap: space.xxs }}>
             <Text style={styles.memberName}>{request.displayName}</Text>
             <Text style={styles.memberMeta}>{request.nickname}</Text>
           </View>

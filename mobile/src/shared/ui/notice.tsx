@@ -23,5 +23,5 @@ const useStyles = makeStyles((t) => ({
     paddingHorizontal: t.space.lg,
     paddingVertical: t.space.md,
   },
-  text: { ...t.font.small, color: t.colors.inkSoft, lineHeight: 20 },
+  text: { ...t.font.note, color: t.colors.inkSoft },
 }));

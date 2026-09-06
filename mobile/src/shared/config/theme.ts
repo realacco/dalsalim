@@ -132,6 +132,8 @@ export const palettes = { light, dark } as const;
 export type ColorScheme = keyof typeof palettes;
 
 export const space = {
+  /** 이름과 그 설명처럼 **한 덩어리로 읽혀야 하는 두 줄** 사이. xs 는 이미 벌어져 보인다 */
+  xxs: 2,
   xs: 4,
   sm: 8,
   md: 12,
@@ -159,6 +161,13 @@ export const radius = {
 export const font = {
   caption: { fontSize: 12, lineHeight: 16 },
   small: { fontSize: 13, lineHeight: 18 },
+  /**
+   * 여러 줄로 감기는 보조 문구 — 힌트 · 안내 · 오류 한 줄.
+   * caption·small 의 줄 간격은 한 줄짜리 라벨 기준이라, 문장이 감기면 답답하게 붙는다.
+   * 화면 다섯 곳이 각자 lineHeight 를 덧칠하고 있어서 토큰으로 올렸다.
+   */
+  hint: { fontSize: 12, lineHeight: 18 },
+  note: { fontSize: 13, lineHeight: 20 },
   body: { fontSize: 15, lineHeight: 22 },
   bodyLg: { fontSize: 17, lineHeight: 24 },
   title: { fontSize: 20, lineHeight: 28 },
