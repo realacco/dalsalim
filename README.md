@@ -91,7 +91,7 @@ dalsalim/
 │   ├── src/services/           family · fixed-expense · book(완성 판정·집계) · entry(프리필)
 │   ├── src/lib/                db · auth(가드) · http(에러) · messages(코드→문장) ·
 │   │                           schemas(공용 zod) · shared(상수·순수함수)
-│   └── scripts/smoke.mjs       전 구간 스모크 테스트 78개
+│   └── scripts/smoke.mjs       전 구간 스모크 테스트
 │
 └── mobile/                   Expo (React Native) + expo-router · FSD
     ├── src/app/                expo-router 라우트 — screens 를 re-export 만 한다
@@ -173,7 +173,7 @@ PR 이 기록이다. 즉흥으로 부탁한 작은 수정에까지 문서와 이
 
 ```bash
 npm test                              # 1층 — 순수 함수 (루트에서, 0.5초)
-cd server && node scripts/smoke.mjs   # 2층 — API 흐름 78개
+cd server && node scripts/smoke.mjs   # 2층 — API 흐름
 npm run typecheck                     # 루트에서 — tests + server + mobile
 npm run lint                          # 루트에서 — server + mobile
 ```
