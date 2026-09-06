@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 
-import { api, setAuthToken } from '@/shared/api/client';
+import { api, onUnauthorized, setAuthToken } from '@/shared/api/client';
 import type { Me } from './types';
 
 const TOKEN_KEY = 'dalsalim.token';
@@ -84,3 +84,13 @@ export const useSession = create<SessionState>((set, get) => ({
     set({ familyId });
   },
 }));
+
+/**
+ * 서버가 401 을 주면 세션을 비운다. 로그인 화면으로 보내는 건 앱 셸(app/_layout)이
+ * 토큰이 사라진 것을 보고 한다 — 여기는 순수 상태라 라우터를 모른다.
+ * 토큰이 없는 상태(로그인 시도 자체가 401)면 비울 것도 없다.
+ */
+onUnauthorized(() => {
+  const { token, signOut } = useSession.getState();
+  if (token) void signOut();
+});

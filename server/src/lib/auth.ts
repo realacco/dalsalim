@@ -3,7 +3,7 @@ import type { FastifyRequest } from 'fastify';
 
 import { env } from '../env.js';
 import { prisma } from './db.js';
-import { forbidden, notFound, unauthorized } from './http.js';
+import { fail } from './http.js';
 
 export type TokenPayload = { sub: string };
 
@@ -15,7 +15,7 @@ export function verifyToken(token: string): TokenPayload {
   try {
     return jwt.verify(token, env.jwtSecret) as TokenPayload;
   } catch {
-    throw unauthorized('토큰이 유효하지 않습니다.');
+    throw fail('TOKEN_INVALID');
   }
 }
 
@@ -39,11 +39,11 @@ export function rateLimitKey(request: FastifyRequest): string {
 /** Authorization 헤더에서 사용자를 꺼낸다. 없거나 잘못됐으면 401. */
 export async function requireUser(request: FastifyRequest) {
   const header = request.headers.authorization;
-  if (!header?.startsWith('Bearer ')) throw unauthorized();
+  if (!header?.startsWith('Bearer ')) throw fail('UNAUTHORIZED');
 
   const { sub } = verifyToken(header.slice('Bearer '.length));
   const user = await prisma.user.findUnique({ where: { id: sub } });
-  if (!user) throw unauthorized('탈퇴했거나 없는 사용자입니다.');
+  if (!user) throw fail('USER_GONE');
 
   return user;
 }
@@ -59,9 +59,9 @@ export async function requireMembership(userId: string, familyId: string) {
   //  - PENDING: 초대코드는 맞혔지만 아직 승인 전. 코드가 새어나갔을 때 여기서 막힌다.
   if (!membership || membership.status !== 'ACTIVE') {
     if (membership?.status === 'PENDING') {
-      throw forbidden('가족장이 승인해야 참여할 수 있습니다.', 'PENDING_APPROVAL');
+      throw fail('PENDING_APPROVAL');
     }
-    throw forbidden('이 가족의 구성원이 아닙니다.');
+    throw fail('NOT_MEMBER');
   }
 
   return membership;
@@ -69,7 +69,7 @@ export async function requireMembership(userId: string, familyId: string) {
 
 export async function requireOwner(userId: string, familyId: string) {
   const membership = await requireMembership(userId, familyId);
-  if (membership.role !== 'OWNER') throw forbidden('가족장만 할 수 있습니다.');
+  if (membership.role !== 'OWNER') throw fail('OWNER_ONLY');
   return membership;
 }
 
@@ -80,8 +80,8 @@ export async function requireOwnEntry(userId: string, entryId: string) {
     include: { membership: true, book: true },
   });
 
-  if (!entry) throw notFound('기록을 찾을 수 없습니다.');
-  if (entry.membership.userId !== userId) throw forbidden('본인의 기록만 수정할 수 있습니다.');
+  if (!entry) throw fail('ENTRY_NOT_FOUND');
+  if (entry.membership.userId !== userId) throw fail('NOT_MY_ENTRY');
 
   return entry;
 }
@@ -104,7 +104,9 @@ export async function fetchKakaoProfile(code: string, redirectUri: string) {
   });
 
   if (!tokenResponse.ok) {
-    throw unauthorized(`카카오 토큰 발급 실패: ${await tokenResponse.text()}`);
+    // 카카오가 준 본문은 사용자에게 보여줄 것이 아니다 — 서버 로그에만 남긴다
+    console.error('카카오 토큰 발급 실패', await tokenResponse.text());
+    throw fail('KAKAO_TOKEN_FAILED');
   }
 
   const { access_token: accessToken } = (await tokenResponse.json()) as { access_token: string };
@@ -114,7 +116,8 @@ export async function fetchKakaoProfile(code: string, redirectUri: string) {
   });
 
   if (!meResponse.ok) {
-    throw unauthorized(`카카오 프로필 조회 실패: ${await meResponse.text()}`);
+    console.error('카카오 프로필 조회 실패', await meResponse.text());
+    throw fail('KAKAO_PROFILE_FAILED');
   }
 
   const me = (await meResponse.json()) as {

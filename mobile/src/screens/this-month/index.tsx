@@ -10,7 +10,17 @@ import { familyKeys, fetchJoinRequests } from '@/entities/family';
 import { openMyEntry, reopenEntry } from '@/entities/entry';
 import { useSession } from '@/entities/session';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
-import { Button, Card, Divider, ErrorText, Loading, Muted, Notice, Row } from '@/shared/ui';
+import {
+  Button,
+  Card,
+  Divider,
+  ErrorText,
+  Loading,
+  Muted,
+  Notice,
+  QueryError,
+  Row,
+} from '@/shared/ui';
 import { currentYearMonth, formatWon, formatYearMonth, shiftYearMonth } from '@/shared/lib/format';
 
 export default function ThisMonthScreen() {
@@ -118,12 +128,7 @@ export default function ThisMonthScreen() {
         {book.isLoading ? <Loading /> : null}
 
         {book.isError ? (
-          <Card>
-            <ErrorText>
-              {book.error instanceof ApiError ? book.error.message : '불러오지 못했어요.'}
-            </ErrorText>
-            <Button label="다시 시도" variant="ghost" onPress={() => void book.refetch()} />
-          </Card>
+          <QueryError error={book.error} onRetry={() => void book.refetch()} />
         ) : null}
 
         {book.data && mine ? (

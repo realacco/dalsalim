@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { prisma } from '../lib/db.js';
 import { requireMembership, requireUser } from '../lib/auth.js';
-import { badRequest } from '../lib/http.js';
+import { fail } from '../lib/http.js';
 import { ACTIVE_MEMBER, isYearMonth, shiftYearMonth } from '../lib/shared.js';
 import { entrySummary, serializeEntry, syncFixedLines } from '../services/entry.js';
 import { buildMonthSummary, buildTrend, refreshBookStatus } from '../services/book.js';
@@ -16,7 +16,7 @@ function currentYearMonth(): string {
 }
 
 function parseYearMonth(value: string): string {
-  if (!isYearMonth(value)) throw badRequest('BAD_YEAR_MONTH', "'YYYY-MM' 형식이 아닙니다.");
+  if (!isYearMonth(value)) throw fail('BAD_YEAR_MONTH');
   return value;
 }
 
@@ -31,7 +31,7 @@ async function getOrCreateBook(familyId: string, yearMonth: string) {
   if (existing) return existing;
 
   if (yearMonth > currentYearMonth()) {
-    throw badRequest('FUTURE_MONTH', '아직 오지 않은 달입니다.');
+    throw fail('FUTURE_MONTH');
   }
 
   return prisma.monthlyBook.create({ data: { familyId, yearMonth } });

@@ -4,12 +4,14 @@ import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ApiError } from '@/shared/api/client';
 import { cancelJoinRequest, familyKeys, fetchMyPendingRequests } from '@/entities/family';
 import { useSession } from '@/entities/session';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
-import { Button, Card, Loading, Muted, Notice } from '@/shared/ui';
+import { Button, Card, Loading, Muted, Notice, QueryError } from '@/shared/ui';
 import { formatClock } from '@/shared/lib/format';
+import { MESSAGES } from '@/shared/config/messages';
+import { confirm } from '@/shared/lib/confirm';
+import { errorMessage } from '@/shared/lib/errors';
 
 /**
  * 초대코드를 넣고 가족장의 승인을 기다리는 동안 머무는 화면.
@@ -100,7 +102,7 @@ export default function PendingScreen() {
       router.replace('/onboarding');
     },
     onError: (caught) =>
-      Alert.alert('안 됐어요', caught instanceof ApiError ? caught.message : '다시 시도해주세요.'),
+      Alert.alert(MESSAGES.actionFailed, errorMessage(caught, MESSAGES.actionFailedBody)),
   });
 
   const request = pending.data?.[0];
@@ -112,6 +114,9 @@ export default function PendingScreen() {
         refreshControl={<RefreshControl refreshing={checking} onRefresh={checkApproved} />}
       >
         {pending.isLoading || resolving ? <Loading /> : null}
+        {pending.isError ? (
+          <QueryError error={pending.error} onRetry={() => void pending.refetch()} />
+        ) : null}
 
         {request ? (
           <>
@@ -150,20 +155,20 @@ export default function PendingScreen() {
               variant="ghost"
               loading={cancel.isPending}
               onPress={() =>
-                Alert.alert('요청 취소', '참여 요청을 무를까요? 다시 요청할 수 있어요.', [
-                  { text: '그대로 두기', style: 'cancel' },
-                  {
-                    text: '취소하기',
-                    style: 'destructive',
-                    onPress: () => cancel.mutate(request.membershipId),
-                  },
-                ])
+                confirm({
+                  title: '요청 취소',
+                  body: '참여 요청을 무를까요? 다시 요청할 수 있어요.',
+                  confirmLabel: '취소하기',
+                  cancelLabel: '그대로 두기',
+                  destructive: true,
+                  onConfirm: () => cancel.mutate(request.membershipId),
+                })
               }
             />
           </>
         ) : null}
 
-        {!pending.isLoading && !resolving && !request ? (
+        {!pending.isLoading && !pending.isError && !resolving && !request ? (
           <>
             <Text style={styles.title}>기다리는 요청이 없어요</Text>
             <Muted>거절됐거나 이미 처리된 요청이에요. 다시 참여를 요청할 수 있어요.</Muted>
@@ -179,11 +184,8 @@ export default function PendingScreen() {
           <Button
             label="로그아웃"
             variant="ghost"
-            onPress={async () => {
-              await signOut();
-              queryClient.clear();
-              router.replace('/login');
-            }}
+            // 토큰이 비면 앱 셸이 로그인으로 보낸다
+            onPress={() => void signOut()}
           />
         </Card>
       </ScrollView>

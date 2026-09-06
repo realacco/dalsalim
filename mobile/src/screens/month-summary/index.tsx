@@ -3,11 +3,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ApiError } from '@/shared/api/client';
 import { bookKeys, fetchMonthSummary } from '@/entities/book';
 import { useSession } from '@/entities/session';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
-import { Button, Card, Divider, ErrorText, Loading, Muted, Notice, Row } from '@/shared/ui';
+import { Button, Card, Divider, Loading, Muted, Notice, QueryError, Row } from '@/shared/ui';
 import { formatAmount, formatWon, formatYearMonth } from '@/shared/lib/format';
 
 export default function SummaryScreen() {
@@ -37,12 +36,7 @@ export default function SummaryScreen() {
         {summary.isLoading ? <Loading /> : null}
 
         {summary.isError ? (
-          <Card style={{ gap: space.md }}>
-            <ErrorText>
-              {summary.error instanceof ApiError ? summary.error.message : '불러오지 못했어요.'}
-            </ErrorText>
-            <Button label="돌아가기" variant="ghost" onPress={() => router.back()} />
-          </Card>
+          <QueryError error={summary.error} onRetry={() => void summary.refetch()} />
         ) : null}
 
         {summary.data && summary.data.progress.submittedCount === 0 ? (

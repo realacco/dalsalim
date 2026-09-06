@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { env, kakaoConfigured } from '../env.js';
 import { prisma } from '../lib/db.js';
 import { fetchKakaoProfile, issueToken, requireUser } from '../lib/auth.js';
-import { badRequest, unauthorized } from '../lib/http.js';
+import { fail } from '../lib/http.js';
 
 /**
  * 카카오 로그인은 앱이 아니라 서버가 주도한다.
@@ -44,7 +44,7 @@ function decodeState(state: string): { returnUrl: string } {
   try {
     return JSON.parse(Buffer.from(state, 'base64url').toString('utf8'));
   } catch {
-    throw badRequest('BAD_STATE', 'state 값이 올바르지 않습니다.');
+    throw fail('BAD_STATE');
   }
 }
 
@@ -66,10 +66,7 @@ export async function authRoutes(app: FastifyInstance) {
     { config: { rateLimit: SENSITIVE_LIMIT } },
     async (request, reply) => {
       if (!kakaoConfigured) {
-        throw badRequest(
-          'KAKAO_NOT_CONFIGURED',
-          '서버에 카카오 REST API 키가 설정되지 않았습니다.',
-        );
+        throw fail('KAKAO_NOT_CONFIGURED');
       }
 
       const { returnUrl } = z.object({ returnUrl: z.string().min(1) }).parse(request.query);
@@ -130,7 +127,7 @@ export async function authRoutes(app: FastifyInstance) {
    */
   if (env.devLogin) {
     app.post('/auth/dev', { config: { rateLimit: DEV_LOGIN_LIMIT } }, async (request) => {
-      if (!env.devLogin) throw unauthorized('개발용 로그인이 꺼져 있습니다.');
+      if (!env.devLogin) throw fail('DEV_LOGIN_DISABLED');
 
       const { name } = z.object({ name: z.string().trim().min(1).max(20) }).parse(request.body);
       const devKey = `dev:${name}`;

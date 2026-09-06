@@ -2,7 +2,7 @@ export type {
   Family,
   FamilyDetail,
   JoinRequest,
-  JoinResult,
+  PendingMembership,
   MyPendingRequest,
 } from './model/types';
 export {

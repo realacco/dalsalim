@@ -509,7 +509,7 @@ async function main() {
   });
   check(
     '★ 나갔던 사람도 다시 승인을 받는다',
-    rejoin.status === 200 && rejoin.body.status === 'PENDING',
+    rejoin.status === 200 && rejoin.body.membership?.status === 'PENDING',
     rejoin.body,
   );
 
@@ -555,14 +555,15 @@ async function main() {
     token: neighborToken,
     body: { inviteCode, displayName: '이웃' },
   });
+  // 참여 요청의 결과는 "대기 중인 멤버십"이다 — 만들어진 리소스를 그대로 돌려준다 (응답 형태 규칙)
   check(
     '★ 초대코드를 맞혀도 바로 들어오지 못한다',
-    request.status === 200 && request.body.status === 'PENDING',
+    request.status === 200 && request.body.membership?.status === 'PENDING',
     request.body,
   );
   check(
     '대기자에게는 초대코드를 알려주지 않는다',
-    request.body.family?.inviteCode === undefined,
+    request.body.membership?.family?.inviteCode === undefined,
     request.body,
   );
 
@@ -658,6 +659,31 @@ async function main() {
 
   // 원래대로 두 명으로 되돌린다
   await clearOutsider(dad.token, dad.familyId, '이웃');
+
+  console.log('\n[초대코드 재발급]');
+  const memberRotates = await call('POST', `/families/${dad.familyId}/invite-code`, {
+    token: mom.token,
+  });
+  check(
+    '일반 멤버는 초대코드를 새로 만들지 못한다',
+    memberRotates.status === 403,
+    memberRotates.body,
+  );
+
+  const rotated = await call('POST', `/families/${dad.familyId}/invite-code`, { token: dad.token });
+  // 바뀐 리소스는 그 리소스로 돌려준다 — 가족 만들기와 같은 { family } 모양이다
+  check(
+    '가족장이 새 코드를 만들면 가족 모양으로 돌려준다',
+    rotated.status === 200 &&
+      rotated.body.family?.id === dad.familyId &&
+      /^[A-Z0-9]{6}$/.test(rotated.body.family?.inviteCode ?? ''),
+    rotated.body,
+  );
+  check(
+    '새 코드는 예전 코드와 다르다',
+    rotated.body.family?.inviteCode !== inviteCode,
+    rotated.body,
+  );
 
   console.log('\n[레이트리밋]');
   // 초대코드를 계속 찍어보는 걸 막는다. 이 검사는 그 사람의 한도를 소진하므로 맨 마지막에 둔다.

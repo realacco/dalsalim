@@ -5,7 +5,8 @@ import { ZodError } from 'zod';
 
 import { env, kakaoConfigured } from './env.js';
 import { rateLimitKey } from './lib/auth.js';
-import { AppError, tooManyRequests } from './lib/http.js';
+import { AppError, fail } from './lib/http.js';
+import { messageFor } from './lib/messages.js';
 import { authRoutes } from './routes/auth.js';
 import { familyRoutes } from './routes/families.js';
 import { fixedExpenseRoutes } from './routes/fixedExpenses.js';
@@ -35,7 +36,7 @@ await app.register(rateLimit, {
   keyGenerator: (request) => rateLimitKey(request),
   // 이 플러그인은 한도 초과를 "에러로 던진다". 평범한 객체를 돌려주면 아래 에러 핸들러가
   // 알아보지 못하고 500 으로 뭉개버린다 — AppError 로 만들어 같은 경로를 타게 한다.
-  errorResponseBuilder: () => tooManyRequests(),
+  errorResponseBuilder: () => fail('RATE_LIMITED'),
 });
 
 // /submit 처럼 본문이 없는 POST 가 여럿이다. 빈 본문을 에러로 보지 않는다.
@@ -61,11 +62,11 @@ app.setErrorHandler((error, _request, reply) => {
   if (error instanceof ZodError) {
     return reply
       .status(400)
-      .send({ code: 'VALIDATION', message: error.issues[0]?.message ?? '입력값을 확인해주세요.' });
+      .send({ code: 'VALIDATION', message: error.issues[0]?.message ?? messageFor('VALIDATION') });
   }
 
   app.log.error(error);
-  return reply.status(500).send({ code: 'INTERNAL', message: '서버에서 문제가 발생했습니다.' });
+  return reply.status(500).send({ code: 'INTERNAL', message: messageFor('INTERNAL') });
 });
 
 app.get('/health', async () => ({ ok: true, kakao: kakaoConfigured, devLogin: env.devLogin }));
@@ -80,5 +81,5 @@ await app.listen({ port: env.port, host: env.host });
 
 app.log.info(`달살림 서버 · ${env.publicBaseUrl}`);
 if (!kakaoConfigured) {
-  app.log.warn('카카오 키가 없습니다. 개발용 로그인(POST /auth/dev)만 쓸 수 있습니다.');
+  app.log.warn('카카오 키가 없어요. 개발용 로그인(POST /auth/dev)만 쓸 수 있어요.');
 }
