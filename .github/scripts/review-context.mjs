@@ -12,10 +12,17 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
+import { blockText, pageIdFrom } from './notion-text.mjs';
+
 const INDEX = 'docs/04-기능-정의서-인덱스.md';
 const OUT = '.github/review-context.md';
 const BASE = process.env.BASE_SHA || 'origin/main';
 const ID = /F-[A-Z]+-\d{2}/g;
+
+const NOTION_VERSION = '2026-03-11';
+/** 걸린 기능이 많으면 다 가져오지 않는다 — 그건 PR 이 큰 것이고, 그 사실 자체를 리뷰가 알아야 한다 */
+const MAX_SPEC_PAGES = 5;
+const MAX_SPEC_CHARS = 6000;
 
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8', maxBuffer: 1e8 }).trim();
 
@@ -60,6 +67,52 @@ function hardruleBodies() {
     }
   }
   return items;
+}
+
+/**
+ * Notion 기능 정의서 본문 — 리뷰가 "명세대로 만들었나" 를 볼 수 있게 하는 유일한 재료다.
+ *
+ * 토큰이 없거나 실패하면 **조용히 건너뛴다.** 리뷰는 차단이 아니라 코멘트라서,
+ * 못 읽으면 그 축만 빠지고 나머지는 그대로 돈다 — 커밋을 막는 검사였다면 이렇게 못 한다.
+ */
+async function notionBlocks(pageId, token, depth = 0) {
+  if (depth > 1) return []; // 표(table → table_row)까지가 두 단계다. 더 파고들 이유가 없다
+  const res = await fetch(`https://api.notion.com/v1/blocks/${pageId}/children?page_size=100`, {
+    headers: { Authorization: `Bearer ${token}`, 'Notion-Version': NOTION_VERSION },
+  });
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  const { results = [] } = await res.json();
+
+  const lines = [];
+  for (const block of results) {
+    const text = blockText(block);
+    if (text) lines.push(text);
+    if (block.has_children) lines.push(...(await notionBlocks(block.id, token, depth + 1)));
+  }
+  return lines;
+}
+
+async function fetchSpecs(features) {
+  const token = process.env.NOTION_TOKEN;
+  if (!token) return { skipped: '토큰이 없어요 (NOTION_TOKEN)' };
+  if (features.length > MAX_SPEC_PAGES) {
+    return {
+      skipped: `걸린 기능이 ${features.length}개예요. ${MAX_SPEC_PAGES}개 이하일 때만 가져와요 — PR 이 크다는 뜻이기도 해요`,
+    };
+  }
+
+  const specs = [];
+  for (const f of features) {
+    const id = pageIdFrom(f.url);
+    if (!id) continue;
+    try {
+      const body = (await notionBlocks(id, token)).join('\n');
+      specs.push({ ...f, body: body.slice(0, MAX_SPEC_CHARS) });
+    } catch (error) {
+      specs.push({ ...f, error: String(error.message ?? error) });
+    }
+  }
+  return { specs };
 }
 
 const changed = git('diff', '--name-only', `${BASE}...HEAD`).split('\n').filter(Boolean);
@@ -117,6 +170,26 @@ if (rules.size) {
     const body = bodies.get(n);
     if (body) out.push(`${n}. ${body}\n`);
   }
+}
+
+const { specs, skipped } = await fetchSpecs(hit);
+
+if (specs?.length) {
+  out.push('## 기능 정의서 본문 (Notion)\n');
+  out.push(
+    '**이 PR 의 코드가 아래 명세대로 도는지 본다.** 코드가 명세와 다르면 그것이 지적 대상이다.\n',
+  );
+  for (const s of specs) {
+    out.push(`### ${s.id} ${s.title}\n`);
+    if (s.error) out.push(`_읽지 못했어요: ${s.error}_\n`);
+    else out.push(`${s.body}\n`);
+  }
+} else if (skipped) {
+  out.push('## 기능 정의서 본문 (Notion)\n');
+  out.push(
+    `_가져오지 않았어요 — ${skipped}._ 명세와 코드가 맞는지는 이번 리뷰가 볼 수 없다.\n` +
+      '어긋난 것 같아도 **"확인 필요"로만 적고 단정하지 않는다.**\n',
+  );
 }
 
 const commits = git(
