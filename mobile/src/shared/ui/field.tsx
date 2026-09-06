@@ -56,11 +56,11 @@ const useStyles = makeStyles((t) => ({
   fieldHint: { ...t.font.hint, color: t.colors.inkFaint },
   input: {
     backgroundColor: t.colors.surface,
-    borderWidth: 1.5,
+    borderWidth: t.border.control,
     borderColor: t.colors.line,
     borderRadius: t.radius.lg,
     paddingHorizontal: t.space.lg,
-    paddingVertical: t.space.md + 2,
+    paddingVertical: t.space.md + t.space.xxs,
     ...t.font.bodyLg,
     color: t.colors.ink,
   },

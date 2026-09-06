@@ -154,7 +154,7 @@ const useStyles = makeStyles((t) => ({
   familyRow: {
     padding: t.space.md,
     borderRadius: t.radius.md,
-    borderWidth: 1,
+    borderWidth: t.border.hairline,
     borderColor: t.colors.line,
     gap: t.space.xxs,
   },

@@ -21,10 +21,9 @@ export function ErrorText({ children }: { children: ReactNode }) {
 
 const useStyles = makeStyles((t) => ({
   sectionTitle: {
-    ...t.font.small,
+    ...t.font.sectionTitle,
     color: t.colors.inkFaint,
     fontWeight: t.weight.bold,
-    letterSpacing: 0.4,
     marginBottom: t.space.sm,
   },
   muted: { ...t.font.note, color: t.colors.inkFaint },

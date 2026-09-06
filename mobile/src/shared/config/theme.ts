@@ -144,6 +144,19 @@ export const space = {
   screen: 20,
 } as const;
 
+/**
+ * 테두리 두께.
+ *
+ * 두 값의 차이는 실수가 아니라 역할이다 — 가만히 있는 면은 얇게 두고,
+ * 손이 닿는 컨트롤은 한 단계 굵게 잡아 "여기를 누르거나 입력한다"를 드러낸다.
+ */
+export const border = {
+  /** 카드 · 리스트 행처럼 가만히 있는 면 */
+  hairline: 1,
+  /** 칩 · 입력창처럼 누르거나 입력하는 것 */
+  control: 1.5,
+} as const;
+
 export const radius = {
   sm: 8,
   md: 12,
@@ -181,8 +194,12 @@ export const font = {
   /** 금액 — 자릿수가 흔들리지 않게 tabular */
   amount: { fontSize: 34, lineHeight: 42, fontVariant: ['tabular-nums'] },
   amountLg: { fontSize: 38, lineHeight: 46, fontVariant: ['tabular-nums'] },
+  /** 섹션 제목 — 작고 굵게, 자간을 살짝 벌려 라벨처럼 읽히게 한다 */
+  sectionTitle: { fontSize: 13, lineHeight: 18, letterSpacing: 0.4 },
   /** 초대코드처럼 한 글자씩 읽는 것 */
   code: { fontSize: 30, lineHeight: 38, letterSpacing: 8 },
+  /** 초대코드를 "입력"하는 칸. 표시용 code 보다 작고 자간도 그만큼 좁다 */
+  codeInput: { fontSize: 17, lineHeight: 24, letterSpacing: 6 },
   /** 헤더의 ‹ › 같은 글리프 */
   glyph: { fontSize: 28, lineHeight: 32 },
 } satisfies Record<string, TextStyle>;
@@ -260,6 +277,7 @@ export type Theme = {
   scheme: ColorScheme;
   colors: Palette;
   space: typeof space;
+  border: typeof border;
   radius: typeof radius;
   font: typeof font;
   weight: typeof weight;
@@ -272,6 +290,7 @@ export function buildTheme(scheme: ColorScheme): Theme {
     scheme,
     colors: palettes[scheme],
     space,
+    border,
     radius,
     font,
     weight,

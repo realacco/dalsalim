@@ -140,7 +140,7 @@ const useStyles = makeStyles((t) => ({
     alignItems: 'center',
     gap: t.space.md,
     backgroundColor: t.colors.surface,
-    borderWidth: 1,
+    borderWidth: t.border.hairline,
     borderColor: t.colors.line,
     borderRadius: t.radius.md,
     padding: t.space.md,
