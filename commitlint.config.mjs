@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 /**
  * 커밋 메시지 규칙 — CLAUDE.md 「커밋 규칙」의 기계 판정본이다.
  * 문서와 이 파일이 어긋나면 **CLAUDE.md 가 맞다.** 여기를 고치기 전에 문서를 먼저 고친다.
@@ -5,6 +9,62 @@
  * 여기서 검사하지 않는 것: 체언 종결(`~ 추가`) · 본문의 "왜".
  * 기계가 판정할 수 없어서 뺐지 규칙이 아니어서 뺀 게 아니다 — 리뷰에서 본다.
  */
+
+const ROOT = path.dirname(fileURLToPath(import.meta.url));
+const INDEX = 'docs/04-기능-정의서-인덱스.md';
+const FEATURE_ID = /^F-[A-Z]+-\d{2}$/;
+
+/**
+ * 인덱스에 적힌 기능 ID 전부. 인덱스를 못 읽으면 `null` 을 주고 실존 검사만 건너뛴다 —
+ * 문서 하나가 없다고 커밋 자체를 막을 이유는 없다.
+ */
+function knownFeatureIds() {
+  try {
+    const text = readFileSync(path.join(ROOT, INDEX), 'utf8');
+    const ids = [...text.matchAll(/^\|\s*\[(F-[A-Z]+-\d{2})\]/gm)].map((m) => m[1]);
+    return ids.length > 0 ? new Set(ids) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * `Feature:` 트레일러 검사.
+ *
+ * **없어도 통과한다.** 오타 수정처럼 기능에 붙이기 애매한 커밋이 매번 막히면
+ * 규칙이 통째로 우회당한다 (CLAUDE.md 「작업 흐름」의 탈출구와 같은 이유).
+ * 대신 **적었는데 틀린 것**은 막는다 — 오타 난 ID 는 나중에
+ * `git log --grep` 이 조용히 못 찾는 형태로 나타나서 영영 안 들킨다.
+ */
+function featureTrailer(parsed) {
+  const values = (parsed.raw ?? '')
+    .split('\n')
+    .map((line) => /^Feature:(.*)$/.exec(line.trim()))
+    .filter((matched) => matched !== null)
+    .flatMap((matched) => matched[1].split(','))
+    .map((token) => token.trim())
+    .filter((token) => token.length > 0);
+
+  if (values.length === 0) return [true];
+
+  const malformed = values.filter((id) => !FEATURE_ID.test(id));
+  if (malformed.length > 0) {
+    return [false, `기능 ID 형식이 아니에요: ${malformed.join(' ')} — F-FAM-05 처럼 적어주세요`];
+  }
+
+  const known = knownFeatureIds();
+  if (known === null) return [true];
+
+  const unknown = values.filter((id) => !known.has(id));
+  if (unknown.length > 0) {
+    return [
+      false,
+      `${INDEX} 에 없는 기능 ID 예요: ${unknown.join(' ')} — 오타이거나, 인덱스에 행을 넣어야 해요`,
+    ];
+  }
+
+  return [true];
+}
 
 /**
  * scope = 변경의 무대.
@@ -42,7 +102,11 @@ const SCOPES = [
 
 export default {
   extends: ['@commitlint/config-conventional'],
+  plugins: [{ rules: { 'feature-trailer': featureTrailer } }],
   rules: {
+    // `Feature: F-FAM-05` — 없어도 통과, 적었으면 형식과 실존을 본다
+    'feature-trailer': [2, 'always'],
+
     // CLAUDE.md 가 정한 8개. 여기 없는 type 은 쓰지 않는다
     'type-enum': [
       2,
