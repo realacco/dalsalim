@@ -19,6 +19,9 @@
     "db:export": "node scripts/export-data.mjs",
     "db:import": "node scripts/import-data.mjs"
   },
+  "engines": {
+    "node": ">=22"
+  },
   "prisma": {
     "schema": "prisma/schema.prisma"
   },
