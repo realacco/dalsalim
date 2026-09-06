@@ -24,7 +24,7 @@ describe('fail() — 라우트가 실패를 만드는 유일한 방법', () => {
     expect(fail('RATE_LIMITED').statusCode).toBe(429);
   });
 
-  it('★ 사유 강제는 어느 항목이 비었는지를 같이 말한다 (제출), 줄 저장은 항목 없이', () => {
+  it('★ F-ENT-04 사유 강제는 어느 항목이 비었는지를 같이 말한다 (제출), 줄 저장은 항목 없이', () => {
     expect(fail('REASON_REQUIRED', '월세, 통신비').message).toBe(
       '사유가 비어 있어요: 월세, 통신비',
     );

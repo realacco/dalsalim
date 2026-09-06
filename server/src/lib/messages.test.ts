@@ -67,7 +67,7 @@ describe('에러 코드 — 앱과 스모크가 분기하는 계약', () => {
     expect(statusFor('INTERNAL')).toBe(500);
   });
 
-  it('★ REASON_REQUIRED 는 항목 이름이 있으면 그것을 붙여서 말한다 (제출), 없으면 줄 저장 문장', () => {
+  it('★ F-ENT-04 REASON_REQUIRED 는 항목 이름이 있으면 그것을 붙여서 말한다 (제출), 없으면 줄 저장 문장', () => {
     expect(messageFor('REASON_REQUIRED')).toContain('금액이 달라졌어요');
     expect(messageFor('REASON_REQUIRED', '월세, 통신비')).toBe('사유가 비어 있어요: 월세, 통신비');
   });

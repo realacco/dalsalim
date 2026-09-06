@@ -6,7 +6,7 @@ import { needsReason } from './reason';
  * 서버와 결과가 갈리면 "저장은 되는데 다음이 안 눌린다"(또는 그 반대)가 된다.
  * 두 구현이 실제로 같은지는 tests/contract 가 본다.
  */
-describe('needsReason (앱) — 위저드가 [다음] 을 잠글지 정한다', () => {
+describe('F-ENT-04 needsReason (앱) — 위저드가 [다음] 을 잠글지 정한다', () => {
   it('기본값과 같으면 묻지 않는다', () => {
     expect(needsReason(120000, 120000)).toBe(false);
   });

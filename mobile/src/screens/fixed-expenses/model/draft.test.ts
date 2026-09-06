@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { draftFromItem, draftToInput, emptyDraft, sanitizeDay, validateDraft } from './draft';
 
-describe('고정비 편집 초안', () => {
+describe('F-FIX-02 · F-FIX-03 고정비 편집 초안', () => {
   it('새 항목은 주거 분류에 빈 값으로 시작한다', () => {
     expect(emptyDraft('m1')).toEqual({
       id: null,
@@ -39,7 +39,7 @@ describe('결제일 입력 가공', () => {
   });
 });
 
-describe('저장 전 검사', () => {
+describe('F-FIX-02 · F-FIX-03 저장 전 검사', () => {
   const base = { ...emptyDraft('m1'), name: '월세' };
 
   it('이름이 비어 있으면 막는다', () => {
@@ -58,7 +58,7 @@ describe('저장 전 검사', () => {
   });
 });
 
-describe('서버로 보낼 모양', () => {
+describe('F-FIX-02 · F-FIX-03 서버로 보낼 모양', () => {
   it('금액을 안 적었으면 0 원, 결제일이 비었으면 null', () => {
     expect(draftToInput({ ...emptyDraft('m1'), name: ' 월세 ' })).toEqual({
       name: '월세',

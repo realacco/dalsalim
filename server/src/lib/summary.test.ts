@@ -7,7 +7,7 @@ import { type SummableLine, entrySummary } from './shared.js';
  */
 const line = (kind: string, actualAmount: number | null): SummableLine => ({ kind, actualAmount });
 
-describe('entrySummary — 한 사람의 한 달 합계', () => {
+describe('F-BOOK-02 entrySummary — 한 사람의 한 달 합계', () => {
   it('수입에서 고정비와 추가 지출을 뺀 것이 남은 돈이다', () => {
     expect(
       entrySummary([
