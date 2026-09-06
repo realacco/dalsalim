@@ -1,3 +1,4 @@
+// 기능: F-BOOK-01 F-BOOK-02 F-BOOK-03 F-BOOK-04 F-ENT-01
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 

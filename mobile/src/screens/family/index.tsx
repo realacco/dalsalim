@@ -1,3 +1,4 @@
+// 기능: F-FAM-02 F-FAM-06 F-FAM-07 F-FAM-08 F-FAM-09 F-SES-04
 import { Pressable, RefreshControl, ScrollView, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 

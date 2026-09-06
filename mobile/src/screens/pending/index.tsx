@@ -1,3 +1,4 @@
+// 기능: F-FAM-04
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';

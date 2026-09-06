@@ -1,3 +1,4 @@
+// 기능: F-FAM-03 F-FAM-04 F-FAM-05
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 

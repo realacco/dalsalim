@@ -1,3 +1,4 @@
+// 기능: F-SES-01 F-SES-02
 import { useState } from 'react';
 import { Keyboard, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';

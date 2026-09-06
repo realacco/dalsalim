@@ -1,3 +1,4 @@
+// 기능: F-FIX-05 F-ENT-03 F-ENT-04 F-FAM-03 F-FAM-06 F-BOOK-01
 /** 앱과 서버가 공유하는 상수·타입. 앱 쪽 mobile/src/shared/model/types.ts 와 짝을 이룬다. */
 
 export const CATEGORIES = [

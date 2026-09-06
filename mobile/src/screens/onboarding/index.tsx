@@ -1,3 +1,4 @@
+// 기능: F-FAM-01 F-FAM-03
 import { useState } from 'react';
 import { Keyboard, Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';

@@ -1,3 +1,4 @@
+// 기능: F-FIX-01 F-FIX-02 F-FIX-03 F-FIX-04
 import { prisma } from '../lib/db.js';
 import { fail } from '../lib/http.js';
 import { ACTIVE_MEMBER } from '../lib/shared.js';
