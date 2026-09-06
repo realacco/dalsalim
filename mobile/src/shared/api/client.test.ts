@@ -67,7 +67,7 @@ describe('api() — 서버 통신의 한 곳', () => {
     expect(caught.message).toContain('http://');
   });
 
-  it('★ 401 이면 등록된 처리기를 부르고, 그래도 오류는 던진다', async () => {
+  it('★ F-SES-05 401 이면 등록된 처리기를 부르고, 그래도 오류는 던진다', async () => {
     const handler = vi.fn();
     onUnauthorized(handler);
     vi.stubGlobal('fetch', respond(401, { code: 'UNAUTHORIZED', message: '로그인이 필요해요.' }));

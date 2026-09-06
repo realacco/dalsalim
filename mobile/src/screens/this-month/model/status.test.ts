@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { bookBadge, statusLabel, statusStyleKey } from './status';
 
-describe('가족 진행 현황 표시', () => {
+describe('F-BOOK-01 · F-BOOK-04 가족 진행 현황 표시', () => {
   it('제출했으면 "제출 완료"', () => {
     expect(statusLabel('SUBMITTED', null)).toBe('제출 완료');
     expect(statusStyleKey('SUBMITTED')).toBe('statusSubmitted');

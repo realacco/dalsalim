@@ -170,25 +170,35 @@ async function runWizard(name, { changeFirstFixed }) {
   console.log(`\n[${name}]`);
 
   const login = await call('POST', '/auth/dev', { body: { name } });
-  check('개발용 로그인', login.status === 200 && login.body.token, login.body);
+  check('F-SES-02 개발용 로그인', login.status === 200 && login.body.token, login.body);
   const token = login.body.token;
 
   const me = await call('GET', '/me', { token });
   const membership = me.body.memberships?.find((m) => m.family.name === FAMILY_NAME);
-  check('내 가족이 있다', Boolean(membership), me.body);
+  check('F-SES-03 내 가족이 있다', Boolean(membership), me.body);
+  check(
+    'F-FAM-01 가족은 이름과 6자리 초대코드를 갖고 만들어진다',
+    membership?.family?.name === FAMILY_NAME &&
+      /^[A-Z0-9]{6}$/.test(membership?.family?.inviteCode ?? ''),
+    membership?.family,
+  );
   const familyId = membership.family.id;
 
   const start = await call('POST', `/families/${familyId}/books/${thisMonth}/my-entry`, { token });
-  check('기록 시작', start.status === 200, start.body);
+  check('F-ENT-01 기록 시작', start.status === 200, start.body);
   const entry = start.body.entry;
 
   const income = entry.lines.find((l) => l.kind === 'INCOME');
-  check('★ 지난달에 적은 금액이 이번 달 기본값으로 깔린다', income.plannedAmount > 0, income);
+  check(
+    '★ F-ENT-01 · F-ENT-03 지난달에 적은 금액이 이번 달 기본값으로 깔린다',
+    income.plannedAmount > 0,
+    income,
+  );
 
   const fixedLines = entry.lines.filter((l) => l.kind === 'FIXED');
-  check('내 고정비가 스텝으로 펼쳐진다', fixedLines.length > 0, fixedLines.length);
+  check('F-ENT-04 내 고정비가 스텝으로 펼쳐진다', fixedLines.length > 0, fixedLines.length);
   check(
-    '고정비 기본값이 채워져 있다',
+    'F-ENT-01 고정비 기본값이 채워져 있다',
     fixedLines.every((l) => l.plannedAmount !== null),
     fixedLines,
   );
@@ -198,7 +208,7 @@ async function runWizard(name, { changeFirstFixed }) {
     token,
     body: { actualAmount: income.plannedAmount },
   });
-  check('★ 같은 금액은 아무것도 묻지 않는다', sameIncome.status === 200, sameIncome.body);
+  check('★ F-ENT-04 같은 금액은 아무것도 묻지 않는다', sameIncome.status === 200, sameIncome.body);
 
   // 2) 고정비 첫 항목 — 금액을 바꾸고 사유를 뺀다. 막혀야 한다.
   const first = fixedLines[0];
@@ -210,7 +220,7 @@ async function runWizard(name, { changeFirstFixed }) {
       body: { actualAmount: changed },
     });
     check(
-      '★ 금액이 달라지면 사유 없이는 막힌다',
+      '★ F-ENT-04 금액이 달라지면 사유 없이는 막힌다',
       noReason.status === 400 && noReason.body.code === 'REASON_REQUIRED',
       noReason.body,
     );
@@ -219,14 +229,14 @@ async function runWizard(name, { changeFirstFixed }) {
       token,
       body: { actualAmount: changed, changeReason: '이번 달에 크게 나왔다' },
     });
-    check('사유를 적으면 통과', withReason.status === 200, withReason.body);
+    check('F-ENT-04 사유를 적으면 통과', withReason.status === 200, withReason.body);
 
     const revert = await call('PATCH', `/entries/${entry.id}/lines/${first.id}`, {
       token,
       body: { actualAmount: first.plannedAmount },
     });
     check(
-      '★ 금액을 되돌리면 사유도 같이 지워진다',
+      '★ F-ENT-04 금액을 되돌리면 사유도 같이 지워진다',
       revert.status === 200 && revert.body.line.changeReason === null,
       revert.body,
     );
@@ -251,26 +261,26 @@ async function runWizard(name, { changeFirstFixed }) {
     token,
     body: { name: '경조사비', category: '기타', actualAmount: 100_000 },
   });
-  check('추가 지출은 이름부터 적는다', extra.status === 200, extra.body);
+  check('F-ENT-05 추가 지출은 이름부터 적는다', extra.status === 200, extra.body);
 
   const badExtra = await call('POST', `/entries/${entry.id}/lines`, {
     token,
     body: { name: '', category: '기타', actualAmount: 1000 },
   });
-  check('이름 없는 추가 지출은 막힌다', badExtra.status === 400, badExtra.body);
+  check('F-ENT-05 이름 없는 추가 지출은 막힌다', badExtra.status === 400, badExtra.body);
 
   // '생활' 을 '생활비' 로 고쳤다. 서버가 옛 이름을 계속 받아주면 앱과 갈라진다.
   const livingExtra = await call('POST', `/entries/${entry.id}/lines`, {
     token,
     body: { name: '장보기', category: '생활비', actualAmount: 30_000 },
   });
-  check('★ 생활비 분류로 적을 수 있다', livingExtra.status === 200, livingExtra.body);
+  check('★ F-FIX-06 생활비 분류로 적을 수 있다', livingExtra.status === 200, livingExtra.body);
 
   const oldLiving = await call('POST', `/entries/${entry.id}/lines`, {
     token,
     body: { name: '장보기', category: '생활', actualAmount: 30_000 },
   });
-  check('★ 옛 이름 생활 은 더 이상 받지 않는다', oldLiving.status === 400, oldLiving.body);
+  check('★ F-FIX-06 옛 이름 생활 은 더 이상 받지 않는다', oldLiving.status === 400, oldLiving.body);
 
   await call('DELETE', `/entries/${entry.id}/lines/${livingExtra.body.line.id}`, { token });
 
@@ -279,11 +289,11 @@ async function runWizard(name, { changeFirstFixed }) {
     token,
     body: { note: `${name}의 이번 달 메모`, cursor: 99 },
   });
-  check('특이사항 저장', note.status === 200, note.body);
+  check('F-ENT-06 특이사항 저장', note.status === 200, note.body);
 
   // 6) 제출
   const submit = await call('POST', `/entries/${entry.id}/submit`, { token });
-  check('제출', submit.status === 200, submit.body);
+  check('F-ENT-07 제출', submit.status === 200, submit.body);
 
   return { token, familyId, entryId: entry.id, bookStatus: submit.body.bookStatus };
 }
@@ -341,7 +351,11 @@ async function main() {
   await resetMonth([OWNER, MEMBER]);
 
   const dad = await runWizard(OWNER, { changeFirstFixed: true });
-  check('한 명만 제출하면 장부는 아직 진행 중', dad.bookStatus === 'OPEN', dad.bookStatus);
+  check(
+    'F-BOOK-04 한 명만 제출하면 장부는 아직 진행 중',
+    dad.bookStatus === 'OPEN',
+    dad.bookStatus,
+  );
 
   const dadEntry = await call('GET', `/entries/${dad.entryId}`, { token: dad.token });
   const dadIncome = dadEntry.body.entry.summary.income;
@@ -351,52 +365,56 @@ async function main() {
   const partial = await call('GET', `/families/${dad.familyId}/books/${thisMonth}/summary`, {
     token: dad.token,
   });
-  check('★ 전원 제출 전에도 요약이 열린다', partial.status === 200, partial.body);
+  check('★ F-BOOK-02 전원 제출 전에도 요약이 열린다', partial.status === 200, partial.body);
   check(
-    '미제출자를 progress 로 알려준다',
+    'F-BOOK-02 미제출자를 progress 로 알려준다',
     partial.body.progress?.submittedCount === 1 &&
       partial.body.progress?.memberCount === 2 &&
       partial.body.progress?.pendingMembers?.length === 1,
     partial.body.progress,
   );
-  check('★ 부분 제출 합계는 제출한 사람 것만 센다', partial.body.totals.income === dadIncome, {
-    got: partial.body.totals.income,
-    expected: dadIncome,
-  });
   check(
-    '미제출자는 0원으로 서 있고 submitted=false 다',
+    '★ F-BOOK-02 부분 제출 합계는 제출한 사람 것만 센다',
+    partial.body.totals.income === dadIncome,
+    {
+      got: partial.body.totals.income,
+      expected: dadIncome,
+    },
+  );
+  check(
+    'F-BOOK-02 미제출자는 0원으로 서 있고 submitted=false 다',
     partial.body.perMember?.length === 2 &&
       partial.body.perMember.filter((m) => m.submitted === false).length === 1,
     partial.body.perMember,
   );
 
   const mom = await runWizard(MEMBER, { changeFirstFixed: false });
-  check('★ 전원 제출 → 장부 완성', mom.bookStatus === 'COMPLETE', mom.bookStatus);
+  check('★ F-BOOK-04 전원 제출 → 장부 완성', mom.bookStatus === 'COMPLETE', mom.bookStatus);
 
   console.log('\n[요약]');
   const summary = await call('GET', `/families/${dad.familyId}/books/${thisMonth}/summary`, {
     token: dad.token,
   });
-  check('요약이 열린다', summary.status === 200, summary.body);
+  check('F-BOOK-02 요약이 열린다', summary.status === 200, summary.body);
 
   const s = summary.body;
-  check('사람별 집계 2명', s.perMember?.length === 2, s.perMember);
+  check('F-BOOK-02 사람별 집계 2명', s.perMember?.length === 2, s.perMember);
   check(
-    '전원 제출이면 pendingMembers 가 비어 있다',
+    'F-BOOK-04 전원 제출이면 pendingMembers 가 비어 있다',
     s.progress?.pendingMembers?.length === 0,
     s.progress,
   );
   check(
-    '합계가 맞는다',
+    'F-BOOK-02 합계가 맞는다',
     s.totals.surplus === s.totals.income - s.totals.fixedTotal - s.totals.extraTotal,
     s.totals,
   );
   check(
-    '달라진 것에 사유가 붙어 있다',
+    'F-BOOK-02 달라진 것에 사유가 붙어 있다',
     s.changes?.some((c) => c.reason),
     s.changes,
   );
-  check('특이사항이 모인다', s.notes?.length === 2, s.notes);
+  check('F-BOOK-02 특이사항이 모인다', s.notes?.length === 2, s.notes);
   console.log(
     `     수입 ${s.totals.income.toLocaleString()} / 고정비 ${s.totals.fixedTotal.toLocaleString()} / ` +
       `추가 ${s.totals.extraTotal.toLocaleString()} → 남은 돈 ${s.totals.surplus.toLocaleString()}`,
@@ -407,11 +425,11 @@ async function main() {
     token: dad.token,
     body: { note: '몰래 고치기' },
   });
-  check('제출한 기록은 바로 못 고친다', locked.status === 403, locked.body);
+  check('F-ENT-08 제출한 기록은 바로 못 고친다', locked.status === 403, locked.body);
 
   const reopen = await call('POST', `/entries/${dad.entryId}/reopen`, { token: dad.token });
   check(
-    '★ 다시 열면 장부도 진행 중으로 내려간다',
+    '★ F-ENT-08 다시 열면 장부도 진행 중으로 내려간다',
     reopen.status === 200 && reopen.body.bookStatus === 'OPEN',
     reopen.body,
   );
@@ -423,30 +441,30 @@ async function main() {
   const peek = await call('GET', `/families/${dad.familyId}/books/${thisMonth}`, {
     token: stranger.body.token,
   });
-  check('남의 가족은 못 본다', peek.status === 403, peek.body);
+  check('F-FAM-06 남의 가족은 못 본다', peek.status === 403, peek.body);
 
   const peekEntry = await call('GET', `/entries/${dad.entryId}`, { token: stranger.body.token });
-  check('남의 기록은 못 본다', peekEntry.status === 403, peekEntry.body);
+  check('F-BOOK-01 남의 기록은 못 본다', peekEntry.status === 403, peekEntry.body);
 
   console.log('\n[추이]');
   const trend = await call('GET', `/families/${dad.familyId}/trend?months=12`, {
     token: dad.token,
   });
-  check('추이가 열린다', trend.status === 200, trend.body);
+  check('F-BOOK-03 추이가 열린다', trend.status === 200, trend.body);
   check(
-    '★ 지난달과 이번 달 두 점이 찍힌다',
+    '★ F-BOOK-03 지난달과 이번 달 두 점이 찍힌다',
     trend.body.months?.length >= 2,
     trend.body.months?.map((m) => m.yearMonth),
   );
   check(
-    '추이 합계도 제출된 기록만 센다',
+    'F-BOOK-03 추이 합계도 제출된 기록만 센다',
     trend.body.months?.every(
       (m) => m.surplus === m.income - m.fixedTotal - m.extraTotal && m.submittedCount > 0,
     ),
     trend.body.months,
   );
   check(
-    '오래된 달이 앞에 온다',
+    'F-BOOK-03 오래된 달이 앞에 온다',
     trend.body.months?.[0]?.yearMonth < trend.body.months?.at(-1)?.yearMonth,
     trend.body.months?.map((m) => m.yearMonth),
   );
@@ -461,7 +479,7 @@ async function main() {
     token: dad.token,
   });
   check(
-    '가족장은 넘기기 전에 못 나간다',
+    'F-FAM-08 가족장은 넘기기 전에 못 나간다',
     ownerLeave.status === 400 && ownerLeave.body.code === 'TRANSFER_OWNER_FIRST',
     ownerLeave.body,
   );
@@ -471,21 +489,21 @@ async function main() {
     `/families/${dad.familyId}/members/${dadMembership.id}`,
     { token: mom.token },
   );
-  check('일반 멤버는 남을 못 내보낸다', kickByMember.status === 403, kickByMember.body);
+  check('F-FAM-08 일반 멤버는 남을 못 내보낸다', kickByMember.status === 403, kickByMember.body);
 
   const kick = await call('DELETE', `/families/${dad.familyId}/members/${momMembership.id}`, {
     token: dad.token,
   });
-  check('★ 가족장이 멤버를 내보낸다', kick.status === 200, kick.body);
+  check('★ F-FAM-08 가족장이 멤버를 내보낸다', kick.status === 200, kick.body);
 
   const kickedPeek = await call('GET', `/families/${dad.familyId}`, { token: mom.token });
-  check('나간 사람은 가족을 못 본다', kickedPeek.status === 403, kickedPeek.body);
+  check('F-FAM-08 나간 사람은 가족을 못 본다', kickedPeek.status === 403, kickedPeek.body);
 
   const afterKick = await call('GET', `/families/${dad.familyId}/books/${thisMonth}`, {
     token: dad.token,
   });
   check(
-    '★ 남은 사람만으로 장부가 완성된다',
+    '★ F-BOOK-04 남은 사람만으로 장부가 완성된다',
     afterKick.body.book.status === 'COMPLETE' && afterKick.body.members.length === 1,
     { status: afterKick.body.book.status, members: afterKick.body.members.length },
   );
@@ -496,7 +514,7 @@ async function main() {
     { token: dad.token },
   );
   check(
-    '나간 사람은 요약에서도 빠진다',
+    'F-FAM-08 나간 사람은 요약에서도 빠진다',
     afterKickSummary.body.perMember.length === 1,
     afterKickSummary.body.perMember,
   );
@@ -508,7 +526,7 @@ async function main() {
     body: { inviteCode, displayName: MEMBER },
   });
   check(
-    '★ 나갔던 사람도 다시 승인을 받는다',
+    '★ F-FAM-03 나갔던 사람도 다시 승인을 받는다',
     rejoin.status === 200 && rejoin.body.membership?.status === 'PENDING',
     rejoin.body,
   );
@@ -517,7 +535,7 @@ async function main() {
     token: dad.token,
   });
   check(
-    '★ 대기 중인 사람은 장부 정원에 안 들어간다',
+    '★ F-FAM-04 대기 중인 사람은 장부 정원에 안 들어간다',
     stillOne.body.members.length === 1 && stillOne.body.book.status === 'COMPLETE',
     { members: stillOne.body.members.length, status: stillOne.body.book.status },
   );
@@ -532,7 +550,7 @@ async function main() {
 
   const momEntryAgain = await call('GET', `/entries/${mom.entryId}`, { token: mom.token });
   check(
-    '돌아오면 지난 기록이 그대로 남아 있다',
+    'F-FAM-05 돌아오면 지난 기록이 그대로 남아 있다',
     momEntryAgain.status === 200 && momEntryAgain.body.entry.status === 'SUBMITTED',
     momEntryAgain.body,
   );
@@ -540,7 +558,7 @@ async function main() {
   const afterRejoin = await call('GET', `/families/${dad.familyId}/books/${thisMonth}`, {
     token: dad.token,
   });
-  check('★ 사람이 늘면 장부가 다시 열린다', afterRejoin.body.members.length === 2, {
+  check('★ F-BOOK-04 사람이 늘면 장부가 다시 열린다', afterRejoin.body.members.length === 2, {
     members: afterRejoin.body.members.length,
     status: afterRejoin.body.book.status,
   });
@@ -557,12 +575,12 @@ async function main() {
   });
   // 참여 요청의 결과는 "대기 중인 멤버십"이다 — 만들어진 리소스를 그대로 돌려준다 (응답 형태 규칙)
   check(
-    '★ 초대코드를 맞혀도 바로 들어오지 못한다',
+    '★ F-FAM-03 초대코드를 맞혀도 바로 들어오지 못한다',
     request.status === 200 && request.body.membership?.status === 'PENDING',
     request.body,
   );
   check(
-    '대기자에게는 초대코드를 알려주지 않는다',
+    'F-FAM-04 대기자에게는 초대코드를 알려주지 않는다',
     request.body.membership?.family?.inviteCode === undefined,
     request.body,
   );
@@ -571,7 +589,7 @@ async function main() {
     token: neighborToken,
   });
   check(
-    '★ 승인 전에는 가계부를 한 줄도 못 본다',
+    '★ F-FAM-04 승인 전에는 가계부를 한 줄도 못 본다',
     peekWhilePending.status === 403 && peekWhilePending.body.code === 'PENDING_APPROVAL',
     peekWhilePending.body,
   );
@@ -579,11 +597,15 @@ async function main() {
   const bookWhilePending = await call('GET', `/families/${dad.familyId}/books/${thisMonth}`, {
     token: neighborToken,
   });
-  check('승인 전에는 장부도 못 본다', bookWhilePending.status === 403, bookWhilePending.body);
+  check(
+    'F-FAM-04 승인 전에는 장부도 못 본다',
+    bookWhilePending.status === 403,
+    bookWhilePending.body,
+  );
 
   const myPending = await call('GET', '/families/pending', { token: neighborToken });
   check(
-    '대기 화면이 어느 가족인지는 안다',
+    'F-FAM-04 대기 화면이 어느 가족인지는 안다',
     myPending.body.requests?.[0]?.family?.name === family.body.family.name,
     myPending.body,
   );
@@ -593,7 +615,7 @@ async function main() {
     body: { inviteCode, displayName: '이웃' },
   });
   check(
-    '두 번 요청해도 중복으로 쌓이지 않는다',
+    'F-FAM-03 두 번 요청해도 중복으로 쌓이지 않는다',
     again.status === 409 && again.body.code === 'ALREADY_REQUESTED',
     again.body,
   );
@@ -602,7 +624,7 @@ async function main() {
     token: mom.token,
   });
   check(
-    '일반 멤버는 요청 목록을 못 본다',
+    'F-FAM-05 일반 멤버는 요청 목록을 못 본다',
     memberPeeksRequests.status === 403,
     memberPeeksRequests.body,
   );
@@ -611,24 +633,24 @@ async function main() {
     token: dad.token,
   });
   const pendingId = requests.body.requests.find((r) => r.displayName === '이웃')?.id;
-  check('가족장에게 요청이 보인다', Boolean(pendingId), requests.body);
+  check('F-FAM-05 가족장에게 요청이 보인다', Boolean(pendingId), requests.body);
 
   const memberApproves = await call(
     'POST',
     `/families/${dad.familyId}/join-requests/${pendingId}/approve`,
     { token: mom.token },
   );
-  check('일반 멤버는 승인하지 못한다', memberApproves.status === 403, memberApproves.body);
+  check('F-FAM-05 일반 멤버는 승인하지 못한다', memberApproves.status === 403, memberApproves.body);
 
   const reject = await call('POST', `/families/${dad.familyId}/join-requests/${pendingId}/reject`, {
     token: dad.token,
   });
-  check('★ 가족장이 거절한다', reject.status === 200, reject.body);
+  check('★ F-FAM-05 가족장이 거절한다', reject.status === 200, reject.body);
 
   const afterReject = await call('GET', `/families/${dad.familyId}`, { token: neighborToken });
-  check('거절당하면 여전히 못 본다', afterReject.status === 403, afterReject.body);
+  check('F-FAM-05 거절당하면 여전히 못 본다', afterReject.status === 403, afterReject.body);
   check(
-    '거절당하면 대기 목록에서도 사라진다',
+    'F-FAM-05 거절당하면 대기 목록에서도 사라진다',
     (await call('GET', '/families/pending', { token: neighborToken })).body.requests.length === 0,
   );
 
@@ -647,12 +669,12 @@ async function main() {
     `/families/${dad.familyId}/join-requests/${approveId}/approve`,
     { token: dad.token },
   );
-  check('★ 가족장이 승인한다', approve.status === 200, approve.body);
+  check('★ F-FAM-05 가족장이 승인한다', approve.status === 200, approve.body);
 
   const afterApprove = await call('GET', `/families/${dad.familyId}/books/${thisMonth}`, {
     token: dad.token,
   });
-  check('★ 승인해야 비로소 정원에 들어간다', afterApprove.body.members.length === 3, {
+  check('★ F-FAM-05 승인해야 비로소 정원에 들어간다', afterApprove.body.members.length === 3, {
     members: afterApprove.body.members.length,
     status: afterApprove.body.book.status,
   });
@@ -665,7 +687,7 @@ async function main() {
     token: mom.token,
   });
   check(
-    '일반 멤버는 초대코드를 새로 만들지 못한다',
+    'F-FAM-02 일반 멤버는 초대코드를 새로 만들지 못한다',
     memberRotates.status === 403,
     memberRotates.body,
   );
@@ -673,16 +695,126 @@ async function main() {
   const rotated = await call('POST', `/families/${dad.familyId}/invite-code`, { token: dad.token });
   // 바뀐 리소스는 그 리소스로 돌려준다 — 가족 만들기와 같은 { family } 모양이다
   check(
-    '가족장이 새 코드를 만들면 가족 모양으로 돌려준다',
+    'F-FAM-02 가족장이 새 코드를 만들면 가족 모양으로 돌려준다',
     rotated.status === 200 &&
       rotated.body.family?.id === dad.familyId &&
       /^[A-Z0-9]{6}$/.test(rotated.body.family?.inviteCode ?? ''),
     rotated.body,
   );
   check(
-    '새 코드는 예전 코드와 다르다',
+    'F-FAM-02 새 코드는 예전 코드와 다르다',
     rotated.body.family?.inviteCode !== inviteCode,
     rotated.body,
+  );
+
+  console.log('\n[고정비 목록 · 표시 이름]');
+  // F-FIX-01 — 목록은 "사람별"이 축이다. 가족 전체를 한 덩어리로 보여주지 않는다
+  const listed = await call('GET', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+  });
+  check(
+    'F-FIX-01 사람별 그룹으로 나온다',
+    listed.status === 200 &&
+      Array.isArray(listed.body.groups) &&
+      listed.body.groups.length >= 2 &&
+      listed.body.groups.every((g) => g.membershipId && Array.isArray(g.items)),
+    listed.body,
+  );
+  check(
+    'F-FIX-01 isMe 는 정확히 하나다 — 내 것이 어느 그룹인지 화면이 안다',
+    (listed.body.groups ?? []).filter((g) => g.isMe).length === 1,
+    (listed.body.groups ?? []).map((g) => ({ name: g.displayName, isMe: g.isMe })),
+  );
+  check(
+    'F-FIX-01 monthlyTotal 은 그 사람 항목의 합이다',
+    (listed.body.groups ?? []).every(
+      (g) => g.monthlyTotal === g.items.reduce((sum, i) => sum + i.defaultAmount, 0),
+    ),
+    (listed.body.groups ?? []).map((g) => ({ total: g.monthlyTotal, n: g.items.length })),
+  );
+
+  // F-FAM-07 — 바꾼 리소스를 돌려준다 ({ membership }). 끝나면 원래 이름으로 되돌려
+  //   스모크를 몇 번이고 다시 돌릴 수 있게 한다
+  const renamed = await call('PATCH', `/families/${dad.familyId}/me`, {
+    token: dad.token,
+    body: { displayName: '스모크아빠2' },
+  });
+  check(
+    'F-FAM-07 이름을 바꾸면 { membership } 으로 돌려준다',
+    renamed.status === 200 && renamed.body.membership?.displayName === '스모크아빠2',
+    renamed.body,
+  );
+
+  const afterRename = await call('GET', `/families/${dad.familyId}`, { token: dad.token });
+  check(
+    'F-FAM-07 구성원 목록에도 새 이름으로 보인다',
+    (afterRename.body.members ?? []).some((m) => m.displayName === '스모크아빠2'),
+    afterRename.body.members,
+  );
+
+  const restored = await call('PATCH', `/families/${dad.familyId}/me`, {
+    token: dad.token,
+    body: { displayName: OWNER },
+  });
+  check('F-FAM-07 되돌릴 수 있다', restored.body.membership?.displayName === OWNER, restored.body);
+
+  console.log('\n[고정비 삭제]');
+  // ★ 하드룰 6 — 이 기능이 존재하는 이유가 곧 하드룰 6 이다.
+  //   실제 삭제는 과거 장부의 합계를 바꾼다. 지운 뒤에도 지난달이 그대로여야 한다.
+  const summaryPath = `/families/${dad.familyId}/books/${lastMonth}/summary`;
+  const beforeSummary = await call('GET', summaryPath, { token: dad.token });
+  const fixedTotalBefore = beforeSummary.body.totals?.fixedTotal;
+
+  const fixedList = await call('GET', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+  });
+  const myGroup = fixedList.body.groups?.[0];
+
+  const created = await call('POST', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+    body: {
+      membershipId: myGroup?.membershipId,
+      name: '넷플릭스',
+      category: '구독',
+      defaultAmount: 17_000,
+    },
+  });
+  const createdId = created.body.fixedExpense?.id;
+  check(
+    'F-FIX-04 지울 항목을 하나 만든다',
+    created.status === 200 && Boolean(createdId),
+    created.body,
+  );
+
+  const deleted = await call('DELETE', `/fixed-expenses/${createdId}`, { token: dad.token });
+  // 리소스가 없어지는 동작이라 돌려줄 리소스가 없다 — { ok: true } 만 온다
+  check(
+    'F-FIX-04 지우면 { ok: true } 만 돌아온다',
+    deleted.status === 200 && deleted.body.ok === true,
+    deleted.body,
+  );
+
+  const fixedAfter = await call('GET', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+  });
+  const stillListed = (fixedAfter.body.groups ?? []).some((g) =>
+    (g.items ?? []).some((i) => i.id === createdId),
+  );
+  check('F-FIX-04 목록에서 빠진다', stillListed === false, fixedAfter.body);
+
+  const afterSummary = await call('GET', summaryPath, { token: dad.token });
+  check(
+    '★ F-FIX-04 지워도 지난달 합계가 안 바뀐다 — 과거를 지우지 않는다',
+    afterSummary.body.totals?.fixedTotal === fixedTotalBefore,
+    { before: fixedTotalBefore, after: afterSummary.body.totals?.fixedTotal },
+  );
+
+  // 명세의 예외표 — 없는 항목
+  const ghost = await call('DELETE', `/fixed-expenses/${createdId}-없는것`, { token: dad.token });
+  check(
+    'F-FIX-04 없는 항목을 지우면 FIXED_EXPENSE_NOT_FOUND',
+    ghost.body.code === 'FIXED_EXPENSE_NOT_FOUND',
+    ghost.body,
   );
 
   console.log('\n[레이트리밋]');
@@ -696,7 +828,11 @@ async function main() {
     });
     if (attempt.status === 429) limited = attempt;
   }
-  check('★ 초대코드를 연달아 찍으면 막힌다', limited?.body?.code === 'RATE_LIMITED', limited?.body);
+  check(
+    '★ F-FAM-03 초대코드를 연달아 찍으면 막힌다',
+    limited?.body?.code === 'RATE_LIMITED',
+    limited?.body,
+  );
 
   console.log(
     `\n${failed === 0 ? '✅ 전부 통과' : '❌ 실패 있음'} — ${passed}개 통과, ${failed}개 실패`,

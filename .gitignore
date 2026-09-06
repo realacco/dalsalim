@@ -33,3 +33,6 @@ docs/개발-노트.md
 
 # 리뷰 워크플로가 만드는 파일
 .github/review-context.md
+
+# 다른 세션이 만드는 worktree
+.claude/worktrees/

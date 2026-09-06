@@ -17,7 +17,7 @@ import {
  * 하드룰 2·3 의 판정 함수. 줄 저장과 제출 양쪽이 이 하나를 본다.
  * 여기가 조용히 바뀌면 "차이에만 이유를 묻는다"는 제품의 정체성이 무너진다.
  */
-describe('needsReason — 사유 강제 (하드룰 2·3)', () => {
+describe('F-ENT-04 needsReason — 사유 강제 (하드룰 2·3)', () => {
   it('기본값과 금액이 같으면 아무것도 묻지 않는다', () => {
     expect(needsReason(120000, 120000)).toBe(false);
   });
@@ -46,6 +46,35 @@ describe('needsReason — 사유 강제 (하드룰 2·3)', () => {
     expect(needsReason(0, 0)).toBe(false);
     expect(needsReason(0, null)).toBe(false);
     expect(needsReason(null, 0)).toBe(false);
+  });
+});
+
+describe('F-FIX-05 CATEGORIES — 분류 고정 목록 9개 (하드룰 1)', () => {
+  it('★ 아홉 개다 — 사용자가 만들거나 지울 수 없는 고정 목록이다', () => {
+    expect(CATEGORIES).toHaveLength(9);
+  });
+
+  it('★ 목록과 순서가 화면에 나오는 그대로다', () => {
+    expect([...CATEGORIES]).toEqual([
+      '주거',
+      '통신',
+      '보험',
+      '교통',
+      '구독',
+      '교육',
+      '대출·상환',
+      '생활비',
+      '기타',
+    ]);
+  });
+
+  it('중복이 없다 — 같은 이름이 두 번 뜨면 고르는 사람이 헷갈린다', () => {
+    expect(new Set(CATEGORIES).size).toBe(CATEGORIES.length);
+  });
+
+  it('옛 이름 「생활」 은 없다 — 「생활비」 로 바뀌었다 (F-FIX-06)', () => {
+    expect(CATEGORIES).not.toContain('생활');
+    expect(CATEGORIES).toContain('생활비');
   });
 });
 
