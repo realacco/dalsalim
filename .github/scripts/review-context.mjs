@@ -160,6 +160,8 @@ const bodies = hardruleBodies();
 const out = [];
 out.push('# 이 PR 에서 봐야 할 것\n');
 out.push(`브랜치 \`${git('rev-parse', '--abbrev-ref', 'HEAD')}\` · 파일 ${changed.length}개\n`);
+// 리뷰어가 diff 를 뜰 ref 를 직접 준다. 짐작하게 두면 base 를 잘못 잡아 남의 커밋까지 지적한다
+out.push(`바뀐 줄은 이 범위로 본다 — \`git diff ${BASE}...HEAD\`\n`);
 
 if (hit.length) {
   out.push('## 걸린 기능\n');
