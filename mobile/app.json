@@ -52,6 +52,12 @@
       }
     },
     "owner": "jongdaepark",
-    "backgroundColor": "#F4F5FA"
+    "backgroundColor": "#F4F5FA",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/53442dd2-432f-4dbe-9c20-030e4aeb7f0b"
+    }
   }
 }

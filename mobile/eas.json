@@ -11,7 +11,8 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://dalsalim-production.up.railway.app"
-      }
+      },
+      "channel": "preview"
     },
     "production": {
       "android": {
@@ -19,7 +20,8 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://dalsalim-production.up.railway.app"
-      }
+      },
+      "channel": "production"
     }
   },
   "submit": {

@@ -299,6 +299,32 @@ eas build --platform android --profile preview     # 클라우드 빌드 → APK
 
 ---
 
+### 3. 고친 것을 가족에게 보내기 (OTA)
+
+APK 를 다시 굽고 다시 설치하게 하지 않아도 된다. **JS·화면 변경은 이걸로 나간다.**
+
+```bash
+cd mobile
+eas update --branch preview --message "이번 달 홈 여백 조정"
+```
+
+앱을 껐다 켜면 반영된다. 2 분쯤 걸린다.
+
+**네이티브가 바뀌면 여전히 재빌드다.** 아래 중 하나라도 건드리면 `eas build` 를 다시 돌리고
+가족이 다시 설치해야 한다.
+
+- 새 네이티브 모듈 추가 (`expo install` 로 들어오는 것 대부분)
+- `app.json` 의 네이티브 설정 — 아이콘 · 스플래시 · 패키지명 · 플러그인
+- `eas.json` 의 `env` (빌드 시점에 박히므로 OTA 로 못 바꾼다)
+
+화면·로직·문구 수정은 전부 OTA 로 간다. 앞으로 할 일의 대부분이 여기 속한다.
+
+> **`runtimeVersion` 은 `fingerprint` 정책이다.** 네이티브 구성의 해시를 런타임 버전으로 쓴다.
+> `appVersion` 정책이면 `version` 을 올리는 순간 기존 설치본이 업데이트를 못 받는데,
+> 그게 조용히 일어나서 원인을 찾기 어렵다. fingerprint 는 **진짜로 네이티브가 바뀔 때만** 갈린다.
+
+---
+
 ## 배포 (Railway)
 
 서버와 Postgres 를 **한 프로젝트에** 둔다. 대시보드가 하나고, 내부 네트워크로 붙고,
