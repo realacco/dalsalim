@@ -2,7 +2,7 @@
   "expo": {
     "name": "달살림",
     "slug": "dalsalim",
-    "version": "1.0.0",
+    "version": "0.1.0",
     "orientation": "portrait",
     "scheme": "dalsalim",
     "userInterfaceStyle": "automatic",
@@ -15,7 +15,8 @@
         "monochromeImage": "./assets/android-icon-monochrome.png",
         "backgroundColor": "#F4F5FA"
       },
-      "backgroundColor": "#F4F5FA"
+      "backgroundColor": "#F4F5FA",
+      "versionCode": 2
     },
     "ios": {
       "supportsTablet": true,
@@ -52,6 +53,10 @@
       }
     },
     "owner": "jongdaepark",
-    "backgroundColor": "#F4F5FA"
+    "backgroundColor": "#F4F5FA",
+    "runtimeVersion": "1",
+    "updates": {
+      "url": "https://u.expo.dev/53442dd2-432f-4dbe-9c20-030e4aeb7f0b"
+    }
   }
 }
