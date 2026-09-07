@@ -292,11 +292,15 @@ LAN 주소를 쓰기 때문에:
 ### 1. 프로젝트 만들기
 
 1. [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo** → 이 저장소
-2. 생성된 서비스 → **Settings → Root Directory** 를 **`server`** 로 지정
-   (모노레포라 이걸 안 하면 루트에서 빌드하려다 실패한다)
-3. 같은 프로젝트에서 **New → Database → Add PostgreSQL**
+2. 서비스 카드 클릭 → **Settings → Source → Root Directory** 를 **`server`** 로 지정
+   (프로젝트 Settings 가 아니라 **서비스**의 Settings 다. 모노레포라 이걸 안 하면
+   루트 `package.json` 에는 `start` 스크립트가 없어서 **No start command detected** 로 죽는다)
+3. 같은 Settings 에서 **Config File 경로**를 **`/server/railway.json`** 으로 지정한다.
+   ⚠️ **Railway 의 config 파일은 Root Directory 를 따라가지 않는다.** 절대 경로로 적어야 읽는다
+4. 같은 프로젝트에서 **New → Database → Add PostgreSQL**
 
-빌드·시작 명령과 헬스체크는 `server/railway.json` 에 들어 있어서 따로 설정할 게 없다.
+config 파일을 못 읽어도 앱은 뜬다 — `prisma generate` 는 `postinstall` 에도 걸려 있고
+마이그레이션은 `start` 가 직접 돌린다. `railway.json` 이 주는 것은 헬스체크와 재시작 정책이다.
 
 ### 2. 환경변수 (서비스 → Variables)
 
