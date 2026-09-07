@@ -7,9 +7,12 @@ import { MESSAGES } from '@/shared/config/messages';
 /**
  * 서버 주소.
  *
- * 안드로이드 에뮬레이터는 `adb reverse tcp:4000 tcp:4000` 로 터널이 걸려 있어
- * localhost 를 그대로 쓸 수 있다. (npm run dev 가 자동으로 걸어준다)
- * 실기기에서 붙을 때만 EXPO_PUBLIC_API_URL 로 PC 의 LAN IP 를 넘기면 된다.
+ * EXPO_PUBLIC_API_URL 이 있으면 그것을 쓴다. **독립 빌드(APK·AAB)가 보는 운영 주소**이고
+ * `eas.json` 의 preview·production 양쪽에 박혀 있다 — 빌드 시점에 굳으므로 주소가 바뀌면 다시 굽는다.
+ *
+ * 없으면 Expo Go 로 붙은 것이다. 개발 서버 호스트를 재활용하고, 안드로이드 에뮬레이터는
+ * `adb reverse tcp:4000 tcp:4000` 로 터널이 걸려 있어 localhost 를 그대로 쓴다.
+ * (npm run dev 가 자동으로 걸어준다)
  */
 function resolveBaseUrl(): string {
   const fromEnv = process.env.EXPO_PUBLIC_API_URL;

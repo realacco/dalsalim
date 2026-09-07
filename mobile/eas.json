@@ -10,12 +10,15 @@
       },
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://SET-YOUR-LAN-IP:4000"
+        "EXPO_PUBLIC_API_URL": "https://dalsalim-production.up.railway.app"
       }
     },
     "production": {
       "android": {
         "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://dalsalim-production.up.railway.app"
       }
     }
   },
