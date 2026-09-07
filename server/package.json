@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "postinstall": "prisma generate",
     "start": "prisma migrate deploy && tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
