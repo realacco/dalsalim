@@ -4,6 +4,7 @@ export { AmountInput } from './amount-input';
 export { Button } from './button';
 export { Card } from './card';
 export { Chip } from './chip';
+export { ConfirmHost } from './confirm-dialog';
 export { Field, Input } from './field';
 export { Loading } from './loading';
 export { Notice } from './notice';

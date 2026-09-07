@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ThemeProvider, makeStyles, useTheme } from '@/shared/config/theme-provider';
+import { ConfirmHost } from '@/shared/ui';
 import { useSession } from '@/entities/session';
 
 const queryClient = new QueryClient({
@@ -101,6 +102,11 @@ function AppShell() {
         <Stack.Screen name="wizard/[entryId]" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="summary/[yearMonth]" />
       </Stack>
+      {/*
+        확인 다이얼로그는 화면이 아니라 앱 전체의 것이다. 여기 하나만 두면
+        어느 화면에서 confirm() 을 부르든 같은 모양으로 뜬다.
+      */}
+      <ConfirmHost />
     </View>
   );
 }
