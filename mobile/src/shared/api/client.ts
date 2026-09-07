@@ -7,8 +7,12 @@ import { MESSAGES } from '@/shared/config/messages';
 /**
  * 서버 주소.
  *
- * EXPO_PUBLIC_API_URL 이 있으면 그것을 쓴다. **독립 빌드(APK·AAB)가 보는 운영 주소**이고
- * `eas.json` 의 preview·production 양쪽에 박혀 있다 — 빌드 시점에 굳으므로 주소가 바뀌면 다시 굽는다.
+ * EXPO_PUBLIC_API_URL 이 있으면 그것을 쓴다. **독립 빌드(APK·AAB)가 보는 운영 주소**다.
+ *
+ * ⚠️ 이 값은 **두 곳에서 온다.** `eas build` 는 `eas.json` 의 `build.<프로필>.env` 를 읽고,
+ * `eas update`(OTA)는 **EAS 서버에 등록된 환경변수**를 읽는다. 한쪽만 채우면 그쪽 번들에만
+ * 주소가 들어가고, 다른 쪽은 아래 폴백까지 흘러내려 `localhost` 를 보게 된다.
+ * 앱은 멀쩡히 켜지고 서버 호출만 죽어서 원인을 찾기 어렵다 — 실제로 겪었다 (시행착오 1-9).
  *
  * 없으면 Expo Go 로 붙은 것이다. 개발 서버 호스트를 재활용하고, 안드로이드 에뮬레이터는
  * `adb reverse tcp:4000 tcp:4000` 로 터널이 걸려 있어 localhost 를 그대로 쓴다.
