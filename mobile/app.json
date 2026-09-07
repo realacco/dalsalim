@@ -2,6 +2,7 @@
   "expo": {
     "name": "달살림",
     "slug": "dalsalim",
+    "platforms": ["ios", "android"],
     "version": "0.1.0",
     "orientation": "portrait",
     "scheme": "dalsalim",
@@ -21,10 +22,6 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.dalsalim.app"
-    },
-    "web": {
-      "favicon": "./assets/favicon.png",
-      "bundler": "metro"
     },
     "plugins": [
       "expo-router",

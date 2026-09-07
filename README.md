@@ -326,6 +326,10 @@ eas build --platform android --profile preview     # 클라우드 빌드 → APK
 ⚠️ **이 값은 빌드 시점에 박힌다.** 주소가 바뀌면 `eas.json` 을 고치고 **다시 구워야** 한다.
 앱을 다시 설치해야 반영된다는 뜻이다.
 
+⚠️ **주소를 바꾸면 EAS 서버 환경변수도 같이 고친다** (`eas env:set`, 아래 「고친 것을 가족에게
+보내기」 참조). `eas.json` 만 고치면 그다음 OTA 가 **옛 주소가 실린 번들**을 내보낸다 — 빌드 초록 ·
+발행 성공 · 앱 켜짐 · 서버 호출만 죽는다 (시행착오 1-9).
+
 운영 주소를 쓰기 때문에 예전의 LAN 제약이 전부 사라졌다 — PC 를 켜둘 필요도, 공유기가 IP 를
 바꿀 걱정도 없다. `usesCleartextTraffic` 예외도 같이 지웠다. 서버가 https 라 평문 HTTP 를
 허용할 이유가 없다 (`docs/02-MVP-출시-체크리스트.md` 3장).
@@ -347,6 +351,29 @@ eas update --branch preview --message "이번 달 홈 여백 조정"
 ```
 
 앱을 껐다 켜면 반영된다. 2 분쯤 걸린다.
+
+⚠️ **`eas.json` 의 `env` 는 `eas update` 에 안 실린다.** 빌드용과 업데이트용 저장소가 다르다.
+
+| | 어디서 읽나 |
+|---|---|
+| `eas build` | `eas.json` 의 `build.<프로필>.env` |
+| `eas update` | **EAS 서버에 등록된 환경변수** |
+
+등록은 한 번만 하면 된다.
+
+```bash
+eas env:set --name EXPO_PUBLIC_API_URL --value https://dalsalim-production.up.railway.app \
+  --visibility plaintext --environment preview --environment production
+```
+
+발행할 때마다 로그에 이 줄이 보이는지 확인한다.
+
+```
+Environment variables ... loaded from the "preview" environment on EAS: EXPO_PUBLIC_API_URL.
+```
+
+`No environment variables ... found` 로 나오면 **주소가 빠진 번들이 나간다.**
+앱은 켜지지만 모든 화면이 "서버에 닿지 못했어요" 가 된다 (시행착오 1-9).
 
 **네이티브가 바뀌면 여전히 재빌드다.** 아래 중 하나라도 건드리면 `eas build` 를 다시 돌리고
 가족이 다시 설치해야 한다.
@@ -401,7 +428,9 @@ config 파일을 못 읽어도 앱은 뜬다 — `prisma generate` 는 `postinst
 - [ ] `GET /health` 가 `{"ok":true,"devLogin":false}` 를 준다 — **`devLogin` 이 false 인지 꼭 본다**
 - [ ] `POST /auth/dev` 가 **404** 다 (라우트가 등록조차 되지 않아야 한다)
 - [ ] 첫 배포 로그에 `prisma migrate deploy` 가 마이그레이션을 적용한 게 보인다
-- [ ] 앱의 `EXPO_PUBLIC_API_URL` 을 이 주소로 바꾸고 APK 를 다시 굽는다
+- [ ] 앱의 `EXPO_PUBLIC_API_URL` 을 이 주소로 — **두 곳이다.**
+      `mobile/eas.json`(빌드용) + `eas env:set`(OTA 용). 한쪽만 고치면 시행착오 1-9 가 재발한다.
+      그다음 APK 를 다시 굽는다
 - [ ] 🔴 **자동 백업이 켜져 있는지 확인하고, 복구를 한 번 실제로 해본다.**
       가계부는 날아가면 복구가 불가능한 데이터다. 백업이 부실하면 DB 만
       Supabase 나 Neon 으로 빼는 것을 검토한다 (`DATABASE_URL` 만 바꾸면 된다)
