@@ -1,6 +1,5 @@
 // 기능: F-SES-05
 import Constants from 'expo-constants';
-import { Platform } from 'react-native';
 
 import { MESSAGES } from '@/shared/config/messages';
 
@@ -26,7 +25,7 @@ function resolveBaseUrl(): string {
   const hostUri = Constants.expoConfig?.hostUri ?? Constants.expoGoConfig?.debuggerHost;
   const host = hostUri?.split(':')[0];
 
-  if (host && host !== 'localhost' && host !== '127.0.0.1' && Platform.OS !== 'web') {
+  if (host && host !== 'localhost' && host !== '127.0.0.1') {
     return `http://${host}:4000`;
   }
 
