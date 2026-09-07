@@ -348,6 +348,29 @@ eas update --branch preview --message "이번 달 홈 여백 조정"
 
 앱을 껐다 켜면 반영된다. 2 분쯤 걸린다.
 
+⚠️ **`eas.json` 의 `env` 는 `eas update` 에 안 실린다.** 빌드용과 업데이트용 저장소가 다르다.
+
+| | 어디서 읽나 |
+|---|---|
+| `eas build` | `eas.json` 의 `build.<프로필>.env` |
+| `eas update` | **EAS 서버에 등록된 환경변수** |
+
+등록은 한 번만 하면 된다.
+
+```bash
+eas env:set --name EXPO_PUBLIC_API_URL --value https://dalsalim-production.up.railway.app \
+  --visibility plaintext --environment preview --environment production
+```
+
+발행할 때마다 로그에 이 줄이 보이는지 확인한다.
+
+```
+Environment variables ... loaded from the "preview" environment on EAS: EXPO_PUBLIC_API_URL.
+```
+
+`No environment variables ... found` 로 나오면 **주소가 빠진 번들이 나간다.**
+앱은 켜지지만 모든 화면이 "서버에 닿지 못했어요" 가 된다 (시행착오 1-9).
+
 **네이티브가 바뀌면 여전히 재빌드다.** 아래 중 하나라도 건드리면 `eas build` 를 다시 돌리고
 가족이 다시 설치해야 한다.
 

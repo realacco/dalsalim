@@ -102,6 +102,53 @@
 
 ---
 
+### ★ 1-9. 첫 OTA 업데이트가 앱을 서버에서 끊었다 (2026-09-08)
+
+**증상.** OTA 를 처음 쏜 직후 APK 앱이 모든 화면에서 *"서버에 닿지 못했어요"* 를 띄웠다.
+서버는 멀쩡했고(`/health` 200), 재설치하면 다시 정상이었다.
+
+**원인.** `EXPO_PUBLIC_API_URL` 이 OTA 번들에 안 실렸다.
+
+```
+eas.json  build.preview.env.EXPO_PUBLIC_API_URL   ← eas build 만 읽는다
+EAS 서버의 환경변수                                 ← eas update 는 이쪽을 읽는다
+```
+
+**둘은 다른 저장소다.** `eas.json` 에 적어둔 값은 빌드에만 들어가고, `eas update` 는
+EAS 에 등록된 환경변수를 본다. 우리는 앞의 것만 채워뒀으니 업데이트 번들에는 주소가 비었고,
+`resolveBaseUrl()` 이 폴백인 `http://localhost:4000` 으로 떨어졌다.
+
+**왜 못 알아챘나.** 첫 발행 로그에 경고가 **찍혀 있었다.**
+
+```
+No environment variables with visibility "Plain text" and "Sensitive"
+found for the "preview" environment on EAS.
+```
+
+"환경변수가 없다"를 정상으로 읽고 넘어갔다. 지금 보면 정확히 이 사고의 예고다.
+
+**고친 방법.** EAS 에 프로젝트 환경변수를 등록했다.
+
+```bash
+eas env:set --name EXPO_PUBLIC_API_URL --value https://... \
+  --visibility plaintext --environment preview --environment production
+```
+
+등록 뒤에는 발행 로그가 `... loaded from the "preview" environment on EAS: EXPO_PUBLIC_API_URL` 로 바뀐다.
+**이 줄이 보이는지가 곧 검사다.**
+
+**왜 위험한 모양인가.** 빌드는 초록이고 발행도 성공이고 앱도 켜진다 — 죽는 건 **서버 호출뿐**이다.
+그리고 APK 안의 원본 번들에는 주소가 제대로 있어서, **재설치하면 낫는다.**
+"재설치하면 되네"로 넘어가면 원인을 영영 못 찾고 매번 재설치하게 된다.
+
+**남길 규칙.** **OTA 를 처음 붙인 날 곧바로 한 번 쏴본다.** 이 사고는 시험 발사에서 났다.
+몇 주 뒤 진짜 급한 수정을 쏘다 났으면 원인 찾기가 훨씬 어려웠을 것이다.
+
+> 곁가지: `app.json` 에 `platforms` 가 없으면 기본값이 `all` 이라 `eas update` 가 웹까지
+> 내보내려다 `react-native-web` 이 없어서 실패한다. `["ios", "android"]` 로 명시했다.
+
+---
+
 ## 2. 발견했지만 아직 안 고친 것
 
 | # | 무엇 | 판단 |
