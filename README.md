@@ -294,6 +294,7 @@ eas build --platform android --profile preview     # 클라우드 빌드 → APK
 
 > 로컬 서버를 보게 하려면 `eas.json` 의 값을 `http://<LAN-IP>:4000` 으로 바꾸고
 > `app.json` 에 `usesCleartextTraffic` 을 되살려야 한다. 안드로이드 9+ 가 평문을 막는다.
+> **`expo-build-properties` 패키지는 일부러 남겨뒀으니** `app.json` 의 플러그인 항목만 되살리면 된다.
 > **다만 평소 개발은 Expo Go 로 한다** — 그쪽은 이 설정과 무관하고 재빌드도 없다.
 
 ---
@@ -327,7 +328,9 @@ config 파일을 못 읽어도 앱은 뜬다 — `prisma generate` 는 `postinst
 | `KAKAO_REST_API_KEY` | 카카오 개발자 콘솔 값 |
 | `KAKAO_CLIENT_SECRET` | 쓰는 경우에만 |
 
-`PORT` 는 Railway 가 알아서 넣어준다. **`DEV_LOGIN` 은 넣지 않는다** —
+**`PORT` 는 직접 넣는다** — 도메인의 target port 와 같은 값이어야 한다.
+앱은 `process.env.PORT` 를 그대로 쓰므로 둘이 다르면 4절의 502 가 난다.
+**`DEV_LOGIN` 은 넣지 않는다** —
 기본값이 꺼짐이고, 운영에서는 아예 켤 수 없다.
 
 ### 3. 확인할 것
