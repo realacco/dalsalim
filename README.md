@@ -232,15 +232,26 @@ REST 키와 client secret이 앱 번들에 들어가지 않는다 — 보안상�
 
 ## 카카오 로그인 켜기
 
-지금은 개발용 로그인만 켜져 있다. 실제 카카오 로그인을 쓰려면:
+운영에는 이미 붙어 있다. 아래는 **새 환경을 하나 더 만들 때**(로컬 등) 필요한 절차다.
 
-1. [카카오 개발자 콘솔](https://developers.kakao.com)에서 앱 생성
-2. **앱 키 > REST API 키**를 `server/.env`의 `KAKAO_REST_API_KEY`에 넣는다
-3. **카카오 로그인 > Redirect URI**에 `http://localhost:4000/auth/kakao/callback` 등록
-4. **동의항목**에서 닉네임(profile_nickname)을 켠다
-5. 서버 재시작 → 로그인 화면의 카카오 버튼이 활성화된다
+⚠️ **순서가 강제된다.** Web 플랫폼을 먼저 등록하지 않으면 Redirect URI 칸이 아예 안 나온다.
 
-> 실기기나 외부에서 붙일 때는 `PUBLIC_BASE_URL`을 그 주소로 바꾸고 콘솔의 Redirect URI도 같이 바꾼다.
+1. [카카오 개발자 콘솔](https://developers.kakao.com) → 애플리케이션 추가
+   (회사명은 필수 칸이다. 개인이면 본인 이름)
+2. **앱 설정 → 플랫폼 → Web 플랫폼 등록** — 사이트 도메인에 서버 주소
+3. **플랫폼 키 → REST API 키 → 리다이렉트 URI** 에 `<서버주소>/auth/kakao/callback`
+   (콘솔 개편 전에는 「제품 설정 → 카카오 로그인」 아래 있었다. 둘 중 보이는 쪽에 넣는다)
+4. **카카오 로그인 활성화 ON**
+5. **동의항목 → 닉네임(`profile_nickname`)만.** 선택 동의로 충분하다 —
+   서버가 없으면 `'이름 없음'` 으로 받고, 사람을 구분하는 건 가족마다 직접 적는 `displayName` 이다
+6. REST API 키를 `KAKAO_REST_API_KEY` 에, 서버 주소를 `PUBLIC_BASE_URL` 에 넣는다
+
+**안 해도 되는 것** — Android·iOS 플랫폼 등록 · 키 해시 · 프로필 사진 동의.
+네이티브 SDK 를 안 쓰고 브라우저로 도는 REST OAuth 라서다. 프로필 사진은 앱이 그리지 않는다
+(`<Image>` 가 한 곳도 없다) — 안 쓰는 개인정보를 받지 않는다.
+
+> `PUBLIC_BASE_URL` 이 비어 있으면 서버가 `redirect_uri` 를 `localhost` 로 만들어
+> 카카오가 "등록되지 않은 URI" 로 거절한다. 키보다 이것을 먼저 확인한다.
 
 ---
 
@@ -267,20 +278,23 @@ eas login                                          # 최초 1회
 eas build --platform android --profile preview     # 클라우드 빌드 → APK 링크
 ```
 
-**독립 빌드에는 Expo 개발 서버가 없어서 호스트 자동 유추가 동작하지 않는다.** 그래서 `eas.json` 의
-`preview.env.EXPO_PUBLIC_API_URL` 에 서버 주소를 박아둔다.
+**독립 빌드에는 Expo 개발 서버가 없어서 호스트 자동 유추가 동작하지 않는다.** 그래서
+`eas.json` 의 `env.EXPO_PUBLIC_API_URL` 에 서버 주소를 박아둔다 — 지금은 운영 주소다.
 
-**빌드하기 전에 이 값을 자기 PC 의 LAN 주소로 바꿔야 한다.** 저장소에는 `SET-YOUR-LAN-IP`
-자리표시자가 들어 있다 — 공개 저장소에 집 네트워크 주소를 남기지 않기 위해서다.
-(윈도우는 `ipconfig`, 맥·리눅스는 `ifconfig` 로 확인한다.)
+```json
+"EXPO_PUBLIC_API_URL": "https://dalsalim-production.up.railway.app"
+```
 
-LAN 주소를 쓰기 때문에:
+⚠️ **이 값은 빌드 시점에 박힌다.** 주소가 바뀌면 `eas.json` 을 고치고 **다시 구워야** 한다.
+앱을 다시 설치해야 반영된다는 뜻이다.
 
-- **PC 가 켜져 있고 서버가 떠 있어야** 앱이 동작한다
-- **공유기가 PC 에 다른 IP 를 주면 깨진다.** `eas.json` 의 값을 고치고 다시 빌드해야 한다
-  (자주 겪는다면 공유기에서 이 PC 의 IP 를 고정해두는 편이 낫다)
-- 안드로이드 9+ 는 평문 HTTP 를 막기 때문에 `app.json` 에서 `usesCleartextTraffic` 을 켜뒀다.
-  **서버를 https 로 배포하면 이 예외는 지운다** (`docs/02-MVP-출시-체크리스트.md` 3장)
+운영 주소를 쓰기 때문에 예전의 LAN 제약이 전부 사라졌다 — PC 를 켜둘 필요도, 공유기가 IP 를
+바꿀 걱정도 없다. `usesCleartextTraffic` 예외도 같이 지웠다. 서버가 https 라 평문 HTTP 를
+허용할 이유가 없다 (`docs/02-MVP-출시-체크리스트.md` 3장).
+
+> 로컬 서버를 보게 하려면 `eas.json` 의 값을 `http://<LAN-IP>:4000` 으로 바꾸고
+> `app.json` 에 `usesCleartextTraffic` 을 되살려야 한다. 안드로이드 9+ 가 평문을 막는다.
+> **다만 평소 개발은 Expo Go 로 한다** — 그쪽은 이 설정과 무관하고 재빌드도 없다.
 
 ---
 
@@ -325,6 +339,21 @@ config 파일을 못 읽어도 앱은 뜬다 — `prisma generate` 는 `postinst
 - [ ] 🔴 **자동 백업이 켜져 있는지 확인하고, 복구를 한 번 실제로 해본다.**
       가계부는 날아가면 복구가 불가능한 데이터다. 백업이 부실하면 DB 만
       Supabase 나 Neon 으로 빼는 것을 검토한다 (`DATABASE_URL` 만 바꾸면 된다)
+
+### 4. 처음 올릴 때 실제로 걸린 것 (2026-09-07)
+
+세 번 막혔고 셋 다 문서에 없던 것이라 적어둔다. 배포는 자주 안 하므로 다음에도 잊는다.
+
+| 증상 | 원인 | 고침 |
+|---|---|---|
+| `No start command detected` | Root Directory 가 안 먹어 **루트에서 빌드**했다. 루트 `package.json` 에는 `start` 가 없다 | 서비스 Settings → Source → Root Directory = `server`. 저장 후 값이 남았는지 다시 본다 |
+| `Environment variable not found: DATABASE_URL` | 참조 문자열을 손으로 적었는데 **Postgres 서비스 이름이 달랐다** | Variables 의 참조 버튼으로 드롭다운에서 고른다. 타이핑하지 않는다 |
+| `502 Application failed to respond` | 도메인이 보내는 포트와 앱이 듣는 포트가 달랐다 | `PORT` 변수를 도메인의 target port 와 같게 맞춘다. 앱은 `process.env.PORT` 를 그대로 쓴다 |
+
+⚠️ **Railway 의 config 파일은 Root Directory 를 따라가지 않는다.** `server/railway.json` 을 읽히려면
+Settings 에 절대 경로(`/server/railway.json`)를 지정해야 한다. 안 읽혀도 앱은 뜬다 —
+`prisma generate` 는 `postinstall` 에, 마이그레이션은 `start` 에 걸어뒀다.
+`railway.json` 이 주는 것은 헬스체크와 재시작 정책뿐이다.
 
 ### 왜 이렇게 했나
 
