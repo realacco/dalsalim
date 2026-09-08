@@ -1,13 +1,14 @@
 // 기능: F-ENT-01 F-ENT-02 F-ENT-03 F-ENT-04 F-ENT-05 F-ENT-06 F-ENT-07 F-ENT-08
-import type { MemberEntry } from '@prisma/client';
+//       F-ENT-10
+import type { MemberEntry, MonthlyBook } from '@prisma/client';
 
 import { prisma } from '../lib/db.js';
 import { fail } from '../lib/http.js';
-import { entrySummary, needsReason } from '../lib/shared.js';
+import { currentYearMonth, entrySummary, needsReason } from '../lib/shared.js';
 import { refreshBookStatus } from './book.js';
 
 /**
- * 기록 한 벌을 다루는 곳 — 줄 저장 · 추가 지출 · 제출 · 되돌리기.
+ * 기록 한 벌을 다루는 곳 — 줄 저장 · 추가 지출 · 제출 · 되돌리기 · 지우기.
  *
  * 이 파일은 book 을 임포트하지만 그 반대는 없다. 부분(기록)이 끝나면 전체(장부)에
  * 알리는 한 방향이다 — 제출하면 "전원이 냈나"를 다시 세야 하기 때문이다.
@@ -157,5 +158,30 @@ export async function reopenEntry(entry: Pick<MemberEntry, 'id' | 'bookId'>) {
     data: { status: 'DRAFT', submittedAt: null },
   });
 
+  return refreshBookStatus(entry.bookId);
+}
+
+/**
+ * 기록을 통째로 지운다 — 딸린 줄도 같이 사라진다(EntryLine 은 Cascade).
+ *
+ * ★ 하드룰 6 을 어기지 않는 근거: 초안은 요약(buildMonthSummary)에도 추이(buildTrend)에도
+ *   들어가지 않는다. 둘 다 SUBMITTED 만 세기 때문이다 — **지워도 바뀌는 숫자가 없다.**
+ *   승인 전 PENDING 멤버십을 거절할 때 실제로 지우는 것과 같은 자리다.
+ *
+ *   그래서 문은 두 겹으로만 연다.
+ *     ① 초안일 때만 (제출본은 라우트의 assertDraft 가 ENTRY_SUBMITTED 로 막는다)
+ *     ② 이번 달만 — 지난 달 기록은 이미 집계에 들어가 있어 지우면 과거 장부의 합계가 바뀐다.
+ *        되돌리기 어려운 문은 좁게 연다. 넓히는 것은 나중에도 되지만 좁히는 것은 안 된다.
+ *
+ * 소프트 삭제를 하지 않는 이유: 초안은 남겨도 어느 화면에도 안 나온다. 남길 값이 없다.
+ */
+export async function deleteEntry(
+  entry: Pick<MemberEntry, 'id' | 'bookId'> & { book: Pick<MonthlyBook, 'yearMonth'> },
+) {
+  if (entry.book.yearMonth !== currentYearMonth()) throw fail('PAST_MONTH_ENTRY');
+
+  await prisma.memberEntry.delete({ where: { id: entry.id } });
+
+  // 장부 상태를 직접 쓰지 않는다. 판정은 언제나 이 함수 한 곳을 지난다 (하드룰 7)
   return refreshBookStatus(entry.bookId);
 }

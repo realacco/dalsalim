@@ -817,6 +817,89 @@ async function main() {
     ghost.body,
   );
 
+  console.log('\n[기록 지우기]');
+  // ★ 하드룰 6 — 이 기능의 경계가 곧 하드룰 6 이다.
+  //   초안은 요약·추이 어디에도 안 들어가므로 지워도 바뀌는 숫자가 없다.
+  //   반대로 제출본과 지난 달은 이미 집계에 들어가 있어 못 지운다.
+  const lastMonthSummaryPath = `/families/${dad.familyId}/books/${lastMonth}/summary`;
+  const lastMonthBefore = await call('GET', lastMonthSummaryPath, { token: dad.token });
+  const lastMonthIncomeBefore = lastMonthBefore.body.totals?.income;
+
+  const deleteSubmitted = await call('DELETE', `/entries/${dad.entryId}`, { token: dad.token });
+  check(
+    '★ F-ENT-10 제출한 기록은 못 지운다',
+    deleteSubmitted.status === 403 && deleteSubmitted.body.code === 'ENTRY_SUBMITTED',
+    deleteSubmitted.body,
+  );
+
+  const deleteOthers = await call('DELETE', `/entries/${mom.entryId}`, { token: dad.token });
+  check(
+    'F-ENT-10 남의 기록은 못 지운다 — 가족장도 예외 없다',
+    deleteOthers.status === 403 && deleteOthers.body.code === 'NOT_MY_ENTRY',
+    deleteOthers.body,
+  );
+
+  // 지난 달은 되열어도 못 지운다. 되열기(F-ENT-08)로 초안 조건을 통과시켜 놓고 확인한다
+  const lastEntry = await call('POST', `/families/${dad.familyId}/books/${lastMonth}/my-entry`, {
+    token: dad.token,
+  });
+  const lastEntryId = lastEntry.body.entry.id;
+  await call('POST', `/entries/${lastEntryId}/reopen`, { token: dad.token });
+
+  const deletePast = await call('DELETE', `/entries/${lastEntryId}`, { token: dad.token });
+  check(
+    '★ F-ENT-10 지난 달 기록은 되열어도 못 지운다',
+    deletePast.status === 403 && deletePast.body.code === 'PAST_MONTH_ENTRY',
+    deletePast.body,
+  );
+  await call('POST', `/entries/${lastEntryId}/submit`, { token: dad.token });
+
+  // 여기부터 성공 경로 — 제출본을 되열어 초안으로 만든 뒤에 지운다
+  await call('POST', `/entries/${dad.entryId}/reopen`, { token: dad.token });
+  const removed = await call('DELETE', `/entries/${dad.entryId}`, { token: dad.token });
+  // 리소스가 없어지는 동작이라 돌려줄 리소스가 없다 — { ok: true } 와 이어서 필요한 장부 상태만 온다
+  check(
+    '★ F-ENT-10 작성 중인 이번 달 기록을 지운다',
+    removed.status === 200 && removed.body.ok === true && removed.body.bookStatus === 'OPEN',
+    removed.body,
+  );
+
+  const gone = await call('GET', `/entries/${dad.entryId}`, { token: dad.token });
+  check(
+    'F-ENT-10 지운 기록은 줄까지 통째로 사라진다',
+    gone.status === 404 && gone.body.code === 'ENTRY_NOT_FOUND',
+    gone.body,
+  );
+
+  const lastMonthAfter = await call('GET', lastMonthSummaryPath, { token: dad.token });
+  check(
+    '★ F-ENT-10 지워도 지난달 합계가 안 바뀐다 — 과거를 지우지 않는다',
+    lastMonthAfter.body.totals?.income === lastMonthIncomeBefore,
+    { before: lastMonthIncomeBefore, after: lastMonthAfter.body.totals?.income },
+  );
+
+  const homeAfter = await call('GET', `/families/${dad.familyId}/books/${thisMonth}`, {
+    token: dad.token,
+  });
+  const meAfter = homeAfter.body.members?.find((m) => m.isMe);
+  check(
+    '★ F-ENT-10 홈이 다시 시작 안 함 으로 돌아간다',
+    meAfter?.status === 'NONE' && meAfter?.entryId === null,
+    meAfter,
+  );
+
+  const restarted = await call('POST', `/families/${dad.familyId}/books/${thisMonth}/my-entry`, {
+    token: dad.token,
+  });
+  check(
+    'F-ENT-10 다시 시작하면 프리필된 새 초안이 열린다',
+    restarted.status === 200 &&
+      restarted.body.entry.id !== dad.entryId &&
+      restarted.body.entry.status === 'DRAFT' &&
+      restarted.body.entry.lines.some((l) => l.plannedAmount !== null),
+    { id: restarted.body.entry?.id, status: restarted.body.entry?.status },
+  );
+
   console.log('\n[레이트리밋]');
   // 초대코드를 계속 찍어보는 걸 막는다. 이 검사는 그 사람의 한도를 소진하므로 맨 마지막에 둔다.
   const attacker = await call('POST', '/auth/dev', { body: { name: '침입자' } });
