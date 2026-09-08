@@ -1,6 +1,7 @@
 /** 공용 컴포넌트의 공개 API. 화면은 여기서만 가져온다. */
 
 export { AmountInput } from './amount-input';
+export { BuildInfo } from './build-info';
 export { Button } from './button';
 export { Card } from './card';
 export { Chip } from './chip';

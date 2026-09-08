@@ -3,7 +3,7 @@ import { Pressable, RefreshControl, ScrollView, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
-import { Button, Card, Loading, Muted, QueryError } from '@/shared/ui';
+import { BuildInfo, Button, Card, Loading, Muted, QueryError } from '@/shared/ui';
 import { confirm } from '@/shared/lib/confirm';
 
 import { useFamily } from './model/use-family';
@@ -123,6 +123,9 @@ export default function FamilyScreen() {
             }
           />
         </Card>
+
+        {/* 지금 이 폰이 어느 번들을 보고 있는지. OTA 가 닿았는지 가리는 유일한 창구다 */}
+        <BuildInfo />
       </ScrollView>
     </SafeAreaView>
   );

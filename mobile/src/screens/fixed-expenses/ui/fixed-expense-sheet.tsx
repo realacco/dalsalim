@@ -3,12 +3,12 @@ import {
   Animated,
   KeyboardAvoidingView,
   Modal,
-  PanResponder,
   Platform,
   ScrollView,
   Text,
   View,
 } from 'react-native';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CATEGORIES } from '@/shared/model/types';
@@ -17,7 +17,7 @@ import { AmountInput, Button, Chip, ErrorText, Field, Input, Notice } from '@/sh
 import { confirm } from '@/shared/lib/confirm';
 
 import { type Draft, sanitizeDay } from '../model/draft';
-import { dragOffset, shouldDismiss, shouldStartDrag } from '../model/gesture';
+import { DRAG_CANCEL_X, DRAG_START_SLOP, dragOffset, shouldDismiss } from '../model/gesture';
 
 /** 고정비 하나를 추가·수정하는 아래 시트. draft 가 없으면 닫혀 있다. */
 export function FixedExpenseSheet({
@@ -49,13 +49,12 @@ export function FixedExpenseSheet({
    * 끌어내리던 위치에서 그대로 이어서 닫힌다 — 놓는 순간 제자리로 튀어올랐다가
    * 다시 내려가는 끊김이 없다.
    *
-   * 제스처 시트 라이브러리를 안 쓴 이유: RN 기본 `Animated` + `PanResponder` 로 되는 일이고,
-   * 새 패키지는 네이티브 모듈을 달고 올 위험이 있다. Expo Go 로 바로 도는 개발 루프를
-   * 이 정도 UX 와 바꾸지 않는다.
+   * 값을 옮기는 것은 RN 기본 `Animated` 그대로다. 바꾼 것은 **제스처를 받는 쪽**뿐이다 —
+   * `PanResponder` 가 `Modal` 안에서 아무 반응이 없었다 (#20).
    */
   const translateY = useRef(new Animated.Value(0)).current;
 
-  /** PanResponder 는 한 번만 만든다. `onClose` 는 매 렌더 새로 오므로 ref 로 건넨다 */
+  /** 제스처는 한 번만 만든다. `onClose` 는 매 렌더 새로 오므로 ref 로 건넨다 */
   const onCloseRef = useRef(onClose);
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -80,24 +79,41 @@ export function FixedExpenseSheet({
     }).start();
   }, [translateY, motion.spring]);
 
-  const pan = useMemo(
+  const drag = useMemo(
     () =>
-      PanResponder.create({
-        // 잡고 닫는 판정은 model/gesture 에 있다 — 순수 함수라 1층이 지킨다
-        onMoveShouldSetPanResponder: (_, gesture) => shouldStartDrag(gesture.dy, gesture.dx),
+      Gesture.Pan()
+        /*
+          🔴 **이 줄을 지우면 안 된다.** gesture-handler 의 콜백은 기본이 워클릿(UI 스레드)인데,
+          아래에서 부르는 `translateY.setValue` 는 RN 기본 `Animated` 의 **JS 전용** API 라
+          UI 스레드에서 부르면 터진다. 콜백을 JS 스레드에 붙들어 두는 설정이다.
+
+          값 하나짜리 시트라 Reanimated 로 갈아타 워클릿 배관을 들일 이유도 없다.
+        */
+        .runOnJS(true)
+        // 잡고 포기하는 기준을 라이브러리에 맡긴다 — 직접 재던 것을 걷어냈다
+        .activeOffsetY(DRAG_START_SLOP)
+        .failOffsetX([-DRAG_CANCEL_X, DRAG_CANCEL_X])
         /*
           복귀 스프링이 도는 중에 다시 잡으면 스프링(네이티브)과 아래의 setValue(JS)가
           같은 값을 서로 쓰면서 손가락을 안 따라오거나 튄다. 잡는 순간 스프링을 멈춘다.
         */
-        onPanResponderGrant: () => translateY.stopAnimation(),
-        onPanResponderMove: (_, gesture) => translateY.setValue(dragOffset(gesture.dy)),
-        onPanResponderRelease: (_, gesture) => {
-          if (shouldDismiss(gesture.dy, gesture.vy)) onCloseRef.current();
+        .onStart(() => translateY.stopAnimation())
+        .onUpdate((event) => translateY.setValue(dragOffset(event.translationY)))
+        .onEnd((event, success) => {
+          /*
+            ⚠️ `onEnd` 는 손을 뗐을 때만이 아니라 **잡힌 뒤 뺏겼을 때도** 불린다
+            (전화 수신 · 시스템 제스처). 그걸 가르는 것이 `success` 다 —
+            안 보면 120dp 끌어둔 채로 뺏겼을 때 놓지도 않은 시트가 닫힌다.
+            `PanResponder` 때는 release 와 terminate 로 갈려 있던 구분이다.
+          */
+          if (!success) return;
+          if (shouldDismiss(event.translationY, event.velocityY)) onCloseRef.current();
           else settle();
-        },
-        // 전화가 오는 등으로 제스처를 뺏기면 제자리로. 끌린 채 남으면 아래가 벌어진다
-        onPanResponderTerminate: settle,
-      }),
+        })
+        // 잡히지 못했거나 뺏긴 경우를 제자리로. 끌린 채 남으면 아래가 벌어진다
+        .onFinalize((_event, success) => {
+          if (!success) settle();
+        }),
     [translateY, settle],
   );
 
@@ -114,113 +130,121 @@ export function FixedExpenseSheet({
   return (
     <Modal visible={isOpen} animationType="slide" transparent onRequestClose={onClose}>
       {/*
-        키보드를 피하는 건 시트가 아니라 **화면 전체**여야 한다.
-        시트만 감싸면 줄어들 여지가 없어서 [저장] 이 키보드에 그대로 덮인다.
-        바깥 컨테이너를 줄여야 아래 정렬된 시트가 키보드 위로 올라온다. (에뮬레이터에서 확인)
+        ⚠️ gesture-handler 는 RN `Modal` 안에서 그냥은 안 돈다. Modal 은 별도의 네이티브 창이라
+        앱 루트의 제스처 트리 밖에 있어서, **이 안에 뿌리를 한 번 더 심어야** 한다.
       */}
-      <KeyboardAvoidingView
-        style={styles.backdrop}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
-          {/*
-            손잡이가 이제 진짜 손잡이다. 잡는 영역은 알약(40x4)이 아니라 이 View 전체다 —
-            4dp 짜리를 정확히 짚으라고 할 수는 없다.
-            제스처를 여기에만 걸어야 안쪽 목록 스크롤과 안 싸운다.
-          */}
-          <View style={styles.grabArea} {...pan.panHandlers}>
-            <View style={styles.grabber} />
-          </View>
-          {/*
-            패딩은 ScrollView 가 아니라 contentContainerStyle 에 준다.
-            시트에 패딩을 주면 ScrollView 가 그만큼 안쪽에 놓여서
-            스크롤바가 화면 끝이 아니라 글자 위에 그려진다.
-          */}
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={[styles.sheetContent, { paddingBottom: bottom }]}
-          >
-            <Text style={styles.sheetTitle}>{draft?.id ? '고정비 수정' : '고정비 추가'}</Text>
-
+      <GestureHandlerRootView style={styles.gestureRoot}>
+        {/*
+          키보드를 피하는 건 시트가 아니라 **화면 전체**여야 한다.
+          시트만 감싸면 줄어들 여지가 없어서 [저장] 이 키보드에 그대로 덮인다.
+          바깥 컨테이너를 줄여야 아래 정렬된 시트가 키보드 위로 올라온다. (에뮬레이터에서 확인)
+        */}
+        <KeyboardAvoidingView
+          style={styles.backdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
             {/*
-              '생활비' 를 여기 넣는 사람이 있는데, 뜻이 두 가지다. (기획서 3장)
-              매달 이체하는 정액이면 고정비가 맞지만, 실제로 쓴 총액이면 매달 금액이 달라서
-              위저드가 매번 사유를 묻는다 — 사유가 "예외 기록"이 아니라 "매달 잔업"이 된다.
-              등록하기 전에 갈라줘야 한다.
+              잡는 영역은 알약(40x4)이 아니라 **제목까지 포함한 머리 전체**다.
+              4dp 짜리를 정확히 짚으라고 할 수 없다 — 원래 후기도 "서랍 형태" 였다.
+              제스처를 여기에만 걸어야 안쪽 목록 스크롤과 안 싸운다.
             */}
-            <Notice>
-              매달 <Text style={styles.noticeStrong}>같은 금액</Text>이 나가는 것만 등록해요.
-              생활비도 매달 옮겨두는 정액이면 여기 맞고, 실제로 쓴 돈은 기록할 때 적어요.
-            </Notice>
-
-            <Field label="항목 이름" hint="예: 통신비, 월세, 자동차보험">
-              <Input
-                value={draft?.name ?? ''}
-                onChangeText={(name) => onChange({ name })}
-                placeholder="통신비"
-                maxLength={30}
-              />
-            </Field>
-
-            <Field label="분류">
-              <View style={styles.chips}>
-                {CATEGORIES.map((category) => (
-                  <Chip
-                    key={category}
-                    label={category}
-                    selected={draft?.category === category}
-                    onPress={() => onChange({ category })}
-                  />
-                ))}
+            <GestureDetector gesture={drag}>
+              <View style={styles.header}>
+                <View style={styles.grabber} />
+                <Text style={styles.sheetTitle}>{draft?.id ? '고정비 수정' : '고정비 추가'}</Text>
               </View>
-            </Field>
+            </GestureDetector>
+            {/*
+              패딩은 ScrollView 가 아니라 contentContainerStyle 에 준다.
+              시트에 패딩을 주면 ScrollView 가 그만큼 안쪽에 놓여서
+              스크롤바가 화면 끝이 아니라 글자 위에 그려진다.
+            */}
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={[styles.sheetContent, { paddingBottom: bottom }]}
+            >
+              {/*
+                '생활비' 를 여기 넣는 사람이 있는데, 뜻이 두 가지다. (기획서 3장)
+                매달 이체하는 정액이면 고정비가 맞지만, 실제로 쓴 총액이면 매달 금액이 달라서
+                위저드가 매번 사유를 묻는다 — 사유가 "예외 기록"이 아니라 "매달 잔업"이 된다.
+                등록하기 전에 갈라줘야 한다.
+              */}
+              <Notice>
+                매달 <Text style={styles.noticeStrong}>같은 금액</Text>이 나가는 것만 등록해요.
+                생활비도 매달 옮겨두는 정액이면 여기 맞고, 실제로 쓴 돈은 기록할 때 적어요.
+              </Notice>
 
-            <Field label="기본 금액" hint="매달 기록할 때 이 금액이 먼저 채워져요.">
-              <AmountInput
-                size="md"
-                value={draft?.defaultAmount ?? null}
-                onChange={(defaultAmount) => onChange({ defaultAmount })}
-              />
-            </Field>
+              <Field label="항목 이름" hint="예: 통신비, 월세, 자동차보험">
+                <Input
+                  value={draft?.name ?? ''}
+                  onChangeText={(name) => onChange({ name })}
+                  placeholder="통신비"
+                  maxLength={30}
+                />
+              </Field>
 
-            <Field label="결제일 (선택)" hint="1~31 사이 숫자">
-              <Input
-                value={draft?.dayOfMonth ?? ''}
-                onChangeText={(text) => onChange({ dayOfMonth: sanitizeDay(text) })}
-                placeholder="25"
-                keyboardType="number-pad"
-              />
-            </Field>
+              <Field label="분류">
+                <View style={styles.chips}>
+                  {CATEGORIES.map((category) => (
+                    <Chip
+                      key={category}
+                      label={category}
+                      selected={draft?.category === category}
+                      onPress={() => onChange({ category })}
+                    />
+                  ))}
+                </View>
+              </Field>
 
-            <ErrorText>{error}</ErrorText>
+              <Field label="기본 금액" hint="매달 기록할 때 이 금액이 먼저 채워져요.">
+                <AmountInput
+                  size="md"
+                  value={draft?.defaultAmount ?? null}
+                  onChange={(defaultAmount) => onChange({ defaultAmount })}
+                />
+              </Field>
 
-            <Button label="저장" onPress={onSave} loading={saving} />
+              <Field label="결제일 (선택)" hint="1~31 사이 숫자">
+                <Input
+                  value={draft?.dayOfMonth ?? ''}
+                  onChangeText={(text) => onChange({ dayOfMonth: sanitizeDay(text) })}
+                  placeholder="25"
+                  keyboardType="number-pad"
+                />
+              </Field>
 
-            {draft?.id ? (
-              <Button
-                label="이 항목 지우기"
-                variant="ghost"
-                onPress={() =>
-                  confirm({
-                    title: '고정비 지우기',
-                    body: '앞으로의 기록에서 빠져요. 지난 기록은 그대로 남아요.',
-                    confirmLabel: '지우기',
-                    destructive: true,
-                    onConfirm: onRemove,
-                  })
-                }
-              />
-            ) : null}
+              <ErrorText>{error}</ErrorText>
 
-            <Button label="닫기" variant="ghost" onPress={onClose} />
-          </ScrollView>
-        </Animated.View>
-      </KeyboardAvoidingView>
+              <Button label="저장" onPress={onSave} loading={saving} />
+
+              {draft?.id ? (
+                <Button
+                  label="이 항목 지우기"
+                  variant="ghost"
+                  onPress={() =>
+                    confirm({
+                      title: '고정비 지우기',
+                      body: '앞으로의 기록에서 빠져요. 지난 기록은 그대로 남아요.',
+                      confirmLabel: '지우기',
+                      destructive: true,
+                      onConfirm: onRemove,
+                    })
+                  }
+                />
+              ) : null}
+
+              <Button label="닫기" variant="ghost" onPress={onClose} />
+            </ScrollView>
+          </Animated.View>
+        </KeyboardAvoidingView>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
 
 const useStyles = makeStyles((t) => ({
+  gestureRoot: { flex: 1 },
   backdrop: { flex: 1, backgroundColor: t.colors.overlay, justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: t.colors.bg,
@@ -229,9 +253,10 @@ const useStyles = makeStyles((t) => ({
     maxHeight: '90%',
     ...t.shadow.sheet,
   },
-  /** 알약을 감싸는 **잡는 영역**. 위아래 여백이 곧 손가락이 닿는 넓이다 */
-  grabArea: { alignItems: 'center', paddingVertical: t.space.lg },
+  /** 알약과 제목을 함께 담는 **잡는 영역**. 이 띠 전체가 손잡이다 */
+  header: { paddingTop: t.space.lg, paddingBottom: t.space.md, gap: t.space.md },
   grabber: {
+    alignSelf: 'center',
     width: 40,
     height: 4,
     borderRadius: t.radius.pill,
@@ -241,7 +266,12 @@ const useStyles = makeStyles((t) => ({
     paddingHorizontal: t.space.xl,
     gap: t.space.lg,
   },
-  sheetTitle: { ...t.font.title, fontWeight: t.weight.heavy, color: t.colors.ink },
+  sheetTitle: {
+    ...t.font.title,
+    fontWeight: t.weight.heavy,
+    color: t.colors.ink,
+    paddingHorizontal: t.space.xl,
+  },
   noticeStrong: { fontWeight: t.weight.bold, color: t.colors.inkSoft },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: t.space.sm },
 }));
