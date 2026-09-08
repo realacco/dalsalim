@@ -3,6 +3,7 @@ import {
   DISMISS_DISTANCE,
   DISMISS_VELOCITY,
   DRAG_START_SLOP,
+  dragOffset,
   shouldDismiss,
   shouldStartDrag,
 } from './gesture';
@@ -24,6 +25,25 @@ describe('고정비 아래 시트 — 끌기 판정', () => {
   it('가로로 더 많이 움직이면 안 가져온다 — 분류 칩을 훑는 손짓이다', () => {
     expect(shouldStartDrag(10, 40)).toBe(false);
     expect(shouldStartDrag(10, -40)).toBe(false);
+  });
+});
+
+describe('고정비 아래 시트 — 따라가는 거리', () => {
+  it('잡히는 순간에는 0 에서 시작한다 — 톡 튀지 않는다', () => {
+    expect(dragOffset(DRAG_START_SLOP)).toBe(0);
+  });
+
+  it('끌어내린 만큼 따라간다', () => {
+    expect(dragOffset(DRAG_START_SLOP + 50)).toBe(50);
+  });
+
+  /*
+    ↓ 코드 리뷰가 잡은 회귀. "위로 가면 값을 안 바꾼다" 로 두면 마지막 양수에 멈춰 있어서,
+    move 이벤트가 40 → -20 으로 건너뛸 때 시트가 내려간 채 손가락을 놓친다.
+  */
+  it('위로 올리면 0 에 붙는다 — 내려간 채로 멈추지 않는다', () => {
+    expect(dragOffset(-20)).toBe(0);
+    expect(dragOffset(0)).toBe(0);
   });
 });
 

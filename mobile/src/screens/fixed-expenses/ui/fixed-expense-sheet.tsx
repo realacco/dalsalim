@@ -17,7 +17,7 @@ import { AmountInput, Button, Chip, ErrorText, Field, Input, Notice } from '@/sh
 import { confirm } from '@/shared/lib/confirm';
 
 import { type Draft, sanitizeDay } from '../model/draft';
-import { DRAG_START_SLOP, shouldDismiss, shouldStartDrag } from '../model/gesture';
+import { dragOffset, shouldDismiss, shouldStartDrag } from '../model/gesture';
 
 /** 고정비 하나를 추가·수정하는 아래 시트. draft 가 없으면 닫혀 있다. */
 export function FixedExpenseSheet({
@@ -90,16 +90,7 @@ export function FixedExpenseSheet({
           같은 값을 서로 쓰면서 손가락을 안 따라오거나 튄다. 잡는 순간 스프링을 멈춘다.
         */
         onPanResponderGrant: () => translateY.stopAnimation(),
-        onPanResponderMove: (_, gesture) => {
-          /*
-            위로는 안 따라간다. 시트가 위로 뜨면 아래에 배경이 비친다.
-
-            `gesture.dy` 는 터치 시작점부터의 총 거리라 잡히는 순간 DRAG_START_SLOP 만큼
-            이미 가 있다. 그만큼 빼야 손가락이 짚은 자리에서 톡 튀지 않고 이어진다.
-          */
-          const offset = gesture.dy - DRAG_START_SLOP;
-          if (offset > 0) translateY.setValue(offset);
-        },
+        onPanResponderMove: (_, gesture) => translateY.setValue(dragOffset(gesture.dy)),
         onPanResponderRelease: (_, gesture) => {
           if (shouldDismiss(gesture.dy, gesture.vy)) onCloseRef.current();
           else settle();
