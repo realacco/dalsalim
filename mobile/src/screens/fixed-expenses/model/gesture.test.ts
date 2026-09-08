@@ -29,12 +29,17 @@ describe('고정비 아래 시트 — 끌기 판정', () => {
 });
 
 describe('고정비 아래 시트 — 따라가는 거리', () => {
-  it('잡히는 순간에는 0 에서 시작한다 — 톡 튀지 않는다', () => {
-    expect(dragOffset(DRAG_START_SLOP)).toBe(0);
+  /*
+    ↓ 여기의 dy 는 **잡힌 자리부터**의 거리다 (PanResponder 가 grant 에서 0 으로 되돌린다).
+    slop 을 빼면 처음 4dp 가 죽고 그 뒤로도 손가락보다 4dp 위에서 따라온다 — 그래서 그대로 쓴다.
+  */
+  it('잡힌 자리에서 0 으로 시작한다', () => {
+    expect(dragOffset(0)).toBe(0);
   });
 
-  it('끌어내린 만큼 따라간다', () => {
-    expect(dragOffset(DRAG_START_SLOP + 50)).toBe(50);
+  it('끌어내린 만큼 그대로 따라간다 — 어긋나지 않는다', () => {
+    expect(dragOffset(50)).toBe(50);
+    expect(dragOffset(DRAG_START_SLOP)).toBe(DRAG_START_SLOP);
   });
 
   /*
