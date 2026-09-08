@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { Stack, router, usePathname } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ThemeProvider, makeStyles, useTheme } from '@/shared/config/theme-provider';
@@ -21,15 +22,25 @@ const queryClient = new QueryClient({
   },
 });
 
+/** ThemeProvider 바깥이라 `makeStyles` 를 못 쓴다. 색·간격이 아니라 레이아웃 값이다 */
+const FILL = { flex: 1 } as const;
+
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <QueryClientProvider client={queryClient}>
-        <SafeAreaProvider>
-          <AppShell />
-        </SafeAreaProvider>
-      </QueryClientProvider>
-    </ThemeProvider>
+    /*
+      gesture-handler 가 요구하는 뿌리. 여태 앱 어디에도 없었고, 제스처를 쓰는 곳이
+      고정비 시트(Modal 안에 따로 심는다) 하나뿐이라 티가 안 났다.
+      루트에 두는 것이 라이브러리가 정한 기본 설치 모양이다.
+    */
+    <GestureHandlerRootView style={FILL}>
+      <ThemeProvider>
+        <QueryClientProvider client={queryClient}>
+          <SafeAreaProvider>
+            <AppShell />
+          </SafeAreaProvider>
+        </QueryClientProvider>
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }
 

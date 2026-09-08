@@ -71,6 +71,20 @@ export function FixedExpenseSheet({
     if (isOpen) translateY.setValue(0);
   }, [isOpen, translateY]);
 
+  /**
+   * 닫기를 **다음 프레임으로 미룬다.**
+   *
+   * `onEnd` 안에서 곧바로 닫으면 제스처가 정리를 끝내기 전에 `Modal` 이 통째로 뜯겨 나간다.
+   * 그러면 다시 열었을 때 한동안 터치가 안 먹는다 — 분류 칩이 눌린 것처럼 보이는데
+   * (`PressableScale` 의 눌림 효과는 `onPressIn` 이라 뜬다) **`onPress` 가 안 불려서
+   * 실제로는 아무것도 안 골라진다.** 스크롤을 한 번 하면 그제야 풀린다.
+   *
+   * 버튼으로 닫을 때는 이 증상이 없다 — 진행 중인 제스처가 없기 때문이다. 그 차이가 근거다.
+   */
+  const dismiss = useCallback(() => {
+    requestAnimationFrame(() => onCloseRef.current());
+  }, []);
+
   const settle = useCallback(() => {
     Animated.spring(translateY, {
       toValue: 0,
@@ -117,14 +131,14 @@ export function FixedExpenseSheet({
             `PanResponder` 때는 release 와 terminate 로 갈려 있던 구분이다.
           */
           if (!success) return;
-          if (shouldDismiss(event.translationY, event.velocityY)) onCloseRef.current();
+          if (shouldDismiss(event.translationY, event.velocityY)) dismiss();
           else settle();
         })
         // 잡히지 못했거나 뺏긴 경우를 제자리로. 끌린 채 남으면 아래가 벌어진다
         .onFinalize((_event, success) => {
           if (!success) settle();
         }),
-    [translateY, settle],
+    [translateY, settle, dismiss],
   );
 
   /**
