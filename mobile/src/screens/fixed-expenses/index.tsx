@@ -61,8 +61,12 @@ export default function FixedScreen() {
                   <Pressable
                     onPress={() => x.openEdit(item, group.membershipId)}
                     style={styles.itemMain}
+                    /*
+                      라벨을 주지 않는다. 주면 안쪽 Text 들을 훑어 만들던 기본 라벨을 **대체**해서
+                      스크린리더에서 분류와 금액이 사라진다. 지금 그대로 두면
+                      "통신비, 통신 · 매월 25일, 55,000원" 이 읽히고, 옆의 × 는 자기 라벨이 있어 구분된다.
+                    */
                     accessibilityRole="button"
-                    accessibilityLabel={`${item.name} 수정`}
                   >
                     <View style={{ flex: 1, gap: space.xxs }}>
                       <Text style={styles.itemName}>{item.name}</Text>
@@ -168,7 +172,16 @@ const useStyles = makeStyles((t) => ({
     글리프만 커져서 박스를 넘어 잘린다. padding 이면 박스가 같이 커진다.
     손가락이 닿는 넓이도 이 padding 이 만든다 — hitSlop 은 부모 경계를 못 넘어 여기선 안 먹는다.
   */
-  itemDelete: { padding: t.space.md, alignItems: 'center', justifyContent: 'center' },
+  itemDelete: {
+    padding: t.space.md,
+    /*
+      × 글리프가 가늘어 padding 만으로는 가로가 35dp 남짓이다. 안드로이드 권장 최소 48dp 를
+      **하한**으로 준다 — 고정이 아니라서 글꼴을 키우면 padding 이 그 위로 더 넓힌다.
+    */
+    minWidth: t.space.xxl + t.space.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   /* Button 과 달리 PressableScale 은 disabled 로 안 흐려진다. 안 흐리면 "눌러도 반응 없음"으로 보인다 */
   itemDeleteBusy: { opacity: t.opacity.disabled },
   /* 목록을 훑을 때 눈에 먼저 걸리면 안 된다 — 주인공은 이름과 금액이다 */
