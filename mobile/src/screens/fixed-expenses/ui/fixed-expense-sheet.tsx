@@ -118,8 +118,9 @@ export function FixedExpenseSheet({
         .activeOffsetY(DRAG_START_SLOP)
         .failOffsetX([-DRAG_CANCEL_X, DRAG_CANCEL_X])
         /*
-          복귀 스프링이 도는 중에 다시 잡으면 스프링(네이티브)과 아래의 setValue(JS)가
-          같은 값을 서로 쓰면서 손가락을 안 따라오거나 튄다. 잡는 순간 스프링을 멈춘다.
+          복귀 스프링이 도는 중에 다시 잡으면 **도는 애니메이션과 아래의 `setValue` 가
+          같은 값을 두고 싸워서** 손가락을 안 따라오거나 튄다. 잡는 순간 스프링을 멈춘다.
+          (스레드가 갈려서가 아니다 — 위에서 드라이버를 껐으니 둘 다 JS 쪽이다)
         */
         .onStart(() => translateY.stopAnimation())
         .onUpdate((event) => translateY.setValue(dragOffset(event.translationY)))
