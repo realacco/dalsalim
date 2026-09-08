@@ -27,7 +27,7 @@ on:
         required: true
         type: string
       force:
-        description: '가드를 무시하고 발행 (재빌드까지 끝났는데 가드가 막을 때만)'
+        description: '네이티브 가드를 무시하고 발행 (재빌드를 이미 끝냈거나, 순수 JS 변경뿐일 때)'
         required: false
         default: false
         type: boolean
@@ -71,11 +71,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      # force 로도 못 지나간다. force 는 "재빌드를 끝냈다" 는 뜻이지
+      # "아무 브랜치에서나 가족에게 쏴도 된다" 는 뜻이 아니다 — 손잡이 하나로 두 위험을 끄지 않는다.
+      # 정말 브랜치에서 쏴야 하면 로컬에서 eas update 를 직접 돌린다 (README 「고친 것을 가족에게 보내기」)
       - name: main 에서 쏘는지 확인
+        env:
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          if [ "${{ github.ref }}" != "refs/heads/main" ] && [ "${{ github.event.inputs.force }}" != "true" ]; then
-            echo "::error::${{ github.ref_name }} 에서 발행하려 합니다."
-            echo "가족이 받는 번들은 main 에서만 나가야 합니다. 정말 필요하면 force 로 다시 돌리세요."
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "::error::'$REF_NAME' 에서 발행하려 합니다. 가족이 받는 번들은 main 에서만 나갑니다."
             exit 1
           fi
 
@@ -100,12 +104,18 @@ jobs:
           fi
 
       # eas update 는 JS 번들만 바꾼다. 네이티브가 바뀐 코드를 내보내면 앱이 죽는데,
-      # 발행 자체는 초록으로 성공해서 사람은 가족이 말해줄 때까지 모른다
+      # 발행 자체는 초록으로 성공해서 사람은 가족이 말해줄 때까지 모른다.
+      # app.json 과 package.json 을 같이 본다 — config plugin 이 없는 네이티브 모듈은
+      # app.json 을 안 건드리고 들어오므로, 한쪽만 보면 그 길이 열려 있다
       - name: 네이티브 가드
         if: ${{ steps.base.outputs.sha != '' && github.event.inputs.force != 'true' }}
         run: |
-          git show "${{ steps.base.outputs.sha }}:mobile/app.json" > /tmp/app-before.json
-          node scripts/ota-native-guard.mjs /tmp/app-before.json mobile/app.json
+          BASE='${{ steps.base.outputs.sha }}'
+          git show "$BASE:mobile/app.json" > /tmp/app-before.json
+          git show "$BASE:mobile/package.json" > /tmp/package-before.json
+          node scripts/ota-native-guard.mjs \
+            /tmp/app-before.json mobile/app.json \
+            /tmp/package-before.json mobile/package.json
 
       - name: 발행
         working-directory: mobile
@@ -129,12 +139,14 @@ jobs:
             echo "| | |"
             echo "|---|---|"
             echo "| 채널 | \`$BRANCH\` |"
-            echo "| 메시지 | $MESSAGE |"
             echo "| 커밋 | \`${{ github.sha }}\` |"
             echo "| 누른 사람 | @${{ github.actor }} |"
             if [ "${{ github.event.inputs.force }}" = "true" ]; then
-              echo "| 가드 | ⚠️ force 로 건너뜀 |"
+              echo "| 네이티브 가드 | ⚠️ force 로 건너뜀 |"
             fi
+            echo ""
+            # 표 밖에 둔다 — 사람이 친 문장에 | 가 들어가면 표가 깨진다
+            echo "> $MESSAGE"
             echo ""
             echo "<details><summary>eas update 로그</summary>"
             echo ""
