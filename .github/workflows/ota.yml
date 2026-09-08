@@ -1,0 +1,155 @@
+# OTA 발행 — 버튼으로 쏜다.
+#
+# 왜 버튼인가: CI 가 보는 것은 1층(순수 함수)과 2층(API 흐름)뿐이다.
+# 화면은 사람이 에뮬레이터에서 봐야 하고(.claude/rules/testing.md), 머지에 발행을 걸면
+# 정확히 그 층만 건너뛴 채로 가족 폰에 내려간다. 게다가 잘못 나간 번들은
+# **다음에 앱을 켤 때** 고쳐지므로, 그때까지 가족은 깨진 화면을 본다.
+#
+# 그래서 편의(로컬에 eas CLI·로그인 없이 클릭 한 번)만 가져오고,
+# "3층 확인 뒤에 누른다" 는 순서는 사람에게 남긴다.
+#
+#   준비물: Expo 계정의 Access Token 을 저장소 시크릿 EXPO_TOKEN 으로 넣는다
+#           https://expo.dev/settings/access-tokens
+
+name: OTA 발행
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: '어느 채널로 쏠까요 (지금 가족이 쓰는 APK 는 preview 로 구웠습니다)'
+        required: true
+        default: preview
+        type: choice
+        options: [preview, production]
+      message:
+        description: '무엇을 고쳤는지 한 줄 (Expo 발행 목록에 그대로 남습니다)'
+        required: true
+        type: string
+      force:
+        description: '가드를 무시하고 발행 (재빌드까지 끝났는데 가드가 막을 때만)'
+        required: false
+        default: false
+        type: boolean
+
+# 같은 채널로 두 발이 겹치면 안 된다. 앞의 것을 취소하지도 않는다 — 이미 나갔을 수 있다
+concurrency:
+  group: ota-${{ github.event.inputs.branch }}
+  cancel-in-progress: false
+
+permissions:
+  # 발행 지점을 태그로 남긴다 (다음 실행의 가드 기준이자 감사 기록)
+  contents: write
+
+jobs:
+  publish:
+    name: eas update → ${{ github.event.inputs.branch }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      HUSKY: 0
+      TAG: ota-${{ github.event.inputs.branch }}
+      # 사람이 친 문장은 셸에 직접 끼워넣지 않는다 — 따옴표 하나에 실행이 깨진다
+      BRANCH: ${{ github.event.inputs.branch }}
+      MESSAGE: ${{ github.event.inputs.message }}
+
+    steps:
+      - name: EXPO_TOKEN 확인
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::저장소 시크릿 EXPO_TOKEN 이 없습니다."
+            echo "https://expo.dev/settings/access-tokens 에서 발급해"
+            echo "Settings → Secrets and variables → Actions 에 EXPO_TOKEN 으로 넣어주세요."
+            exit 1
+          fi
+
+      # 가드가 지난 발행 시점과 비교하므로 히스토리와 태그가 다 있어야 한다
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: main 에서 쏘는지 확인
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/main" ] && [ "${{ github.event.inputs.force }}" != "true" ]; then
+            echo "::error::${{ github.ref_name }} 에서 발행하려 합니다."
+            echo "가족이 받는 번들은 main 에서만 나가야 합니다. 정말 필요하면 force 로 다시 돌리세요."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      # eas update 는 번들링을 여기서 돌린다. 앱 의존성이 다 있어야 한다
+      - name: 앱 의존성
+        run: npm ci --prefix mobile
+
+      - name: 지난 발행 시점 찾기
+        id: base
+        run: |
+          if git rev-parse -q --verify "refs/tags/$TAG" > /dev/null; then
+            echo "sha=$(git rev-parse "refs/tags/$TAG")" >> "$GITHUB_OUTPUT"
+          else
+            echo "이 채널의 첫 발행입니다 — 비교할 기준이 없어 가드를 건너뜁니다"
+            echo "sha=" >> "$GITHUB_OUTPUT"
+          fi
+
+      # eas update 는 JS 번들만 바꾼다. 네이티브가 바뀐 코드를 내보내면 앱이 죽는데,
+      # 발행 자체는 초록으로 성공해서 사람은 가족이 말해줄 때까지 모른다
+      - name: 네이티브 가드
+        if: ${{ steps.base.outputs.sha != '' && github.event.inputs.force != 'true' }}
+        run: |
+          git show "${{ steps.base.outputs.sha }}:mobile/app.json" > /tmp/app-before.json
+          node scripts/ota-native-guard.mjs /tmp/app-before.json mobile/app.json
+
+      - name: 발행
+        working-directory: mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -o pipefail
+          npx eas-cli@latest update \
+            --branch "$BRANCH" \
+            --message "$MESSAGE" \
+            --non-interactive 2>&1 | tee /tmp/eas-update.log
+          # 여기에 환경변수 검사를 붙일 수 있다 (시행착오 1-9):
+          #   grep -q 'loaded from' /tmp/eas-update.log || exit 1
+
+      - name: 요약 남기기
+        if: always()
+        run: |
+          {
+            echo "## OTA 발행 — ${{ job.status }}"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| 채널 | \`$BRANCH\` |"
+            echo "| 메시지 | $MESSAGE |"
+            echo "| 커밋 | \`${{ github.sha }}\` |"
+            echo "| 누른 사람 | @${{ github.actor }} |"
+            if [ "${{ github.event.inputs.force }}" = "true" ]; then
+              echo "| 가드 | ⚠️ force 로 건너뜀 |"
+            fi
+            echo ""
+            echo "<details><summary>eas update 로그</summary>"
+            echo ""
+            echo '```'
+            cat /tmp/eas-update.log 2>/dev/null || echo '(발행 전에 멈췄습니다)'
+            echo '```'
+            echo ""
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # 다음 실행의 가드 기준이 된다. 발행이 성공했을 때만 옮긴다
+      - name: 발행 지점을 태그로 남기기
+        if: success()
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git tag -f "$TAG" "${{ github.sha }}"
+          git push -f origin "refs/tags/$TAG"
