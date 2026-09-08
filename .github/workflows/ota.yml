@@ -127,8 +127,6 @@ jobs:
             --branch "$BRANCH" \
             --message "$MESSAGE" \
             --non-interactive 2>&1 | tee /tmp/eas-update.log
-          # 여기에 환경변수 검사를 붙일 수 있다 (시행착오 1-9):
-          #   grep -q 'loaded from' /tmp/eas-update.log || exit 1
 
       - name: 요약 남기기
         if: always()
