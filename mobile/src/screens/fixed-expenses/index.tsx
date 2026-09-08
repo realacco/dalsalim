@@ -84,8 +84,8 @@ export default function FixedScreen() {
                     disabled={x.removing}
                     accessibilityRole="button"
                     accessibilityLabel={`${item.name} 지우기`}
-                    hitSlop={space.sm}
-                    style={styles.itemDelete}
+                    containerStyle={styles.itemDeleteBox}
+                    style={[styles.itemDelete, x.removing && styles.itemDeleteBusy]}
                     onPress={() =>
                       confirm({
                         title: `${item.name} 지우기`,
@@ -161,17 +161,16 @@ const useStyles = makeStyles((t) => ({
     paddingVertical: t.space.sm,
     gap: t.space.md,
   },
+  /* 레이아웃은 바깥 컨테이너로. 안쪽에 주면 부모가 내용에 딱 붙어 터치 영역이 거기서 잘린다 */
+  itemDeleteBox: { marginLeft: t.space.xs },
   /*
-    폭 360dp 에서 이만큼을 금액 오른쪽에 내준다. 이름 칸(flex:1)이 그만큼 좁아져
-    긴 이름은 두 줄로 감기지만, 잘리지는 않는다.
+    크기를 고정하지 않고 padding 으로 잡는다. 고정하면 시스템 글꼴을 키웠을 때
+    글리프만 커져서 박스를 넘어 잘린다. padding 이면 박스가 같이 커진다.
+    손가락이 닿는 넓이도 이 padding 이 만든다 — hitSlop 은 부모 경계를 못 넘어 여기선 안 먹는다.
   */
-  itemDelete: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: t.space.xs,
-  },
+  itemDelete: { padding: t.space.md, alignItems: 'center', justifyContent: 'center' },
+  /* Button 과 달리 PressableScale 은 disabled 로 안 흐려진다. 안 흐리면 "눌러도 반응 없음"으로 보인다 */
+  itemDeleteBusy: { opacity: t.opacity.disabled },
   /* 목록을 훑을 때 눈에 먼저 걸리면 안 된다 — 주인공은 이름과 금액이다 */
   itemDeleteGlyph: { ...t.font.title, color: t.colors.inkFaint },
   itemName: { ...t.font.body, color: t.colors.ink, fontWeight: t.weight.semibold },
