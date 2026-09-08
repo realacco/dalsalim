@@ -173,13 +173,19 @@ const useStyles = makeStyles((t) => ({
     손가락이 닿는 넓이도 이 padding 이 만든다 — hitSlop 은 부모 경계를 못 넘어 여기선 안 먹는다.
   */
   itemDelete: {
-    padding: t.space.md,
+    paddingVertical: t.space.md,
+    paddingLeft: t.space.md,
     /*
       × 글리프가 가늘어 padding 만으로는 가로가 35dp 남짓이다. 안드로이드 권장 최소 48dp 를
       **하한**으로 준다 — 고정이 아니라서 글꼴을 키우면 padding 이 그 위로 더 넓힌다.
     */
     minWidth: t.space.xxl + t.space.lg,
-    alignItems: 'center',
+    /*
+      글리프를 박스 오른쪽 끝에 붙인다. 가운데 두면 **터치 박스는 카드 끝에 맞는데
+      눈에 보이는 × 만 안쪽으로 들어가** 바로 위 합계 금액과 오른쪽 끝이 어긋나 보인다.
+      오른쪽 padding 을 빼서 맞추므로 터치 폭(48dp 하한)은 그대로다.
+    */
+    alignItems: 'flex-end',
     justifyContent: 'center',
   },
   /* Button 과 달리 PressableScale 은 disabled 로 안 흐려진다. 안 흐리면 "눌러도 반응 없음"으로 보인다 */
