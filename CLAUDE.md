@@ -195,7 +195,7 @@ mobile/src/   app → screens → widgets → features → entities → shared
   지출 자체는 잘못이 아니므로 지출에 경고색을 쓰지 않는다.
 - 공용 컴포넌트는 `src/shared/ui/`
   (`Card` `Button` `Input` `AmountInput` `Field` `Row` `Divider` `Chip` `ProgressBar` `Notice`
-  `PressableScale` `Muted` `ErrorText` `SectionTitle` `Loading` `QueryError`).
+  `PressableScale` `Muted` `ErrorText` `SectionTitle` `Loading` `QueryError` `ConfirmHost` `BuildInfo`).
   화면에서 같은 모양을 다시 만들기 전에 여기부터 본다.
 - **`shared/config`의 토큰과 `shared/ui` 공용 컴포넌트의 수정·삭제는 사용자에게 먼저 허락받는다.**
   모든 화면에 파급된다. 신규 추가는 허락 없이 가능하되 추가 후 보고한다.
