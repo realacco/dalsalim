@@ -34,6 +34,22 @@ describe('번들 표시', () => {
     ).toBe('v0.1.0 · 설치한 그대로');
   });
 
+  /*
+    ↓ 실기기 프로덕션에서 OTA 를 아직 안 받은 상태가 정확히 이 조합이다.
+    expo-updates 는 **내장 번들에도 id 를 준다** — 그래서 isEmbeddedLaunch 가 따로 있다.
+    id 만 보고 판단하면 "받았다"로 잘못 읽고, 이 줄을 만든 이유가 사라진다.
+  */
+  it('내장 번들에 id 가 붙어 와도 설치한 그대로로 본다', () => {
+    expect(
+      formatBuildInfo({
+        version: '0.1.0',
+        updateId: 'b6573a8e-6b84',
+        createdAt: new Date(2026, 8, 8, 20, 34),
+        isEmbedded: true,
+      }),
+    ).toBe('v0.1.0 · 설치한 그대로');
+  });
+
   it('업데이트로 떴다고 표시돼도 id 가 없으면 설치한 그대로로 본다', () => {
     expect(
       formatBuildInfo({ version: '0.1.0', updateId: null, createdAt: null, isEmbedded: false }),

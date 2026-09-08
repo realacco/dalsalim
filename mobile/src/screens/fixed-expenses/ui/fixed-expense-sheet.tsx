@@ -83,9 +83,11 @@ export function FixedExpenseSheet({
     () =>
       Gesture.Pan()
         /*
-          워클릿을 안 쓰고 JS 스레드에서 돈다. 저장소에 `babel.config.js` 가 없어 Reanimated
-          플러그인이 안 깔려 있고, 우리가 옮기는 값도 RN 기본 `Animated` 라 어차피 JS 쪽이다.
-          값 하나짜리 시트에 워클릿 배관을 들일 이유가 없다.
+          🔴 **이 줄을 지우면 안 된다.** gesture-handler 의 콜백은 기본이 워클릿(UI 스레드)인데,
+          아래에서 부르는 `translateY.setValue` 는 RN 기본 `Animated` 의 **JS 전용** API 라
+          UI 스레드에서 부르면 터진다. 콜백을 JS 스레드에 붙들어 두는 설정이다.
+
+          값 하나짜리 시트라 Reanimated 로 갈아타 워클릿 배관을 들일 이유도 없다.
         */
         .runOnJS(true)
         // 잡고 포기하는 기준을 라이브러리에 맡긴다 — 직접 재던 것을 걷어냈다
