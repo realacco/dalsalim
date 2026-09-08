@@ -16,10 +16,14 @@ import { formatBuildInfo } from '@/shared/lib/build-info';
  */
 export function BuildInfo() {
   const styles = useStyles();
+  const line = read();
+
+  // 읽을 게 없으면 여백도 남기지 않는다 — 진단용 한 줄이 화면을 건드리면 안 된다
+  if (!line) return null;
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.text}>{read()}</Text>
+      <Text style={styles.text}>{line}</Text>
     </View>
   );
 }

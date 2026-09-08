@@ -97,11 +97,18 @@ export function FixedExpenseSheet({
         */
         .onStart(() => translateY.stopAnimation())
         .onUpdate((event) => translateY.setValue(dragOffset(event.translationY)))
-        .onEnd((event) => {
+        .onEnd((event, success) => {
+          /*
+            ⚠️ `onEnd` 는 손을 뗐을 때만이 아니라 **잡힌 뒤 뺏겼을 때도** 불린다
+            (전화 수신 · 시스템 제스처). 그걸 가르는 것이 `success` 다 —
+            안 보면 120dp 끌어둔 채로 뺏겼을 때 놓지도 않은 시트가 닫힌다.
+            `PanResponder` 때는 release 와 terminate 로 갈려 있던 구분이다.
+          */
+          if (!success) return;
           if (shouldDismiss(event.translationY, event.velocityY)) onCloseRef.current();
           else settle();
         })
-        // 잡히지 못했거나 뺏긴 경우까지 제자리로. 끌린 채 남으면 아래가 벌어진다
+        // 잡히지 못했거나 뺏긴 경우를 제자리로. 끌린 채 남으면 아래가 벌어진다
         .onFinalize((_event, success) => {
           if (!success) settle();
         }),
