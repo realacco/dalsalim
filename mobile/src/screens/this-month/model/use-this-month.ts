@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { bookKeys, fetchBook } from '@/entities/book';
 import { familyKeys, fetchJoinRequests } from '@/entities/family';
-import { openMyEntry, reopenEntry } from '@/entities/entry';
+import { deleteEntry, openMyEntry, reopenEntry } from '@/entities/entry';
 import { useSession } from '@/entities/session';
 import { MESSAGES } from '@/shared/config/messages';
 import { errorMessage } from '@/shared/lib/errors';
@@ -66,6 +66,19 @@ export function useThisMonth() {
     onError: (caught) => setError(errorMessage(caught, MESSAGES.openFailed)),
   });
 
+  /**
+   * 작성 중인 기록을 지운다 (F-ENT-10). 서버가 초안·이번 달만 통과시키므로
+   * 여기서는 다시 검사하지 않는다 — 버튼을 감추는 것은 UX 이지 방어선이 아니다.
+   */
+  const remove = useMutation({
+    mutationFn: (entryId: string) => deleteEntry(entryId),
+    onSuccess: () => {
+      setError(null);
+      void queryClient.invalidateQueries({ queryKey: bookKeys.family(familyId) });
+    },
+    onError: (caught) => setError(errorMessage(caught, MESSAGES.actionFailedBody)),
+  });
+
   const members = book.data?.members ?? [];
   const mine = members.find((m) => m.isMe);
   const notSubmitted = members.filter((m) => m.status !== 'SUBMITTED');
@@ -95,9 +108,12 @@ export function useThisMonth() {
     submittedCount: members.length - notSubmitted.length,
 
     actionError: error,
-    busy: openWizard.isPending || reopen.isPending,
+    busy: openWizard.isPending || reopen.isPending || remove.isPending,
     start: () => openWizard.mutate(),
     edit: () => mine?.entryId && reopen.mutate(mine.entryId),
+    /** 지난 달은 서버가 막는다. 여기서 같이 가려두는 건 누를 수 없는 버튼을 안 보이게 하려는 것뿐이다 */
+    canDelete: isCurrentMonth && mine?.status === 'DRAFT',
+    remove: () => mine?.entryId && remove.mutate(mine.entryId),
 
     goFamily: () => router.push('/(tabs)/family'),
     goFixed: () => router.push('/(tabs)/fixed'),
