@@ -17,25 +17,7 @@ import { AmountInput, Button, Chip, ErrorText, Field, Input, Notice } from '@/sh
 import { confirm } from '@/shared/lib/confirm';
 
 import { type Draft, sanitizeDay } from '../model/draft';
-
-/**
- * 이만큼 끌어내리거나(dp) 이보다 빠르게 튕기면 닫는다. **둘 중 하나만** 넘으면 된다 —
- * 거리로만 재면 짧고 빠르게 튕기는 손짓이 안 먹고, 속도로만 재면 천천히 끝까지
- * 끌어내려도 안 닫힌다.
- *
- * 디자인 값이 아니라 제스처 임계값이라 토큰으로 올리지 않고 여기 둔다.
- */
-const DISMISS_DISTANCE = 96;
-const DISMISS_VELOCITY = 0.7;
-
-/**
- * 이만큼 내려가야 "끌기"로 친다. 손가락은 가만히 있어도 몇 dp 씩 떨린다.
- *
- * ⚠️ 응답을 잡는 순간 `gesture.dy` 는 **터치 시작점부터의 총 거리**라, 시트가 이만큼
- * 톡 튀며 시작한다. 4dp 라 눈에 띌 자리는 아니지만, 실기기에서 거슬리면
- * `translateY` 에 넣을 때 이 값을 빼면 된다.
- */
-const DRAG_START_SLOP = 4;
+import { DRAG_START_SLOP, shouldDismiss, shouldStartDrag } from '../model/gesture';
 
 /** 고정비 하나를 추가·수정하는 아래 시트. draft 가 없으면 닫혀 있다. */
 export function FixedExpenseSheet({
@@ -101,22 +83,25 @@ export function FixedExpenseSheet({
   const pan = useMemo(
     () =>
       PanResponder.create({
-        // 세로로 확실히 움직일 때만 가로챈다 — 분류 칩을 가로로 훑는 손짓을 뺏지 않는다
-        onMoveShouldSetPanResponder: (_, gesture) =>
-          gesture.dy > DRAG_START_SLOP && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+        // 잡고 닫는 판정은 model/gesture 에 있다 — 순수 함수라 1층이 지킨다
+        onMoveShouldSetPanResponder: (_, gesture) => shouldStartDrag(gesture.dy, gesture.dx),
+        /*
+          복귀 스프링이 도는 중에 다시 잡으면 스프링(네이티브)과 아래의 setValue(JS)가
+          같은 값을 서로 쓰면서 손가락을 안 따라오거나 튄다. 잡는 순간 스프링을 멈춘다.
+        */
+        onPanResponderGrant: () => translateY.stopAnimation(),
         onPanResponderMove: (_, gesture) => {
-          // 위로는 안 따라간다. 시트가 위로 뜨면 아래에 배경이 비친다
-          if (gesture.dy > 0) translateY.setValue(gesture.dy);
+          /*
+            위로는 안 따라간다. 시트가 위로 뜨면 아래에 배경이 비친다.
+
+            `gesture.dy` 는 터치 시작점부터의 총 거리라 잡히는 순간 DRAG_START_SLOP 만큼
+            이미 가 있다. 그만큼 빼야 손가락이 짚은 자리에서 톡 튀지 않고 이어진다.
+          */
+          const offset = gesture.dy - DRAG_START_SLOP;
+          if (offset > 0) translateY.setValue(offset);
         },
         onPanResponderRelease: (_, gesture) => {
-          /*
-            속도 쪽에도 **방향**을 붙인다. 거리 쪽은 `dy > DISMISS_DISTANCE` 라 저절로
-            아래 방향이지만, 속도만 보면 위로 끌어올린 손짓에도 걸린다 —
-            아래로 살짝 눌러 잡고(dy=5) 위로 올렸다가(dy=-50) 아래로 튕기며 떼면
-            dy 는 음수라 시트는 제자리인데 vy 만 보고 닫힌다. 안 움직인 시트가 사라진다.
-          */
-          const flungDown = gesture.dy > 0 && gesture.vy > DISMISS_VELOCITY;
-          if (gesture.dy > DISMISS_DISTANCE || flungDown) onCloseRef.current();
+          if (shouldDismiss(gesture.dy, gesture.vy)) onCloseRef.current();
           else settle();
         },
         // 전화가 오는 등으로 제스처를 뺏기면 제자리로. 끌린 채 남으면 아래가 벌어진다
@@ -126,7 +111,8 @@ export function FixedExpenseSheet({
   );
 
   /**
-   * 시스템 내비게이션 영역 **위에** 여유를 얹는다. 탭 바(`widgets/tab-bar`)와 같은 계산이다.
+   * 시스템 내비게이션 영역 **위에** 여유를 얹는다. 탭 바(`widgets/tab-bar`)와 **같은 모양**이되
+   * 최소값이 다르다 — 탭 바는 `lg`, 여기는 `xl`. 같은 계산이라고 읽고 한쪽만 고치면 안 된다.
    *
    * 탭 바가 있는 화면은 탭 바 높이가 이 자리를 대신 비워준다. 시트에는 그게 없어서
    * [닫기] 가 제스처 바·3버튼 바에 그대로 깔린다 — 투명해서 가려지진 않지만 겹쳐서 안 읽힌다.
