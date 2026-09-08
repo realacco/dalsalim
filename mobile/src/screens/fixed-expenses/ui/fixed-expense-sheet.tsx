@@ -28,6 +28,15 @@ import { type Draft, sanitizeDay } from '../model/draft';
 const DISMISS_DISTANCE = 96;
 const DISMISS_VELOCITY = 0.7;
 
+/**
+ * 이만큼 내려가야 "끌기"로 친다. 손가락은 가만히 있어도 몇 dp 씩 떨린다.
+ *
+ * ⚠️ 응답을 잡는 순간 `gesture.dy` 는 **터치 시작점부터의 총 거리**라, 시트가 이만큼
+ * 톡 튀며 시작한다. 4dp 라 눈에 띌 자리는 아니지만, 실기기에서 거슬리면
+ * `translateY` 에 넣을 때 이 값을 빼면 된다.
+ */
+const DRAG_START_SLOP = 4;
+
 /** 고정비 하나를 추가·수정하는 아래 시트. draft 가 없으면 닫혀 있다. */
 export function FixedExpenseSheet({
   draft,
@@ -94,7 +103,7 @@ export function FixedExpenseSheet({
       PanResponder.create({
         // 세로로 확실히 움직일 때만 가로챈다 — 분류 칩을 가로로 훑는 손짓을 뺏지 않는다
         onMoveShouldSetPanResponder: (_, gesture) =>
-          gesture.dy > 4 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+          gesture.dy > DRAG_START_SLOP && Math.abs(gesture.dy) > Math.abs(gesture.dx),
         onPanResponderMove: (_, gesture) => {
           // 위로는 안 따라간다. 시트가 위로 뜨면 아래에 배경이 비친다
           if (gesture.dy > 0) translateY.setValue(gesture.dy);
