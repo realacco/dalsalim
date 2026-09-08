@@ -71,10 +71,34 @@ export function FixedExpenseSheet({
     if (isOpen) translateY.setValue(0);
   }, [isOpen, translateY]);
 
+  /**
+   * 닫기를 **다음 프레임으로 미룬다.**
+   *
+   * `onEnd` 안에서 곧바로 닫으면 제스처가 정리를 끝내기 전에 `Modal` 이 통째로 뜯겨 나간다.
+   * 그러면 다시 열었을 때 한동안 터치가 안 먹는다 — 분류 칩이 눌린 것처럼 보이는데
+   * (`PressableScale` 의 눌림 효과는 `onPressIn` 이라 뜬다) **`onPress` 가 안 불려서
+   * 실제로는 아무것도 안 골라진다.** 스크롤을 한 번 하면 그제야 풀린다.
+   *
+   * 버튼으로 닫을 때는 이 증상이 없다 — 진행 중인 제스처가 없기 때문이다. 그 차이가 근거다.
+   */
+  const dismiss = useCallback(() => {
+    requestAnimationFrame(() => onCloseRef.current());
+  }, []);
+
   const settle = useCallback(() => {
     Animated.spring(translateY, {
       toValue: 0,
-      useNativeDriver: true,
+      /*
+        🔴 **네이티브 드라이버를 일부러 안 쓴다.** 켜면 이 값이 네이티브로 넘어가고,
+        그 뒤 JS 의 `setValue`·`stopAnimation` 은 다리를 건너는 비동기 요청이 된다.
+        그 갈림에 두 번 데였다 —
+        ① 끌어 닫은 뒤 다시 열면 위 layout effect 의 `setValue(0)` 가 화면까지 안 닿아
+           **시트가 내려간 채로 열렸다** (#22)
+        ② `stopAnimation` 의 콜백이 늦게 와서 "스프링 도중 다시 잡기" 를 못 고쳤다 (#18 6차 리뷰)
+
+        transform 하나짜리 시트라 JS 스레드로 충분하다. 예측 가능한 쪽을 택한다.
+      */
+      useNativeDriver: false,
       ...motion.spring,
     }).start();
   }, [translateY, motion.spring]);
@@ -94,8 +118,9 @@ export function FixedExpenseSheet({
         .activeOffsetY(DRAG_START_SLOP)
         .failOffsetX([-DRAG_CANCEL_X, DRAG_CANCEL_X])
         /*
-          복귀 스프링이 도는 중에 다시 잡으면 스프링(네이티브)과 아래의 setValue(JS)가
-          같은 값을 서로 쓰면서 손가락을 안 따라오거나 튄다. 잡는 순간 스프링을 멈춘다.
+          복귀 스프링이 도는 중에 다시 잡으면 **도는 애니메이션과 아래의 `setValue` 가
+          같은 값을 두고 싸워서** 손가락을 안 따라오거나 튄다. 잡는 순간 스프링을 멈춘다.
+          (스레드가 갈려서가 아니다 — 위에서 드라이버를 껐으니 둘 다 JS 쪽이다)
         */
         .onStart(() => translateY.stopAnimation())
         .onUpdate((event) => translateY.setValue(dragOffset(event.translationY)))
@@ -107,14 +132,14 @@ export function FixedExpenseSheet({
             `PanResponder` 때는 release 와 terminate 로 갈려 있던 구분이다.
           */
           if (!success) return;
-          if (shouldDismiss(event.translationY, event.velocityY)) onCloseRef.current();
+          if (shouldDismiss(event.translationY, event.velocityY)) dismiss();
           else settle();
         })
         // 잡히지 못했거나 뺏긴 경우를 제자리로. 끌린 채 남으면 아래가 벌어진다
         .onFinalize((_event, success) => {
           if (!success) settle();
         }),
-    [translateY, settle],
+    [translateY, settle, dismiss],
   );
 
   /**
