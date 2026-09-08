@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import {
   Animated,
   KeyboardAvoidingView,
@@ -70,8 +70,14 @@ export function FixedExpenseSheet({
     onCloseRef.current = onClose;
   }, [onClose]);
 
-  /** 끌어내리다 만 위치가 다음에 열 때까지 남아 있으면 안 된다 */
-  useEffect(() => {
+  /**
+   * 끌어내리다 만 위치가 다음에 열 때까지 남아 있으면 안 된다.
+   *
+   * `useEffect` 가 아니라 layout effect 인 이유: useEffect 는 **그려진 뒤에** 돈다.
+   * 끌어내려 닫은 다음 다시 열면 옛 값(예: 130)인 채로 한 번 그려지고 나서 0 이 된다 —
+   * 슬라이드가 도는 중이라 잘 안 보이지만, 안 보이는 것과 없는 것은 다르다.
+   */
+  useLayoutEffect(() => {
     if (isOpen) translateY.setValue(0);
   }, [isOpen, translateY]);
 
@@ -94,7 +100,14 @@ export function FixedExpenseSheet({
           if (gesture.dy > 0) translateY.setValue(gesture.dy);
         },
         onPanResponderRelease: (_, gesture) => {
-          if (gesture.dy > DISMISS_DISTANCE || gesture.vy > DISMISS_VELOCITY) onCloseRef.current();
+          /*
+            속도 쪽에도 **방향**을 붙인다. 거리 쪽은 `dy > DISMISS_DISTANCE` 라 저절로
+            아래 방향이지만, 속도만 보면 위로 끌어올린 손짓에도 걸린다 —
+            아래로 살짝 눌러 잡고(dy=5) 위로 올렸다가(dy=-50) 아래로 튕기며 떼면
+            dy 는 음수라 시트는 제자리인데 vy 만 보고 닫힌다. 안 움직인 시트가 사라진다.
+          */
+          const flungDown = gesture.dy > 0 && gesture.vy > DISMISS_VELOCITY;
+          if (gesture.dy > DISMISS_DISTANCE || flungDown) onCloseRef.current();
           else settle();
         },
         // 전화가 오는 등으로 제스처를 뺏기면 제자리로. 끌린 채 남으면 아래가 벌어진다
