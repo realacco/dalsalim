@@ -46,6 +46,19 @@ export function AmountInput({
   const [draft, setDraft] = useState('');
 
   /**
+   * 포커스한 순간 **한 번만** 전체 선택하기 위한 값. 첫 타이핑에 곧바로 놓아준다.
+   *
+   * ★ `selectTextOnFocus` 를 쓰면 안 된다. 안드로이드에서는 그 값이 켜져 있으면
+   * **포커스를 잡은 뒤 글자가 프로그램으로 세팅될 때마다 전체 선택이 다시 걸린다.**
+   * 이 칸은 한 글자마다 `draft` 를 세팅하는 컨트롤드 입력이라 매 글자가 그 조건에 걸려서,
+   * 첫 숫자에 블록이 씌워지고 다음 숫자가 그걸 덮어썼다 — 두 번째 입력이 첫 글자가 됐다.
+   *
+   * 그래도 전체 선택 자체는 지켜야 한다. 위저드는 **지난달 금액이 채워진 채 자동 포커스**되는
+   * 화면이라, 다른 금액을 적으려면 먼저 지워야 하는 칸이 되면 매달 성가시다.
+   */
+  const [selection, setSelection] = useState<{ start: number; end: number } | undefined>(undefined);
+
+  /**
    * 담아둔 금액들. 총액(value)은 바깥이 갖고 있고 여기서는 "무엇을 더해 그 총액이 됐는지"만 기억한다.
    * 그래서 입력칸에 보일 값은 빼서 구한다 — 상태를 두 벌 두면 서로 어긋난다.
    */
@@ -89,11 +102,17 @@ export function AmountInput({
         <TextInput
           value={text}
           onFocus={() => {
-            setDraft(current === null || current === 0 ? '' : String(current));
+            const raw = current === null || current === 0 ? '' : String(current);
+            setDraft(raw);
             setEditing(true);
+            // 채워져 있던 금액은 통째로 선택해 둔다. 바로 새 금액을 칠 수 있게
+            setSelection(raw === '' ? undefined : { start: 0, end: raw.length });
           }}
           onBlur={() => setEditing(false)}
           onChangeText={(next) => {
+            // 첫 글자를 치는 순간 커서를 놓아준다. 계속 쥐고 있으면 매 글자가 선택된다
+            setSelection(undefined);
+
             // 자릿수를 먼저 자른다. 상한을 넘겨 잘린 값이 화면에 남으면
             // 사용자가 친 것과 보이는 게 어긋난다.
             const digits = digitsOnly(next)
@@ -112,7 +131,7 @@ export function AmountInput({
           placeholder="0"
           placeholderTextColor={colors.inkFaint}
           autoFocus={autoFocus}
-          selectTextOnFocus
+          selection={selection}
           style={[styles.input, size === 'md' && styles.inputMd, editing && styles.inputEditing]}
         />
         <Text style={[styles.unit, size === 'md' && styles.unitMd]}>원</Text>
