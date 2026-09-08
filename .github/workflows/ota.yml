@@ -131,6 +131,22 @@ jobs:
             --message "$MESSAGE" \
             --non-interactive 2>&1 | tee /tmp/eas-update.log
 
+      # 시행착오 1-9 — 발행은 초록인데 주소가 빠진 번들이 나갔던 사고.
+      # 그때도 경고가 로그에 찍혀 있었는데 사람이 읽고 넘어갔다. 발행을 여기로 옮기면
+      # 로그는 요약의 접힌 블록 안으로 들어가고 사람 눈에는 "success" 만 보이므로,
+      # 사람이 하던 확인을 기계가 대신 한다.
+      #
+      # 이미 나간 뒤라 되돌리진 못한다. 다만 가족이 말해주기 전에 알고,
+      # 실패하면 태그가 안 옮겨져서 **나쁜 발행이 다음 가드의 기준이 되지 않는다.**
+      - name: 환경변수가 번들에 실렸는지 확인
+        run: |
+          if ! grep -q 'EXPO_PUBLIC_API_URL' /tmp/eas-update.log; then
+            echo "::error::EAS 환경변수가 안 실렸습니다 — 주소가 빠진 번들이 나갔어요 (시행착오 1-9)"
+            echo "앱은 켜지지만 모든 화면이 '서버에 닿지 못했어요' 가 됩니다."
+            echo "eas env:set 으로 등록한 뒤 다시 발행하세요 — README 「고친 것을 가족에게 보내기」"
+            exit 1
+          fi
+
       - name: 요약 남기기
         if: always()
         run: |
@@ -150,6 +166,14 @@ jobs:
               echo "| 네이티브 가드 | ⚠️ force 로 건너뜀 |"
             else
               echo "| 네이티브 가드 | ✅ 통과 |"
+            fi
+            # 발행 전에 멈췄으면 로그가 없다. 그때 ❌ 로 적으면 없는 사고를 만들어낸다
+            if [ -f /tmp/eas-update.log ]; then
+              if grep -q 'EXPO_PUBLIC_API_URL' /tmp/eas-update.log; then
+                echo "| 환경변수 | ✅ 번들에 실림 |"
+              else
+                echo "| 환경변수 | ❌ 안 실림 — 주소 없는 번들 (시행착오 1-9) |"
+              fi
             fi
             echo ""
             # 표 밖에 둔다 — 사람이 친 문장에 | 가 들어가면 표가 깨진다

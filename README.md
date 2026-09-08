@@ -395,7 +395,7 @@ eas env:set --name EXPO_PUBLIC_API_URL --value https://dalsalim-production.up.ra
   --visibility plaintext --environment preview --environment production
 ```
 
-발행할 때마다 로그에 이 줄이 보이는지 확인한다.
+발행할 때마다 로그에 이 줄이 보여야 한다.
 
 ```
 Environment variables ... loaded from the "preview" environment on EAS: EXPO_PUBLIC_API_URL.
@@ -403,6 +403,10 @@ Environment variables ... loaded from the "preview" environment on EAS: EXPO_PUB
 
 `No environment variables ... found` 로 나오면 **주소가 빠진 번들이 나간다.**
 앱은 켜지지만 모든 화면이 "서버에 닿지 못했어요" 가 된다 (시행착오 1-9).
+
+**버튼으로 쏘면 워크플로가 이걸 대신 읽는다.** 안 실렸으면 빨개지고, 그러면 태그도 안 옮겨져서
+나쁜 발행이 다음 가드의 기준이 되지 않는다. 로컬에서 직접 쏠 때만 눈으로 확인한다 —
+1-9 는 사람이 이 경고를 **읽고도 넘어가서** 났다.
 
 **네이티브가 바뀌면 여전히 재빌드다.** 아래 중 하나라도 건드리면 `eas build` 를 다시 돌리고
 가족이 다시 설치해야 한다.
