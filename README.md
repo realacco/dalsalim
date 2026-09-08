@@ -345,12 +345,41 @@ eas build --platform android --profile preview     # 클라우드 빌드 → APK
 
 APK 를 다시 굽고 다시 설치하게 하지 않아도 된다. **JS·화면 변경은 이걸로 나간다.**
 
+**GitHub 의 [Actions → OTA 발행 → Run workflow] 버튼을 쓴다.** 채널과 메시지를 넣고 누르면 된다.
+로컬에 `eas` CLI 도 로그인도 필요 없고, 발행 전에 네이티브 가드가 한 번 걸러준다.
+
 ```bash
+# 로컬에서 직접 쏘려면 (버튼과 같은 것을 한다)
 cd mobile
 eas update --branch preview --message "이번 달 홈 여백 조정"
 ```
 
 앱을 껐다 켜면 반영된다. 2 분쯤 걸린다.
+
+⚠️ **머지하면 자동으로 나가지 않는다. 일부러 그렇게 뒀다.** CI 가 보는 것은 1층·2층뿐이고
+화면은 사람이 눌러봐야 안다(`.claude/rules/testing.md`). 자동 발행은 정확히 그 층만 건너뛴다.
+게다가 잘못 나간 번들은 **다음에 앱을 켤 때** 고쳐지므로, 그때까지 가족은 깨진 화면을 본다.
+**에뮬레이터에서 한 바퀴 돌린 뒤에 누른다.**
+
+> **워크플로가 막아주는 것** — 지난 발행 뒤에 `mobile/app.json` 의 네이티브 설정이나
+> `mobile/package.json` 의 의존성이 바뀌었으면 발행을 멈춘다. 그건 재빌드가 필요한 변경이라
+> OTA 로 내보내면 앱이 죽는데, 발행 자체는 초록으로 성공해서 사람은 알아채지 못한다.
+>
+> **두 곳을 다 보는 게 중요하다.** config plugin 이 필요 없는 네이티브 모듈은
+> `expo install` 로 넣어도 `app.json` 이 그대로다 — `app.json` 만 보면 그 길이 열려 있다.
+> 순수 JS 라이브러리만 늘었다면 `force` 로 지나간다. 무엇이 바뀌었는지 이름까지 찍어준다.
+>
+> 무엇을 막고 무엇을 놓아주는지는 `tests/tools/ota-native-guard.test.mjs` 가 지킨다.
+> 발행 지점은 `ota-<채널>` 태그로 남는다 — 다음 실행의 비교 기준이자 "언제 뭐가 나갔나" 의 기록이다.
+>
+> ⚠️ **비교할 태그가 없으면 가드가 안 돈다.** 그러니 **첫 발행 전에 태그를 심어둔다** —
+> 기준은 *지금 가족 폰에 깔린 APK 를 구운 커밋* 이다. 안 그러면 하필 새 경로의 시험 발사가
+> 가드 없이 나간다.
+>
+> ```bash
+> git tag ota-preview <가족 APK 를 구운 커밋>   # 모르겠으면 그 APK 를 굽던 무렵의 main
+> git push origin ota-preview
+> ```
 
 ⚠️ **`eas.json` 의 `env` 는 `eas update` 에 안 실린다.** 빌드용과 업데이트용 저장소가 다르다.
 
@@ -366,7 +395,7 @@ eas env:set --name EXPO_PUBLIC_API_URL --value https://dalsalim-production.up.ra
   --visibility plaintext --environment preview --environment production
 ```
 
-발행할 때마다 로그에 이 줄이 보이는지 확인한다.
+발행할 때마다 로그에 이 줄이 보여야 한다.
 
 ```
 Environment variables ... loaded from the "preview" environment on EAS: EXPO_PUBLIC_API_URL.
@@ -374,6 +403,10 @@ Environment variables ... loaded from the "preview" environment on EAS: EXPO_PUB
 
 `No environment variables ... found` 로 나오면 **주소가 빠진 번들이 나간다.**
 앱은 켜지지만 모든 화면이 "서버에 닿지 못했어요" 가 된다 (시행착오 1-9).
+
+**버튼으로 쏘면 워크플로가 이걸 대신 읽는다.** 안 실렸으면 빨개지고, 그러면 태그도 안 옮겨져서
+나쁜 발행이 다음 가드의 기준이 되지 않는다. 로컬에서 직접 쏠 때만 눈으로 확인한다 —
+1-9 는 사람이 이 경고를 **읽고도 넘어가서** 났다.
 
 **네이티브가 바뀌면 여전히 재빌드다.** 아래 중 하나라도 건드리면 `eas build` 를 다시 돌리고
 가족이 다시 설치해야 한다.
