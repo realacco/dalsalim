@@ -78,7 +78,7 @@ jobs:
         env:
           REF_NAME: ${{ github.ref_name }}
         run: |
-          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
             echo "::error::'$REF_NAME' 에서 발행하려 합니다. 가족이 받는 번들은 main 에서만 나갑니다."
             exit 1
           fi
@@ -123,7 +123,10 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           set -o pipefail
-          npx eas-cli@latest update \
+          # 메이저를 고정한다. 가족에게 나가는 번들을 만드는 도구가 매번 모르는 버전이면,
+          # CLI 가 환경변수 해석을 바꾸는 날 조용히 주소 없는 번들이 나간다 (시행착오 1-9 와 같은 모양).
+          # 올릴 때는 eas.json 의 cli.version 과 같이 올린다
+          npx eas-cli@^23 update \
             --branch "$BRANCH" \
             --message "$MESSAGE" \
             --non-interactive 2>&1 | tee /tmp/eas-update.log
@@ -139,8 +142,14 @@ jobs:
             echo "| 채널 | \`$BRANCH\` |"
             echo "| 커밋 | \`${{ github.sha }}\` |"
             echo "| 누른 사람 | @${{ github.actor }} |"
-            if [ "${{ github.event.inputs.force }}" = "true" ]; then
+            # 건너뛴 것도 남긴다. 이 워크플로의 논지가 "사람 기억은 샌다" 인데,
+            # 정작 "그때 가드가 돌았나" 를 사람 기억에 맡기면 앞뒤가 안 맞는다
+            if [ -z "${{ steps.base.outputs.sha }}" ]; then
+              echo "| 네이티브 가드 | ⏭️ 기준 태그(\`$TAG\`) 없음 — 건너뜀 |"
+            elif [ "${{ github.event.inputs.force }}" = "true" ]; then
               echo "| 네이티브 가드 | ⚠️ force 로 건너뜀 |"
+            else
+              echo "| 네이티브 가드 | ✅ 통과 |"
             fi
             echo ""
             # 표 밖에 둔다 — 사람이 친 문장에 | 가 들어가면 표가 깨진다
