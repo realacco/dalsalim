@@ -126,8 +126,13 @@ jobs:
           # 메이저를 고정한다. 가족에게 나가는 번들을 만드는 도구가 매번 모르는 버전이면,
           # CLI 가 환경변수 해석을 바꾸는 날 조용히 주소 없는 번들이 나간다 (시행착오 1-9 와 같은 모양).
           # 올릴 때는 eas.json 의 cli.version 과 같이 올린다
+          # --branch 는 "어느 채널로 내려갈까", --environment 는 "환경변수를 어디서 읽을까" 로
+          # 서로 다른 스위치다. 지금은 두 환경에 같은 주소가 들어 있어 어긋나도 티가 안 나지만,
+          # preview 를 스테이징 주소로 가르는 날 preview 채널에 production 주소가 실려 나간다.
+          # 채널 이름과 환경 이름이 글자까지 같으니 그대로 넘겨 못박는다
           npx eas-cli@^23 update \
             --branch "$BRANCH" \
+            --environment "$BRANCH" \
             --message "$MESSAGE" \
             --non-interactive 2>&1 | tee /tmp/eas-update.log
 
@@ -139,13 +144,20 @@ jobs:
       # 이미 나간 뒤라 되돌리진 못한다. 다만 가족이 말해주기 전에 알고,
       # 실패하면 태그가 안 옮겨져서 **나쁜 발행이 다음 가드의 기준이 되지 않는다.**
       - name: 환경변수가 번들에 실렸는지 확인
+        id: envcheck
         run: |
-          if ! grep -q 'EXPO_PUBLIC_API_URL' /tmp/eas-update.log; then
-            echo "::error::EAS 환경변수가 안 실렸습니다 — 주소가 빠진 번들이 나갔어요 (시행착오 1-9)"
-            echo "앱은 켜지지만 모든 화면이 '서버에 닿지 못했어요' 가 됩니다."
-            echo "eas env:set 으로 등록한 뒤 다시 발행하세요 — README 「고친 것을 가족에게 보내기」"
-            exit 1
+          # 변수 이름만 찾으면 안 된다. 사람이 친 메시지도 로그에 그대로 찍히므로
+          # "EXPO_PUBLIC_API_URL 주소 교체" 같은 메시지가 검사를 통과시킨다 —
+          # 하필 그 변수를 만지느라 쏘는 발행에서 눈을 감는다. 성공 문구째로 본다
+          if grep -qE 'loaded from the .*environment on EAS.*EXPO_PUBLIC_API_URL' /tmp/eas-update.log; then
+            echo 'ok=true' >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          echo 'ok=false' >> "$GITHUB_OUTPUT"
+          echo "::error::EAS 환경변수가 안 실렸습니다 — 주소가 빠진 번들이 나갔어요 (시행착오 1-9)"
+          echo "앱은 켜지지만 모든 화면이 '서버에 닿지 못했어요' 가 됩니다."
+          echo "eas env:set 으로 등록한 뒤 다시 발행하세요 — README 「고친 것을 가족에게 보내기」"
+          exit 1
 
       - name: 요약 남기기
         if: always()
@@ -167,13 +179,13 @@ jobs:
             else
               echo "| 네이티브 가드 | ✅ 통과 |"
             fi
-            # 발행 전에 멈췄으면 로그가 없다. 그때 ❌ 로 적으면 없는 사고를 만들어낸다
-            if [ -f /tmp/eas-update.log ]; then
-              if grep -q 'EXPO_PUBLIC_API_URL' /tmp/eas-update.log; then
-                echo "| 환경변수 | ✅ 번들에 실림 |"
-              else
-                echo "| 환경변수 | ❌ 안 실림 — 주소 없는 번들 (시행착오 1-9) |"
-              fi
+            # 판정은 위 스텝에서 한 번만 한다. 여기서 grep 을 또 하면
+            # 문구를 고칠 때 한쪽만 고쳐져 조용히 갈라진다.
+            # 값이 비어 있으면 발행 전에 멈춘 것이다 — 그때 ❌ 로 적으면 없는 사고를 만들어낸다
+            if [ "${{ steps.envcheck.outputs.ok }}" = "true" ]; then
+              echo "| 환경변수 | ✅ 번들에 실림 |"
+            elif [ "${{ steps.envcheck.outputs.ok }}" = "false" ]; then
+              echo "| 환경변수 | ❌ 안 실림 — 주소 없는 번들 (시행착오 1-9) |"
             fi
             echo ""
             # 표 밖에 둔다 — 사람이 친 문장에 | 가 들어가면 표가 깨진다
