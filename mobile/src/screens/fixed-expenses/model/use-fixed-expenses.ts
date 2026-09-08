@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Alert } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { bookKeys } from '@/entities/book';
@@ -54,13 +55,17 @@ export function useFixedExpenses() {
     onError: (caught) => setError(errorMessage(caught, MESSAGES.saveFailed)),
   });
 
+  /**
+   * 실패를 어디에 보여줄지는 **부르는 쪽이 정한다.**
+   * 시트에서 지우면 폼 아래 한 줄이지만, 목록에서 바로 지우면 그 자리가 없어 Alert 다.
+   * (CLAUDE.md 실패 표현 규약) 여기서 한 가지로 정해버리면 한쪽이 조용히 실패한다.
+   */
   const remove = useMutation({
     mutationFn: deleteFixedExpense,
     onSuccess: () => {
       setDraft(null);
       invalidate();
     },
-    onError: (caught) => setError(errorMessage(caught, MESSAGES.saveFailed)),
   });
 
   const total = groups.data?.groups.reduce((sum, group) => sum + group.monthlyTotal, 0) ?? 0;
@@ -100,6 +105,19 @@ export function useFixedExpenses() {
       }
       save.mutate(draft);
     },
-    removeCurrent: () => draft?.id && remove.mutate(draft.id),
+    /** 시트 안에서 지우기 — 폼이 떠 있으므로 실패는 그 아래 한 줄로 */
+    removeCurrent: () =>
+      draft?.id &&
+      remove.mutate(draft.id, {
+        onError: (caught) => setError(errorMessage(caught, MESSAGES.saveFailed)),
+      }),
+
+    /** 목록에서 바로 지우기 — 폼이 없어 붉은 한 줄을 놓을 자리가 없다. 그래서 Alert */
+    removeItem: (id: string) =>
+      remove.mutate(id, {
+        onError: (caught) =>
+          Alert.alert(MESSAGES.actionFailed, errorMessage(caught, MESSAGES.actionFailedBody)),
+      }),
+    removing: remove.isPending,
   };
 }
