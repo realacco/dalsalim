@@ -74,7 +74,17 @@ export function FixedExpenseSheet({
   const settle = useCallback(() => {
     Animated.spring(translateY, {
       toValue: 0,
-      useNativeDriver: true,
+      /*
+        🔴 **네이티브 드라이버를 일부러 안 쓴다.** 켜면 이 값이 네이티브로 넘어가고,
+        그 뒤 JS 의 `setValue`·`stopAnimation` 은 다리를 건너는 비동기 요청이 된다.
+        그 갈림에 두 번 데였다 —
+        ① 끌어 닫은 뒤 다시 열면 위 layout effect 의 `setValue(0)` 가 화면까지 안 닿아
+           **시트가 내려간 채로 열렸다** (#22)
+        ② `stopAnimation` 의 콜백이 늦게 와서 "스프링 도중 다시 잡기" 를 못 고쳤다 (#18 6차 리뷰)
+
+        transform 하나짜리 시트라 JS 스레드로 충분하다. 예측 가능한 쪽을 택한다.
+      */
+      useNativeDriver: false,
       ...motion.spring,
     }).start();
   }, [translateY, motion.spring]);
