@@ -108,6 +108,7 @@ jobs:
       # app.json 과 package.json 을 같이 본다 — config plugin 이 없는 네이티브 모듈은
       # app.json 을 안 건드리고 들어오므로, 한쪽만 보면 그 길이 열려 있다
       - name: 네이티브 가드
+        id: guard
         if: ${{ steps.base.outputs.sha != '' && github.event.inputs.force != 'true' }}
         run: |
           BASE='${{ steps.base.outputs.sha }}'
@@ -143,20 +144,18 @@ jobs:
       #
       # 이미 나간 뒤라 되돌리진 못한다. 다만 가족이 말해주기 전에 알고,
       # 실패하면 태그가 안 옮겨져서 **나쁜 발행이 다음 가드의 기준이 되지 않는다.**
+      # 판정은 스크립트가 한다. YAML 안의 정규식은 실제로 쏴봐야만 검증되는데,
+      # 이 검사는 네이티브 가드와 같은 성격이라(조이면 오탐으로 길들여지고, 풀면 놓친다)
+      # 같은 무게의 테스트가 필요하다 — tests/tools/ota-env-check.test.mjs
       - name: 환경변수가 번들에 실렸는지 확인
         id: envcheck
         run: |
-          # 변수 이름만 찾으면 안 된다. 사람이 친 메시지도 로그에 그대로 찍히므로
-          # "EXPO_PUBLIC_API_URL 주소 교체" 같은 메시지가 검사를 통과시킨다 —
-          # 하필 그 변수를 만지느라 쏘는 발행에서 눈을 감는다. 성공 문구째로 본다
-          if grep -qE 'loaded from the .*environment on EAS.*EXPO_PUBLIC_API_URL' /tmp/eas-update.log; then
+          if node scripts/ota-env-check.mjs /tmp/eas-update.log EXPO_PUBLIC_API_URL "$BRANCH"; then
             echo 'ok=true' >> "$GITHUB_OUTPUT"
             exit 0
           fi
           echo 'ok=false' >> "$GITHUB_OUTPUT"
           echo "::error::EAS 환경변수가 안 실렸습니다 — 주소가 빠진 번들이 나갔어요 (시행착오 1-9)"
-          echo "앱은 켜지지만 모든 화면이 '서버에 닿지 못했어요' 가 됩니다."
-          echo "eas env:set 으로 등록한 뒤 다시 발행하세요 — README 「고친 것을 가족에게 보내기」"
           exit 1
 
       - name: 요약 남기기
@@ -171,13 +170,22 @@ jobs:
             echo "| 커밋 | \`${{ github.sha }}\` |"
             echo "| 누른 사람 | @${{ github.actor }} |"
             # 건너뛴 것도 남긴다. 이 워크플로의 논지가 "사람 기억은 샌다" 인데,
-            # 정작 "그때 가드가 돌았나" 를 사람 기억에 맡기면 앞뒤가 안 맞는다
-            if [ -z "${{ steps.base.outputs.sha }}" ]; then
-              echo "| 네이티브 가드 | ⏭️ 기준 태그(\`$TAG\`) 없음 — 건너뜀 |"
-            elif [ "${{ github.event.inputs.force }}" = "true" ]; then
-              echo "| 네이티브 가드 | ⚠️ force 로 건너뜀 |"
-            else
+            # 정작 "그때 가드가 돌았나" 를 사람 기억에 맡기면 앞뒤가 안 맞는다.
+            #
+            # 다만 이 스텝은 always() 라 EXPO_TOKEN·main 검사에서 멈춰도 돈다. 그때는
+            # 가드 이야기를 할 수 있는 실행이 아니므로 **아무 말도 하지 않는다** —
+            # sha 가 비었다고 "기준 태그 없음" 이라 적으면, 태그가 멀쩡한데도 그렇게 찍혀서
+            # 브랜치에서 잘못 누른 사람을 엉뚱한 곳으로 보낸다
+            if [ "${{ steps.guard.outcome }}" = "success" ]; then
               echo "| 네이티브 가드 | ✅ 통과 |"
+            elif [ "${{ steps.guard.outcome }}" = "failure" ]; then
+              echo "| 네이티브 가드 | ❌ 막음 — 재빌드가 필요한 변경 |"
+            elif [ "${{ steps.guard.outcome }}" = "skipped" ]; then
+              if [ "${{ github.event.inputs.force }}" = "true" ]; then
+                echo "| 네이티브 가드 | ⚠️ force 로 건너뜀 |"
+              else
+                echo "| 네이티브 가드 | ⏭️ 기준 태그(\`$TAG\`) 없음 — 건너뜀 |"
+              fi
             fi
             # 판정은 위 스텝에서 한 번만 한다. 여기서 grep 을 또 하면
             # 문구를 고칠 때 한쪽만 고쳐져 조용히 갈라진다.
