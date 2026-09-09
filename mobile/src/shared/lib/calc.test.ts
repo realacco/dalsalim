@@ -3,9 +3,10 @@ import {
   type CalcState,
   MAX_AMOUNT,
   evaluate,
+  confirmedExpression,
   formatExpression,
-  hasOperator,
   initialState,
+  isCapped,
   isRounded,
   pressKey,
   result,
@@ -130,20 +131,33 @@ describe('F-ENT-09 수식 한 줄', () => {
   });
 });
 
-describe('F-ENT-09 수식이라고 부를 것이 있나', () => {
-  it('연산자가 들어가야 수식이다', () => {
-    expect(hasOperator(press(['1', '2', '0']))).toBe(false);
-    expect(hasOperator(press(['1', '2', '0', '÷', '2']))).toBe(true);
+describe('F-ENT-09 칸 아래에 남길 수식', () => {
+  it('연산자가 들어간 것만 남긴다', () => {
+    expect(confirmedExpression(press(['1', '2', '0']))).toBe('');
+    expect(confirmedExpression(press(['1', '2', '0', '÷', '2']))).toBe('120 ÷ 2');
   });
 
-  it('= 로 접고 나면 숫자 하나만 남는다 — 칸 아래에 금액을 두 번 적지 않게', () => {
-    const collapsed = press(['1', '0', '+', '5', '=']);
-    expect(formatExpression(collapsed)).toBe('15');
-    expect(hasOperator(collapsed)).toBe(false);
+  it('= 로 접고 난 뒤에는 남기지 않는다 — 금액을 두 번 적는 셈이 된다', () => {
+    expect(confirmedExpression(press(['1', '0', '+', '5', '=']))).toBe('');
   });
 
-  it('열자마자 아무것도 안 누르면 수식이 아니다', () => {
-    expect(hasOperator(initialState(180000))).toBe(false);
+  it('열자마자 확정해도 남기지 않는다', () => {
+    expect(confirmedExpression(initialState(180000))).toBe('');
+  });
+
+  it('덜 친 연산자는 떼고 남긴다 — 120 ÷ 로 확정하면 금액은 120 이다', () => {
+    const half = press(['1', '2', '0', '÷']);
+    expect(formatExpression(half)).toBe('120 ÷');
+    expect(confirmedExpression(half)).toBe('');
+  });
+});
+
+describe('★ F-ENT-09 상한에 걸리면 조용히 접지 않는다', () => {
+  it('곱셈 결과가 10억을 넘으면 접힌 사실을 알 수 있어야 한다', () => {
+    const over = { tokens: [500_000_000, '×' as const, 3], draft: '' };
+    expect(isCapped(over)).toBe(true);
+    expect(evaluate([500_000_000, '×', 3])).toBe(MAX_AMOUNT);
+    expect(isCapped(press(['1', '0', '0']))).toBe(false);
   });
 });
 

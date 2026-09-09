@@ -82,6 +82,12 @@ export function result(state: CalcState): number | null {
   return evaluate(allTokens(state));
 }
 
+/** 상한에 걸려 접혐나 — 조용히 접지 않고 한 줄 알려주기 위해 묻는다 */
+export function isCapped(state: CalcState): boolean {
+  const exact = evaluateExact(allTokens(state));
+  return exact !== null && Math.round(exact) > MAX_AMOUNT;
+}
+
 /** 반올림이 실제로 일어났나 — 일어났을 때만 "반올림했어요" 를 말한다 */
 export function isRounded(state: CalcState): boolean {
   const exact = evaluateExact(allTokens(state));
@@ -133,14 +139,21 @@ export function pressKey(state: CalcState, key: string): CalcState {
 }
 
 /**
- * 연산자가 하나라도 들어갔나.
+ * 칸 아래에 남길 수식. 남길 것이 없으면 빈 문자열이다.
  *
- * 숫자 하나뿐이면 칸 아래에 남길 것이 없다 — `105,000` 아래에 `105,000` 을 다시 적는 것은
- * "무엇을 해서 이 금액이 됐는지" 가 아니다. `=` 를 누르면 수식이 결과 하나로 접히므로
- * 그 뒤에 확정하는 것이 흔한 습관이다.
+ * 둘을 걸러낸다.
+ *  - 덜 친 연산자로 끝나면 떼고 남긴다 — `120 ÷` 로 확정하면 금액은 120 이라 수식과 안 맞는다
+ *  - 그러고 나서 연산자가 하나도 없으면 빈 줄이다 — `105,000` 아래에 `105,000` 을 다시 적는 것은
+ *    "무엇을 해서 이 금액이 됐는지"가 아니다. `=` 로 접었거나 열자마자 확정한 경우다
+ *
+ * 지금 치는 중의 표시(`formatExpression`)는 덜 친 연산자를 그대로 보여준다. 그건 맞다.
  */
-export function hasOperator(state: CalcState): boolean {
-  return state.tokens.some(isOperator);
+export function confirmedExpression(state: CalcState): string {
+  const tokens = [...state.tokens];
+  if (state.draft === '' && tokens.length > 0 && isOperator(tokens[tokens.length - 1]))
+    tokens.pop();
+  if (!tokens.some(isOperator)) return '';
+  return formatExpression({ tokens, draft: state.draft });
 }
 
 /** `210,000 ÷ 2` — 지금까지 친 수식을 그대로 보여주는 한 줄 */

@@ -7,9 +7,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import {
   type CalcState,
+  confirmedExpression,
   formatExpression,
-  hasOperator,
   initialState,
+  isCapped,
   isRounded,
   pressKey,
   result,
@@ -114,6 +115,7 @@ export function CalculatorSheet({
   const value = result(state);
   const expression = formatExpression(state);
   const rounded = isRounded(state);
+  const capped = isCapped(state);
   const negative = value !== null && value < 0;
   const bottom = Math.max(insets.bottom + space.md, space.xl);
 
@@ -143,6 +145,9 @@ export function CalculatorSheet({
                 </Text>
                 <Text style={styles.result}>{formatWon(value ?? 0)}</Text>
                 {rounded ? <Text style={styles.rounded}>1원 아래는 반올림했어요.</Text> : null}
+                {capped ? (
+                  <Text style={styles.rounded}>금액은 10억까지만 적을 수 있어요.</Text>
+                ) : null}
                 {negative ? (
                   <Text style={styles.negative}>금액은 0원보다 작을 수 없어요.</Text>
                 ) : null}
@@ -175,8 +180,7 @@ export function CalculatorSheet({
                 <Button
                   label="이 금액 쓰기"
                   disabled={value === null || negative}
-                  // 숫자 하나뿐이면 칸 아래에 남길 수식이 없다 — 금액을 두 번 적는 셈이 된다
-                  onPress={() => onConfirm(value ?? 0, hasOperator(state) ? expression : '')}
+                  onPress={() => onConfirm(value ?? 0, confirmedExpression(state))}
                 />
                 <Button label="취소" variant="ghost" onPress={onCancel} />
               </View>
