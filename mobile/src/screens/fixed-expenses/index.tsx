@@ -74,6 +74,15 @@ export default function FixedScreen() {
                         {item.category}
                         {item.dayOfMonth ? ` · 매월 ${item.dayOfMonth}일` : ''}
                       </Text>
+                      {/*
+                        적었을 때만 한 줄. 한 줄로 자르는 이유는 행 높이를 항목마다
+                        다르게 만들지 않기 위해서다 — 목록의 주인공은 이름과 금액이다.
+                      */}
+                      {item.description ? (
+                        <Text style={styles.itemDescription} numberOfLines={1}>
+                          {item.description}
+                        </Text>
+                      ) : null}
                     </View>
                     <Text style={styles.itemAmount}>{formatWon(item.defaultAmount)}</Text>
                   </Pressable>
@@ -194,6 +203,7 @@ const useStyles = makeStyles((t) => ({
   itemDeleteGlyph: { ...t.font.title, color: t.colors.inkFaint },
   itemName: { ...t.font.body, color: t.colors.ink, fontWeight: t.weight.semibold },
   itemMeta: { ...t.font.caption, color: t.colors.inkFaint },
+  itemDescription: { ...t.font.caption, color: t.colors.inkFaint },
   itemAmount: {
     ...t.font.body,
     color: t.colors.ink,

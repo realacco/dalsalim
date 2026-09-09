@@ -6,6 +6,7 @@ export type Draft = {
   id: string | null;
   membershipId: string;
   name: string;
+  description: string;
   category: Category;
   defaultAmount: number | null;
   dayOfMonth: string;
@@ -16,6 +17,7 @@ export function emptyDraft(membershipId: string): Draft {
     id: null,
     membershipId,
     name: '',
+    description: '',
     category: '주거',
     defaultAmount: null,
     dayOfMonth: '',
@@ -27,6 +29,7 @@ export function draftFromItem(item: FixedExpense, membershipId: string): Draft {
     id: item.id,
     membershipId,
     name: item.name,
+    description: item.description ?? '',
     category: item.category as Category,
     defaultAmount: item.defaultAmount,
     dayOfMonth: item.dayOfMonth ? String(item.dayOfMonth) : '',
@@ -46,10 +49,12 @@ export function validateDraft(draft: Draft): string | null {
   return null;
 }
 
-/** 서버로 보낼 모양. 금액을 안 적었으면 0 원, 결제일이 비었으면 null */
+/** 서버로 보낼 모양. 금액을 안 적었으면 0 원, 결제일과 설명이 비었으면 null */
 export function draftToInput(draft: Draft): FixedExpenseInput {
   return {
     name: draft.name.trim(),
+    // 공백만 적은 것은 안 적은 것과 같다. "안 적음"을 두 가지로 표현하지 않는다
+    description: draft.description.trim() || null,
     category: draft.category,
     defaultAmount: draft.defaultAmount ?? 0,
     dayOfMonth: draft.dayOfMonth ? Number(draft.dayOfMonth) : null,

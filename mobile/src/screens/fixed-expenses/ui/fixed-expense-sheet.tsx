@@ -209,6 +209,20 @@ export function FixedExpenseSheet({
                 />
               </Field>
 
+              {/*
+                이름 바로 다음에 둔다. "무엇인가"를 적는 두 칸이 붙어 있어야 흐름이 안 끊긴다.
+                ⚠️ 여러 줄로 열지 않는다 — 목록 행 높이가 항목마다 달라지고,
+                엔터로 칸이 끝없이 늘어나는 문제를 여기서 다시 만든다.
+              */}
+              <Field label="설명 (선택)" hint="목록에서 가족이 볼 때 도움이 돼요.">
+                <Input
+                  value={draft?.description ?? ''}
+                  onChangeText={(description) => onChange({ description })}
+                  placeholder="아빠 휴대폰 · 5G"
+                  maxLength={60}
+                />
+              </Field>
+
               <Field label="분류">
                 <View style={styles.chips}>
                   {CATEGORIES.map((category) => (
