@@ -758,6 +758,110 @@ async function main() {
   });
   check('F-FAM-07 되돌릴 수 있다', restored.body.membership?.displayName === OWNER, restored.body);
 
+  console.log('\n[고정비 설명]');
+  // F-FIX-02 · F-FIX-03 — 설명은 선택이고, 빈 문자열은 null 로 눠는다.
+  //   여기서 만드는 항목은 이 절 끝에서 지운다 — 스모크는 몇 번이고 다시 돌 수 있어야 한다.
+  const descGroup = (
+    await call('GET', `/families/${dad.familyId}/fixed-expenses`, { token: dad.token })
+  ).body.groups?.[0];
+
+  const withDesc = await call('POST', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+    body: {
+      membershipId: descGroup?.membershipId,
+      name: '보험료',
+      description: '  엄마 실손 · 2031년 만기  ',
+      category: '보험',
+      defaultAmount: 88_000,
+    },
+  });
+  const withDescId = withDesc.body.fixedExpense?.id;
+  check(
+    'F-FIX-02 설명을 적어 등록하면 앞뒤 공백이 다듬어져 저장된다',
+    withDesc.status === 200 &&
+      withDesc.body.fixedExpense?.description === '엄마 실손 · 2031년 만기',
+    withDesc.body,
+  );
+
+  const descListed = await call('GET', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+  });
+  const descItem = (descListed.body.groups ?? [])
+    .flatMap((g) => g.items ?? [])
+    .find((i) => i.id === withDescId);
+  check(
+    'F-FIX-01 목록에도 설명이 실려 온다',
+    descItem?.description === '엄마 실손 · 2031년 만기',
+    descItem,
+  );
+
+  const blankDesc = await call('POST', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+    body: {
+      membershipId: descGroup?.membershipId,
+      name: '적금',
+      description: '   ',
+      category: '기타',
+      defaultAmount: 300_000,
+    },
+  });
+  check(
+    '★ F-FIX-02 공백만 적은 설명은 null 로 저장한다 — 안 적음을 두 가지로 표현하지 않는다',
+    blankDesc.status === 200 && blankDesc.body.fixedExpense?.description === null,
+    blankDesc.body,
+  );
+
+  const tooLong = await call('POST', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+    body: {
+      membershipId: descGroup?.membershipId,
+      name: '긴설명',
+      description: '가'.repeat(61),
+      category: '기타',
+      defaultAmount: 1000,
+    },
+  });
+  check(
+    'F-FIX-02 설명이 60자를 넘으면 VALIDATION',
+    tooLong.body.code === 'VALIDATION',
+    tooLong.body,
+  );
+
+  const descPatched = await call('PATCH', `/fixed-expenses/${withDescId}`, {
+    token: dad.token,
+    body: { description: '엄마 실손 · 2035년 만기' },
+  });
+  check(
+    'F-FIX-03 설명만 보내면 설명만 바뀐다',
+    descPatched.body.fixedExpense?.description === '엄마 실손 · 2035년 만기' &&
+      descPatched.body.fixedExpense?.name === '보험료',
+    descPatched.body,
+  );
+
+  const nameOnly = await call('PATCH', `/fixed-expenses/${withDescId}`, {
+    token: dad.token,
+    body: { name: '엄마 보험료' },
+  });
+  check(
+    '★ F-FIX-03 설명을 안 보내면 지워지지 않는다 — 안 건드림과 지움은 다르다',
+    nameOnly.body.fixedExpense?.description === '엄마 실손 · 2035년 만기',
+    nameOnly.body,
+  );
+
+  const cleared = await call('PATCH', `/fixed-expenses/${withDescId}`, {
+    token: dad.token,
+    body: { description: '' },
+  });
+  check(
+    'F-FIX-03 빈 문자열을 보내면 설명이 지워진다',
+    cleared.body.fixedExpense?.description === null,
+    cleared.body,
+  );
+
+  for (const id of [withDescId, blankDesc.body.fixedExpense?.id]) {
+    if (id) await call('DELETE', `/fixed-expenses/${id}`, { token: dad.token });
+  }
+
   console.log('\n[고정비 삭제]');
   // ★ 하드룰 6 — 이 기능이 존재하는 이유가 곧 하드룰 6 이다.
   //   실제 삭제는 과거 장부의 합계를 바꾼다. 지운 뒤에도 지난달이 그대로여야 한다.

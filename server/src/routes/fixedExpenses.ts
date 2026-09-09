@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
 import { requireMembership, requireUser } from '../lib/auth.js';
-import { amount, category, dayOfMonth } from '../lib/schemas.js';
+import { amount, category, dayOfMonth, description } from '../lib/schemas.js';
 import {
   createFixedExpense,
   deactivateFixedExpense,
@@ -29,6 +29,7 @@ export async function fixedExpenseRoutes(app: FastifyInstance) {
         items: m.fixedExpenses.map((f) => ({
           id: f.id,
           name: f.name,
+          description: f.description,
           category: f.category,
           defaultAmount: f.defaultAmount,
           dayOfMonth: f.dayOfMonth,
@@ -47,6 +48,7 @@ export async function fixedExpenseRoutes(app: FastifyInstance) {
       .object({
         membershipId: z.string(),
         name: z.string().trim().min(1).max(30),
+        description,
         category,
         defaultAmount: amount,
         dayOfMonth,
@@ -65,6 +67,7 @@ export async function fixedExpenseRoutes(app: FastifyInstance) {
     const body = z
       .object({
         name: z.string().trim().min(1).max(30).optional(),
+        description,
         category: category.optional(),
         defaultAmount: amount.optional(),
         dayOfMonth,
