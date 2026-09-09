@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { DISMISS_DISTANCE, DISMISS_VELOCITY, dragOffset, shouldDismiss } from './sheet-gesture';
 
-describe('고정비 아래 시트 — 따라가는 거리', () => {
+describe('아래 시트 — 따라가는 거리', () => {
   /*
     ↓ translationY 는 손가락이 처음 닿은 곳부터의 거리다 (gesture-handler 는 잡히는 순간에도
     0 으로 안 되돌린다). 그래서 아무것도 빼지 않아야 시트가 손가락과 같이 움직인다.
