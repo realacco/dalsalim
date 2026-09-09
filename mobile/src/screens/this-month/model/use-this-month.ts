@@ -76,7 +76,7 @@ export function useThisMonth() {
       setError(null);
       void queryClient.invalidateQueries({ queryKey: bookKeys.family(familyId) });
     },
-    onError: (caught) => setError(errorMessage(caught, MESSAGES.actionFailedBody)),
+    onError: (caught) => setError(errorMessage(caught, MESSAGES.deleteFailed)),
   });
 
   const members = book.data?.members ?? [];

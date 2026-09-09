@@ -81,10 +81,13 @@ export function MyCard({
         <Button
           label="이 기록 지우기"
           variant="ghost"
+          loading={busy}
           onPress={() =>
             confirm({
               title: '이번 달 기록 지우기',
-              body: '적어둔 금액이 모두 없어져요. 다시 시작하면 지난달 값으로 새로 채워져요.',
+              // 첫 달에는 지난달 기록이 없어 고정비 등록 금액이 들어간다.
+              // 어느 쪽이든 "미리 채워진다"는 사실은 같으므로 근거를 약속하지 않는다
+              body: '적어둔 금액이 모두 없어져요. 다시 시작하면 금액이 미리 채워진 채로 열려요.',
               confirmLabel: '지우기',
               destructive: true,
               onConfirm: onDelete,

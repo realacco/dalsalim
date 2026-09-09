@@ -912,16 +912,23 @@ async function main() {
     meAfter,
   );
 
+  // plannedAmount 가 null 이 아닌 것만 보면 고정비 등록 금액(FIXED_DEFAULT)으로 채워져도 통과한다.
+  // plannedSource 까지 봐야 "지난달 실제 금액 → 없으면 등록 금액"이라는 프리필 우선순위(F-ENT-01)가
+  // 지운 뒤에도 살아 있다는 것이 고정된다.
+  const dadLastMonthIncome =
+    lastMonthAfter.body.perMember?.find((m) => m.displayName === OWNER)?.income ?? 0;
   const restarted = await call('POST', `/families/${dad.familyId}/books/${thisMonth}/my-entry`, {
     token: dad.token,
   });
+  const restartedIncome = restarted.body.entry?.lines?.find((l) => l.kind === 'INCOME');
   check(
-    'F-ENT-10 다시 시작하면 프리필된 새 초안이 열린다',
+    '★ F-ENT-10 다시 시작해도 프리필 근거가 지난달 기록이다',
     restarted.status === 200 &&
       restarted.body.entry.id !== dad.entryId &&
       restarted.body.entry.status === 'DRAFT' &&
-      restarted.body.entry.lines.some((l) => l.plannedAmount !== null),
-    { id: restarted.body.entry?.id, status: restarted.body.entry?.status },
+      restartedIncome?.plannedSource === 'LAST_MONTH' &&
+      restartedIncome?.plannedAmount === dadLastMonthIncome,
+    { id: restarted.body.entry?.id, status: restarted.body.entry?.status, line: restartedIncome },
   );
 
   console.log('\n[레이트리밋]');
