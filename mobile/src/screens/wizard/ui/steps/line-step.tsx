@@ -73,7 +73,7 @@ export function LineStep({
       </Text>
 
       <View style={{ gap: space.sm, marginTop: space.lg }}>
-        <AmountInput value={amount} onChange={setAmount} autoFocus />
+        <AmountInput value={amount} onChange={setAmount} autoFocus calculator />
         <DiffHint planned={line.plannedAmount} source={line.plannedSource} amount={amount} />
       </View>
 

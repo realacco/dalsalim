@@ -230,6 +230,7 @@ export function FixedExpenseSheet({
               <Field label="기본 금액" hint="매달 기록할 때 이 금액이 먼저 채워져요.">
                 <AmountInput
                   size="md"
+                  calculator
                   value={draft?.defaultAmount ?? null}
                   onChange={(defaultAmount) => onChange({ defaultAmount })}
                 />
