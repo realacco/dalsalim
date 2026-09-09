@@ -4,6 +4,7 @@ import { Keyboard, Text, TextInput, View } from 'react-native';
 
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { digitsOnly, formatAmount } from '@/shared/lib/format';
+import { CalculatorSheet } from './calculator-sheet';
 import { PressableScale } from './pressable-scale';
 
 const MAX_AMOUNT = 1_000_000_000;
@@ -27,6 +28,7 @@ export function AmountInput({
   autoFocus,
   size = 'lg',
   allowSum = false,
+  calculator = false,
 }: {
   value: number | null;
   onChange: (next: number | null) => void;
@@ -39,6 +41,13 @@ export function AmountInput({
    * 아픈 건 옮겨 적는 일이 아니라 더하는 일이다. (기획서 7.7)
    */
   allowSum?: boolean;
+  /**
+   * 옥션이다 — 켜면 칸 오른쪽에 [계산기] 가 붙고, 누르면 자판까지 있는 아래 시트가 올라온다.
+   *
+   * 기본은 꾺짐이다. 이 컬포넌트는 **금액 하나를 받는 일**만 알면 되고,
+   * 계산기가 필요한지는 부르는 화면이 안다. (기능 정의서 F-ENT-09 의 표가 어디에 켜져 있는지를 말한다)
+   */
+  calculator?: boolean;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -62,6 +71,11 @@ export function AmountInput({
    * 담아둔 금액들. 총액(value)은 바깥이 갖고 있고 여기서는 "무엇을 더해 그 총액이 됐는지"만 기억한다.
    * 그래서 입력칸에 보일 값은 빼서 구한다 — 상태를 두 벌 두면 서로 어긋난다.
    */
+  const [calcOpen, setCalcOpen] = useState(false);
+
+  /** 계산기로 만든 금액이면 무엇을 해서 그러콘는지 한 줄 남긴다. 손으로 고치면 지운다 */
+  const [expression, setExpression] = useState('');
+
   const [parts, setParts] = useState<number[]>([]);
   const banked = parts.reduce((sum, part) => sum + part, 0);
   const current = value === null ? null : value - banked;
@@ -75,7 +89,10 @@ export function AmountInput({
 
   // 바깥에서 값을 비우면(다른 줄로 넘어갔다는 뜻) 담아둔 것도 같이 버린다
   useEffect(() => {
-    if (value === null) setParts([]);
+    if (value === null) {
+      setParts([]);
+      setExpression('');
+    }
   }, [value]);
 
   const text = editing ? draft : current === null || current === 0 ? '' : formatAmount(current);
@@ -112,6 +129,8 @@ export function AmountInput({
           onChangeText={(next) => {
             // 첫 글자를 치는 순간 커서를 놓아준다. 계속 쥐고 있으면 매 글자가 선택된다
             setSelection(undefined);
+            // 손으로 고치면 아까 수식은 더 이상 이 금액의 근거가 아니다
+            setExpression('');
 
             // 자릿수를 먼저 자른다. 상한을 넘겨 잘린 값이 화면에 남으면
             // 사용자가 친 것과 보이는 게 어긋난다.
@@ -150,7 +169,26 @@ export function AmountInput({
             <Text style={styles.plusLabel}>+</Text>
           </PressableScale>
         ) : null}
+
+        {calculator ? (
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel="계산기 열기"
+            onPress={() => setCalcOpen(true)}
+            small
+            containerStyle={styles.plusSlot}
+            style={styles.calc}
+          >
+            <Text style={styles.calcLabel}>계산기</Text>
+          </PressableScale>
+        ) : null}
       </View>
+
+      {/*
+        어떻게 이 금액이 됐는지 한 줄. 칸 안에 안 쓰고 밖에 그린다 —
+        칸 속 글자를 우리가 바꾸면 커서가 밀린다 (시행착오 1-1).
+      */}
+      {expression ? <Text style={styles.expression}>{expression}</Text> : null}
 
       {/*
         합계는 입력칸 "아래"에만 그린다. 칸 안의 글자를 우리가 바꾸면 커서가 밀린다 —
@@ -176,6 +214,20 @@ export function AmountInput({
             <Text style={styles.undoLabel}>되돌리기</Text>
           </PressableScale>
         </View>
+      ) : null}
+
+      {calculator ? (
+        <CalculatorSheet
+          visible={calcOpen}
+          initial={value}
+          onCancel={() => setCalcOpen(false)}
+          onConfirm={(next, expr) => {
+            setCalcOpen(false);
+            setParts([]);
+            setExpression(expr);
+            onChange(next);
+          }}
+        />
       ) : null}
     </View>
   );
@@ -208,6 +260,21 @@ const useStyles = makeStyles((t) => ({
     justifyContent: 'center',
   },
   plusOff: { opacity: t.opacity.disabled },
+  calc: {
+    height: 44,
+    paddingHorizontal: t.space.md,
+    borderRadius: t.radius.md,
+    backgroundColor: t.colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calcLabel: { ...t.font.small, fontWeight: t.weight.bold, color: t.colors.primary },
+  expression: {
+    ...t.font.hint,
+    color: t.colors.inkFaint,
+    textAlign: 'right',
+    marginTop: t.space.xs,
+  },
   plusLabel: { ...t.font.title, fontWeight: t.weight.heavy, color: t.colors.primary },
 
   sumRow: {

@@ -1,0 +1,138 @@
+// 기능: F-ENT-09
+/**
+ * 금액 계산기의 규칙. **순수 함수만 둔다** — react 를 임포트하지 않는다.
+ *
+ * 화면(`shared/ui/calculator-sheet`)은 키를 이 함수들에 넘기고 결과를 그리기만 한다.
+ * 그래야 우선순위·반올림 같은 "틀리면 금액이 달라지는 것"이 1층에서 검증된다.
+ */
+
+export type Operator = '+' | '-' | '×' | '÷';
+export type Token = number | Operator;
+
+/** 확정된 토큰들과, 지금 치고 있는 숫자. 숫자를 문자열로 들고 있어야 앞자리 0 을 다룰 수 있다 */
+export type CalcState = { tokens: Token[]; draft: string };
+
+export const MAX_AMOUNT = 1_000_000_000;
+const MAX_DIGITS = 10;
+
+export const OPERATORS: Operator[] = ['+', '-', '×', '÷'];
+
+export function isOperator(token: Token): token is Operator {
+  return typeof token === 'string';
+}
+
+/** 칸에 있던 금액을 첫 숫자로 싣고 연다. 0 이나 빈 칸이면 빈 채로 */
+export function initialState(value: number | null): CalcState {
+  return { tokens: [], draft: value === null || value === 0 ? '' : String(value) };
+}
+
+export function isEmpty(state: CalcState): boolean {
+  return state.tokens.length === 0 && state.draft === '';
+}
+
+/** 확정된 것 + 지금 치는 숫자. 계산은 언제나 이걸로 한다 — 상태를 두 벌 두지 않기 위해서다 */
+function allTokens(state: CalcState): Token[] {
+  return state.draft === '' ? state.tokens : [...state.tokens, Number(state.draft)];
+}
+
+/**
+ * 표준 우선순위(× ÷ 가 먼저)로 계산한다. 종이에 쓴 것과 같아야 하기 때문이다 —
+ * 수식이 화면에 그대로 보이므로, 보이는 것과 다르게 계산하면 틀렸을 때 사람이 못 찾는다.
+ *
+ * 여기서는 **반올림하지 않는다.** 나눗셈이 섞이면 중간값이 소수일 수 있고,
+ * 매 단계 반올림하면 오차가 쌓인다. 정수로 만드는 것은 마지막에 딱 한 번이다.
+ */
+export function evaluateExact(tokens: Token[]): number | null {
+  const items = [...tokens];
+  // 연산자로 끝나면 아직 덜 친 것이다. 그 자리는 없는 셈 친다
+  if (items.length > 0 && isOperator(items[items.length - 1])) items.pop();
+  if (items.length === 0) return null;
+
+  const folded: Token[] = [];
+  for (let i = 0; i < items.length; i += 1) {
+    const item = items[i];
+    if (item === '×' || item === '÷') {
+      const left = folded.pop() as number;
+      const right = items[i + 1] as number;
+      i += 1;
+      // 0 으로 나누는 것은 계산하지 않고 그 자리를 무시한다. 사람을 탓하지 않는다
+      folded.push(item === '×' ? left * right : right === 0 ? left : left / right);
+    } else {
+      folded.push(item);
+    }
+  }
+
+  let acc = folded[0] as number;
+  for (let i = 1; i < folded.length; i += 2) {
+    const right = folded[i + 1] as number;
+    acc = folded[i] === '+' ? acc + right : acc - right;
+  }
+  return acc;
+}
+
+/** 화면에 보여주고 칸에 넣을 값 — 원 단위 정수 (하드룰 5). 소수는 여기서 한 번만 반올림한다 */
+export function evaluate(tokens: Token[]): number | null {
+  const exact = evaluateExact(tokens);
+  return exact === null ? null : Math.min(Math.round(exact), MAX_AMOUNT);
+}
+
+export function result(state: CalcState): number | null {
+  return evaluate(allTokens(state));
+}
+
+/** 반올림이 실제로 일어났나 — 일어났을 때만 "반올림했어요" 를 말한다 */
+export function isRounded(state: CalcState): boolean {
+  const exact = evaluateExact(allTokens(state));
+  return exact !== null && !Number.isInteger(exact);
+}
+
+/**
+ * 키 하나를 눌렀을 때의 다음 상태.
+ *
+ * 숫자 · `00` · 연산자 · `C`(전부 지우기) · `←`(한 글자) · `=`(지금까지를 하나로 접기)
+ */
+export function pressKey(state: CalcState, key: string): CalcState {
+  if (key === 'C') return { tokens: [], draft: '' };
+
+  if (key === '←') {
+    if (state.draft !== '') return { ...state, draft: state.draft.slice(0, -1) };
+    if (state.tokens.length === 0) return state;
+    return { ...state, tokens: state.tokens.slice(0, -1) };
+  }
+
+  if (key === '=') {
+    const value = result(state);
+    return value === null ? state : { tokens: [value], draft: '' };
+  }
+
+  if (OPERATORS.includes(key as Operator)) {
+    const operator = key as Operator;
+    if (state.draft === '') {
+      if (state.tokens.length === 0) return state;
+      // 연산자를 잇달아 누르면 마지막 것을 바꾼다. 잘못 눌렀을 때 지우러 갈 필요가 없다
+      const last = state.tokens[state.tokens.length - 1];
+      if (isOperator(last)) {
+        return { ...state, tokens: [...state.tokens.slice(0, -1), operator] };
+      }
+      return { ...state, tokens: [...state.tokens, operator] };
+    }
+    return { tokens: [...state.tokens, Number(state.draft), operator], draft: '' };
+  }
+
+  // 여기부터는 숫자 — '0'~'9' 와 '00'
+  const digits = key.replace(/[^0-9]/g, '');
+  if (digits === '') return state;
+
+  const next = (state.draft + digits).replace(/^0+(?=\d)/, '');
+  // 자릿수를 먼저 자른다. 상한을 넘겨 잘린 값이 화면에 남으면 친 것과 보이는 게 어긋난다
+  if (next.length > MAX_DIGITS) return state;
+  return { ...state, draft: next };
+}
+
+/** `210,000 ÷ 2` — 지금까지 친 수식을 그대로 보여주는 한 줄 */
+export function formatExpression(state: CalcState): string {
+  const parts = allTokens(state).map((token) =>
+    isOperator(token) ? token : token.toLocaleString('ko-KR'),
+  );
+  return parts.join(' ');
+}

@@ -3,6 +3,7 @@
 export { AmountInput } from './amount-input';
 export { BuildInfo } from './build-info';
 export { Button } from './button';
+export { CalculatorSheet } from './calculator-sheet';
 export { Card } from './card';
 export { Chip } from './chip';
 export { ConfirmHost } from './confirm-dialog';
