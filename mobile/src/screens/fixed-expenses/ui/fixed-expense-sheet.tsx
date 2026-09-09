@@ -17,7 +17,12 @@ import { AmountInput, Button, Chip, ErrorText, Field, Input, Notice } from '@/sh
 import { confirm } from '@/shared/lib/confirm';
 
 import { type Draft, sanitizeDay } from '../model/draft';
-import { DRAG_CANCEL_X, DRAG_START_SLOP, dragOffset, shouldDismiss } from '../model/gesture';
+import {
+  DRAG_CANCEL_X,
+  DRAG_START_SLOP,
+  dragOffset,
+  shouldDismiss,
+} from '@/shared/lib/sheet-gesture';
 
 /** 고정비 하나를 추가·수정하는 아래 시트. draft 가 없으면 닫혀 있다. */
 export function FixedExpenseSheet({

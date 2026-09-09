@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DISMISS_DISTANCE, DISMISS_VELOCITY, dragOffset, shouldDismiss } from './gesture';
+import { DISMISS_DISTANCE, DISMISS_VELOCITY, dragOffset, shouldDismiss } from './sheet-gesture';
 
 describe('고정비 아래 시트 — 따라가는 거리', () => {
   /*
