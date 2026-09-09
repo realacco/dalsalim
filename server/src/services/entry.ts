@@ -169,16 +169,22 @@ export async function reopenEntry(entry: Pick<MemberEntry, 'id' | 'bookId'>) {
  *   승인 전 PENDING 멤버십을 거절할 때 실제로 지우는 것과 같은 자리다.
  *
  *   그래서 문은 두 겹으로만 연다.
- *     ① 초안일 때만 (제출본은 라우트의 assertDraft 가 ENTRY_SUBMITTED 로 막는다)
- *     ② 이번 달만 — 지난 달 기록은 이미 집계에 들어가 있어 지우면 과거 장부의 합계가 바뀐다.
+ *     ① 이번 달만 — 지난 달 기록은 이미 집계에 들어가 있어 지우면 과거 장부의 합계가 바뀐다.
  *        되돌리기 어려운 문은 좁게 연다. 넓히는 것은 나중에도 되지만 좁히는 것은 안 된다.
+ *     ② 초안일 때만.
+ *
+ *   ★ 순서가 중요해서 assertDraft 를 라우트가 아니라 여기서 부른다.
+ *     초안 검사가 먼저면 '지난 달 + 제출본' 에 ENTRY_SUBMITTED("[수정하기]를 눌러 다시
+ *     열어주세요")가 나가는데, 시킨 대로 되열어도 결국 PAST_MONTH_ENTRY 로 막힌다.
+ *     과거 장부의 완성 표시만 내려앉고 목적은 못 이룬다 — 막힌 이유가 곧 다음 행동이어야 한다.
  *
  * 소프트 삭제를 하지 않는 이유: 초안은 남겨도 어느 화면에도 안 나온다. 남길 값이 없다.
  */
 export async function deleteEntry(
-  entry: Pick<MemberEntry, 'id' | 'bookId'> & { book: Pick<MonthlyBook, 'yearMonth'> },
+  entry: Pick<MemberEntry, 'id' | 'bookId' | 'status'> & { book: Pick<MonthlyBook, 'yearMonth'> },
 ) {
   if (entry.book.yearMonth !== currentYearMonth()) throw fail('PAST_MONTH_ENTRY');
+  assertDraft(entry);
 
   await prisma.memberEntry.delete({ where: { id: entry.id } });
 

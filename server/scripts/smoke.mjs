@@ -839,11 +839,23 @@ async function main() {
     deleteOthers.body,
   );
 
-  // 지난 달은 되열어도 못 지운다. 되열기(F-ENT-08)로 초안 조건을 통과시켜 놓고 확인한다
+  // 지난 달은 제출본이든 초안이든 같은 이유로 막힌다.
+  // 제출본에 ENTRY_SUBMITTED("되열어주세요")가 나가면 시킨 대로 해도 결국 못 지우게 되므로,
+  // 월 검사가 초안 검사보다 먼저다. 아래 두 케이스가 그 순서를 고정한다.
   const lastEntry = await call('POST', `/families/${dad.familyId}/books/${lastMonth}/my-entry`, {
     token: dad.token,
   });
   const lastEntryId = lastEntry.body.entry.id;
+
+  const deletePastSubmitted = await call('DELETE', `/entries/${lastEntryId}`, {
+    token: dad.token,
+  });
+  check(
+    '★ F-ENT-10 지난 달 제출본은 되열라고 하지 않고 바로 막는다',
+    deletePastSubmitted.status === 403 && deletePastSubmitted.body.code === 'PAST_MONTH_ENTRY',
+    deletePastSubmitted.body,
+  );
+
   await call('POST', `/entries/${lastEntryId}/reopen`, { token: dad.token });
 
   const deletePast = await call('DELETE', `/entries/${lastEntryId}`, { token: dad.token });

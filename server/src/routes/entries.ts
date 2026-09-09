@@ -101,13 +101,14 @@ export async function entryRoutes(app: FastifyInstance) {
 
   /**
    * 기록을 지운다. **작성 중인 이번 달 기록만** 지워진다 (하드룰 6 — services/entry 참조).
-   * 제출본은 assertDraft 가 막으므로, 지우려면 [수정하기]로 먼저 되열어야 한다.
+   *
+   * 다른 핸들러와 달리 여기서 assertDraft 를 부르지 않는다. 월 검사보다 먼저 돌면
+   * 지난 달 제출본에 "되열어라"는 안내가 나가는데 되열어도 못 지운다 — 순서를 services 가 쥔다.
    */
   app.delete('/entries/:id', async (request) => {
     const user = await requireUser(request);
     const { id } = entryParams.parse(request.params);
     const entry = await requireOwnEntry(user.id, id);
-    assertDraft(entry);
 
     const bookStatus = await deleteEntry(entry);
     return { ok: true, bookStatus };
