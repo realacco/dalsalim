@@ -112,7 +112,7 @@ describe('F-FIX-02 · F-FIX-03 서버로 보낼 모양', () => {
     });
   });
 
-  it('★ F-FIX-02 설명은 앞뒤 공백을 다듬고, 공백만 적었으면 null 로 보낸다', () => {
+  it('F-FIX-02 설명은 앞뒤 공백을 다듬고, 공백만 적었으면 null 로 보낸다', () => {
     expect(
       draftToInput({ ...emptyDraft('m1'), name: '보험료', description: '  엄마 실손  ' })
         .description,

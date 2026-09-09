@@ -806,7 +806,7 @@ async function main() {
     },
   });
   check(
-    '★ F-FIX-02 공백만 적은 설명은 null 로 저장한다 — 안 적음을 두 가지로 표현하지 않는다',
+    'F-FIX-02 공백만 적은 설명은 null 로 저장한다 — 안 적음을 두 가지로 표현하지 않는다',
     blankDesc.status === 200 && blankDesc.body.fixedExpense?.description === null,
     blankDesc.body,
   );
@@ -843,7 +843,7 @@ async function main() {
     body: { name: '엄마 보험료' },
   });
   check(
-    '★ F-FIX-03 설명을 안 보내면 지워지지 않는다 — 안 건드림과 지움은 다르다',
+    'F-FIX-03 설명을 안 보내면 지워지지 않는다 — 안 건드림과 지움은 다르다',
     nameOnly.body.fixedExpense?.description === '엄마 실손 · 2035년 만기',
     nameOnly.body,
   );
