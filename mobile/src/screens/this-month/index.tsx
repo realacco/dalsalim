@@ -84,6 +84,8 @@ export default function ThisMonthScreen() {
               progress={m.mine.progress}
               summary={m.mine.summary}
               busy={m.busy}
+              opening={m.opening}
+              deleting={m.deleting}
               canDelete={m.canDelete}
               onStart={m.start}
               onEdit={m.edit}

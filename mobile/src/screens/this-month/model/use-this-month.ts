@@ -108,7 +108,14 @@ export function useThisMonth() {
     submittedCount: members.length - notSubmitted.length,
 
     actionError: error,
+    /**
+     * busy 는 **막는 용도**(disabled), opening·deleting 은 **진행을 알리는 용도**(loading)다.
+     * Button 의 loading 은 라벨을 스피너로 갈아끼우므로, 하나로 합치면 지우는 동안
+     * [이어서 작성하기] 라벨까지 사라져 무엇이 도는 중인지 안 보인다.
+     */
     busy: openWizard.isPending || reopen.isPending || remove.isPending,
+    opening: openWizard.isPending || reopen.isPending,
+    deleting: remove.isPending,
     start: () => openWizard.mutate(),
     edit: () => mine?.entryId && reopen.mutate(mine.entryId),
     /** 지난 달은 서버가 막는다. 여기서 같이 가려두는 건 누를 수 없는 버튼을 안 보이게 하려는 것뿐이다 */
