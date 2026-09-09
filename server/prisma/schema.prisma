@@ -71,6 +71,12 @@ model FixedExpense {
   familyId      String
   membershipId  String // 누구의 고정비인가 — 사람별로 쪼갠다
   name          String
+  /// 목록에서 이름 아래 한 줄로 보이는 설명. "엄마 실손 · 2031년 만기" 같은 것.
+  ///
+  /// EntryLine 에 복사하지 않는다. 이름·분류를 복사하는 이유는 그 둘이 과거 장부의
+  /// 표시와 합계를 바꾸기 때문인데, 설명은 금액에도 집계에도 관여하지 않는 힌트라
+  /// 오히려 항상 최신인 쪽이 맞다 — "이게 무엇인지"를 알려주는 게 목적이므로.
+  description   String?
   category      String // docs/01-MVP-기획서.md 7.4 의 고정 목록
   defaultAmount Int
   dayOfMonth    Int? // 결제일 (1~31, 선택)
