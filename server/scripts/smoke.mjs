@@ -855,6 +855,12 @@ async function main() {
   await call('POST', `/entries/${lastEntryId}/submit`, { token: dad.token });
 
   // 여기부터 성공 경로 — 제출본을 되열어 초안으로 만든 뒤에 지운다
+  const thisMonthSummaryPath = `/families/${dad.familyId}/books/${thisMonth}/summary`;
+  const thisMonthBefore = await call('GET', thisMonthSummaryPath, { token: dad.token });
+  const thisMonthIncomeBefore = thisMonthBefore.body.totals?.income;
+  const dadIncomeBefore =
+    thisMonthBefore.body.perMember?.find((m) => m.displayName === OWNER)?.income ?? 0;
+
   await call('POST', `/entries/${dad.entryId}/reopen`, { token: dad.token });
   const removed = await call('DELETE', `/entries/${dad.entryId}`, { token: dad.token });
   // 리소스가 없어지는 동작이라 돌려줄 리소스가 없다 — { ok: true } 와 이어서 필요한 장부 상태만 온다
@@ -871,9 +877,27 @@ async function main() {
     gone.body,
   );
 
+  // 짝이 되는 두 케이스 — 지운 달은 바뀌고, 지난 달은 안 바뀐다.
+  // 한쪽만 두면 "지워도 합계가 안 바뀐다"가 마치 삭제가 아무 일도 안 하는 것처럼 읽힌다.
+  //
+  // ⚠️ 되열기(F-ENT-08)가 이미 집계에서 빼내므로, 아래 첫 케이스가 고정하는 것은
+  //    "삭제가 합계를 바꿨다"는 인과가 아니라 **지운 뒤의 최종 상태**다 —
+  //    지운 사람의 숫자가 유령처럼 요약에 남아 있지 않은지를 본다.
+  const thisMonthAfter = await call('GET', thisMonthSummaryPath, { token: dad.token });
+  check(
+    '★ F-ENT-10 지운 사람은 이번 달 합계에서 빠진다',
+    thisMonthAfter.body.totals?.income === thisMonthIncomeBefore - dadIncomeBefore &&
+      thisMonthAfter.body.perMember?.find((m) => m.displayName === OWNER)?.submitted === false,
+    {
+      before: thisMonthIncomeBefore,
+      dad: dadIncomeBefore,
+      after: thisMonthAfter.body.totals?.income,
+    },
+  );
+
   const lastMonthAfter = await call('GET', lastMonthSummaryPath, { token: dad.token });
   check(
-    '★ F-ENT-10 지워도 지난달 합계가 안 바뀐다 — 과거를 지우지 않는다',
+    '★ F-ENT-10 이번 달을 지워도 지난달 합계는 그대로다 — 과거를 지우지 않는다',
     lastMonthAfter.body.totals?.income === lastMonthIncomeBefore,
     { before: lastMonthIncomeBefore, after: lastMonthAfter.body.totals?.income },
   );
