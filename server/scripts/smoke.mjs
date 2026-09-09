@@ -759,7 +759,7 @@ async function main() {
   check('F-FAM-07 되돌릴 수 있다', restored.body.membership?.displayName === OWNER, restored.body);
 
   console.log('\n[고정비 설명]');
-  // F-FIX-02 · F-FIX-03 — 설명은 선택이고, 빈 문자열은 null 로 눠는다.
+  // F-FIX-02 · F-FIX-03 — 설명은 선택이고, 빈 문자열은 null 로 저장한다.
   //   여기서 만드는 항목은 이 절 끝에서 지운다 — 스모크는 몇 번이고 다시 돌 수 있어야 한다.
   const descGroup = (
     await call('GET', `/families/${dad.familyId}/fixed-expenses`, { token: dad.token })
