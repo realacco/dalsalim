@@ -221,12 +221,19 @@ mobile/src/   app → screens → widgets → features → entities → shared
 |---|---|---|
 | **조회 실패** (`useQuery` 의 `isError`) | 화면 자리에 카드 — 한 줄 설명 + **[다시 시도]** | `<QueryError error onRetry />` (`shared/ui`) |
 | **저장 실패** — 폼 안 | 폼 아래 붉은 한 줄. **입력을 잃지 않는다** | `<ErrorText>` + `errorMessage(caught, MESSAGES.saveFailed)` |
-| **동작 실패** — 버튼 하나짜리 (승인 · 내보내기 …) | Alert 한 번 | `Alert.alert(MESSAGES.actionFailed, errorMessage(caught, MESSAGES.actionFailedBody))` |
+| **동작 실패** — 붙일 자리가 **있는** 동작 (홈의 내 기록 카드) | 그 버튼 아래 붉은 한 줄 | `<ErrorText>` + `errorMessage(caught, MESSAGES.<동작>Failed)` |
+| **동작 실패** — 붙일 자리가 **없는** 동작 (목록의 줄마다 붙은 승인 · 내보내기 · 항목 삭제) | Alert 한 번 | `Alert.alert(MESSAGES.actionFailed, errorMessage(caught, MESSAGES.actionFailedBody))` |
 | **확인 다이얼로그** — 되돌리기 어려운 동작 앞 | 제목은 동사구 · 취소는 항상 왼쪽 · 실행 버튼은 제목의 동사 | `confirm({ title, body, confirmLabel, destructive })` (`shared/lib`) |
 | **401** | 화면이 처리하지 않는다. `api()` 가 세션을 비우고 앱 셸이 로그인으로 보낸다 | `shared/api/client` 의 `onUnauthorized` — 한 곳 |
 | **서버에 못 닿음** | 조회 실패와 같은 카드. 메시지에 주소가 붙는다 | `ApiError(0, 'NETWORK')` |
 
 - **빈 화면을 남기지 않는다.** 서버가 죽었을 때 아무것도 안 보이면 사용자는 "데이터가 없구나"로 읽는다.
+- **Alert 이냐 인라인이냐는 취향이 아니라 자리의 문제다.** 목록의 줄마다 붙은 동작은 실패 문구를 어느 줄
+  아래에 붙일지 정할 수 없어서 Alert 이 된다. 화면에 그 동작이 사는 자리가 하나뿐이면 인라인이 낫다 —
+  Alert 은 덮고 사라지지만 붉은 한 줄은 남는다.
+- ⚠️ **인라인 폴백은 무엇이 실패했는지 문장이 스스로 말해야 한다** (`openFailed` · `deleteFailed`).
+  `actionFailedBody`("잠시 후 다시 시도해주세요")는 제목 `actionFailed`("안 됐어요")와 **짝일 때만**
+  성립한다. 제목이 없는 자리에 혼자 쓰면 사용자는 무엇이 안 됐는지 모른 채 문장 하나만 본다.
 - 서버가 준 `message` 는 그대로 보여준다. 그 밖의 오류는 폴백 문장으로 — `errorMessage()` 한 곳에서 가른다.
 - 폴백 · 재시도 · 확인 버튼 문구는 `shared/config/messages.ts` 에서 가져온다. 화면에 리터럴로 쓰지 않는다.
 
