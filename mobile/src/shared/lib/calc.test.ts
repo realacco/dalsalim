@@ -4,6 +4,7 @@ import {
   MAX_AMOUNT,
   evaluate,
   formatExpression,
+  hasOperator,
   initialState,
   isRounded,
   pressKey,
@@ -79,10 +80,12 @@ describe('F-ENT-09 자판', () => {
     expect(press(['0', '0', '5']).draft).toBe('5');
   });
 
-  it('10자리를 넘겨 치면 더 안 들어간다 — 잘린 값이 화면에 남지 않게', () => {
-    const ten = press(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']);
-    expect(ten.draft).toBe('1234567890');
-    expect(press(['1'], ten).draft).toBe('1234567890');
+  it('10억을 넘기는 숫자는 아예 안 들어간다 — 수식과 결과가 달라지면 안 된다', () => {
+    const billion = press('1000000000'.split(''));
+    expect(billion.draft).toBe('1000000000');
+    expect(press(['0'], billion).draft).toBe('1000000000');
+    // 손으로 치는 칸도 같은 자리에서 막는다 (amount-input 이 MAX_AMOUNT 를 여기서 가져간다)
+    expect(press(['9', '9', '9', '9', '9', '9', '9', '9', '9']).draft).toBe('999999999');
   });
 
   it('연산자를 누르면 지금 숫자가 확정되고 칸이 빈다', () => {
@@ -124,6 +127,23 @@ describe('F-ENT-09 수식 한 줄', () => {
 
   it('아무것도 안 쳤으면 빈 줄이다', () => {
     expect(formatExpression({ tokens: [], draft: '' })).toBe('');
+  });
+});
+
+describe('F-ENT-09 수식이라고 부를 것이 있나', () => {
+  it('연산자가 들어가야 수식이다', () => {
+    expect(hasOperator(press(['1', '2', '0']))).toBe(false);
+    expect(hasOperator(press(['1', '2', '0', '÷', '2']))).toBe(true);
+  });
+
+  it('= 로 접고 나면 숫자 하나만 남는다 — 칸 아래에 금액을 두 번 적지 않게', () => {
+    const collapsed = press(['1', '0', '+', '5', '=']);
+    expect(formatExpression(collapsed)).toBe('15');
+    expect(hasOperator(collapsed)).toBe(false);
+  });
+
+  it('열자마자 아무것도 안 누르면 수식이 아니다', () => {
+    expect(hasOperator(initialState(180000))).toBe(false);
   });
 });
 

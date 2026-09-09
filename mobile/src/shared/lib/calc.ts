@@ -6,6 +6,8 @@
  * 그래야 우선순위·반올림 같은 "틀리면 금액이 달라지는 것"이 1층에서 검증된다.
  */
 
+import { formatAmount } from './format';
+
 export type Operator = '+' | '-' | '×' | '÷';
 export type Token = number | Operator;
 
@@ -124,15 +126,25 @@ export function pressKey(state: CalcState, key: string): CalcState {
   if (digits === '') return state;
 
   const next = (state.draft + digits).replace(/^0+(?=\d)/, '');
-  // 자릿수를 먼저 자른다. 상한을 넘겨 잘린 값이 화면에 남으면 친 것과 보이는 게 어긋난다
-  if (next.length > MAX_DIGITS) return state;
+  // 상한을 넘기면 아예 안 받는다. 수식 줄에는 100억이 보이는데 결과만 10억으로
+  // 접히면, 보이는 것과 계산된 것이 달라진다 — 손으로 치는 칸과도 규칙이 갈라진다
+  if (next.length > MAX_DIGITS || Number(next) > MAX_AMOUNT) return state;
   return { ...state, draft: next };
+}
+
+/**
+ * 연산자가 하나라도 들어갔나.
+ *
+ * 숫자 하나뿐이면 칸 아래에 남길 것이 없다 — `105,000` 아래에 `105,000` 을 다시 적는 것은
+ * "무엇을 해서 이 금액이 됐는지" 가 아니다. `=` 를 누르면 수식이 결과 하나로 접히므로
+ * 그 뒤에 확정하는 것이 흔한 습관이다.
+ */
+export function hasOperator(state: CalcState): boolean {
+  return state.tokens.some(isOperator);
 }
 
 /** `210,000 ÷ 2` — 지금까지 친 수식을 그대로 보여주는 한 줄 */
 export function formatExpression(state: CalcState): string {
-  const parts = allTokens(state).map((token) =>
-    isOperator(token) ? token : token.toLocaleString('ko-KR'),
-  );
+  const parts = allTokens(state).map((token) => (isOperator(token) ? token : formatAmount(token)));
   return parts.join(' ');
 }

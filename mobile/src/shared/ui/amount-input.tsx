@@ -3,11 +3,10 @@ import { useEffect, useState } from 'react';
 import { Keyboard, Text, TextInput, View } from 'react-native';
 
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
+import { MAX_AMOUNT } from '@/shared/lib/calc';
 import { digitsOnly, formatAmount } from '@/shared/lib/format';
 import { CalculatorSheet } from './calculator-sheet';
 import { PressableScale } from './pressable-scale';
-
-const MAX_AMOUNT = 1_000_000_000;
 
 /**
  * 큰 금액 입력.

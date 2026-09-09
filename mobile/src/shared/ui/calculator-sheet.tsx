@@ -8,6 +8,7 @@ import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import {
   type CalcState,
   formatExpression,
+  hasOperator,
   initialState,
   isRounded,
   pressKey,
@@ -174,7 +175,8 @@ export function CalculatorSheet({
                 <Button
                   label="이 금액 쓰기"
                   disabled={value === null || negative}
-                  onPress={() => onConfirm(value ?? 0, expression)}
+                  // 숫자 하나뿐이면 칸 아래에 남길 수식이 없다 — 금액을 두 번 적는 셈이 된다
+                  onPress={() => onConfirm(value ?? 0, hasOperator(state) ? expression : '')}
                 />
                 <Button label="취소" variant="ghost" onPress={onCancel} />
               </View>
