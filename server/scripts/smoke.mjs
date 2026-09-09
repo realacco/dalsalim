@@ -827,6 +827,24 @@ async function main() {
     tooLong.body,
   );
 
+  // 길이를 재는 순서 — 다듬고 나서 재야 한다.
+  //   61자만 보면 trim 과 max 의 순서가 뒤바뀜을 때 아무것도 빨개지지 않는다.
+  const exact60 = await call('POST', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+    body: {
+      membershipId: descGroup?.membershipId,
+      name: '경계',
+      description: `  ${'가'.repeat(60)}  `,
+      category: '기타',
+      defaultAmount: 1000,
+    },
+  });
+  check(
+    'F-FIX-02 앞뒤 공백을 다듬으면 60자인 설명은 통과한다',
+    exact60.status === 200 && exact60.body.fixedExpense?.description?.length === 60,
+    { status: exact60.status, length: exact60.body.fixedExpense?.description?.length },
+  );
+
   const descPatched = await call('PATCH', `/fixed-expenses/${withDescId}`, {
     token: dad.token,
     body: { description: '엄마 실손 · 2035년 만기' },
@@ -858,7 +876,7 @@ async function main() {
     cleared.body,
   );
 
-  for (const id of [withDescId, blankDesc.body.fixedExpense?.id]) {
+  for (const id of [withDescId, blankDesc.body.fixedExpense?.id, exact60.body.fixedExpense?.id]) {
     if (id) await call('DELETE', `/fixed-expenses/${id}`, { token: dad.token });
   }
 
