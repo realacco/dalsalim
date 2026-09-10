@@ -110,10 +110,17 @@ describe('F-ENT-09 자판', () => {
     expect(press(['1', '2', '+', '3', 'C'])).toEqual({ tokens: [], draft: '' });
   });
 
-  it('= 는 지금까지를 하나로 접는다', () => {
-    expect(press(['1', '0', '+', '5', '='])).toEqual({ tokens: [15], draft: '' });
+  it('= 는 지금까지를 하나로 접는다 — 결과는 draft 로 되돌아온다', () => {
+    const folded = press(['1', '0', '+', '5', '=']);
+    expect(folded.tokens).toEqual([]);
+    expect(folded.draft).toBe('15');
     // 접은 뒤에 이어서 계산할 수 있다
     expect(result(press(['1', '0', '+', '5', '=', '×', '2']))).toBe(30);
+  });
+
+  it('★ = 뒤의 ← 는 한 글자만 지운다 — 접힌 결과가 통째로 날아가면 C 를 누른 것과 같다', () => {
+    expect(press(['1', '0', '+', '5', '=', '←']).draft).toBe('1');
+    expect(result(press(['2', '1', '0', '0', '0', '0', '÷', '2', '=', '←']))).toBe(10500);
   });
 });
 
@@ -137,8 +144,16 @@ describe('F-ENT-09 칸 아래에 남길 수식', () => {
     expect(confirmedExpression(press(['1', '2', '0', '÷', '2']))).toBe('120 ÷ 2');
   });
 
-  it('= 로 접고 난 뒤에는 남기지 않는다 — 금액을 두 번 적는 셈이 된다', () => {
-    expect(confirmedExpression(press(['1', '0', '+', '5', '=']))).toBe('');
+  it('★ = 로 접어도 수식은 남는다 — 자판에 = 가 있으면 사람은 누르고 나서 확정한다', () => {
+    expect(confirmedExpression(press(['1', '0', '+', '5', '=']))).toBe('10 + 5');
+    expect(confirmedExpression(press(['2', '1', '0', '0', '0', '0', '÷', '2', '=']))).toBe(
+      '210,000 ÷ 2',
+    );
+  });
+
+  it('= 뒤에 다른 키를 누르면 그 수식은 버린다 — 더는 지금 금액을 설명하지 않는다', () => {
+    expect(confirmedExpression(press(['1', '0', '+', '5', '=', '7']))).toBe('');
+    expect(confirmedExpression(press(['1', '0', '+', '5', '=', '←']))).toBe('');
   });
 
   it('열자마자 확정해도 남기지 않는다', () => {
@@ -158,6 +173,27 @@ describe('★ F-ENT-09 상한에 걸리면 조용히 접지 않는다', () => {
     expect(isCapped(over)).toBe(true);
     expect(evaluate([500_000_000, '×', 3])).toBe(MAX_AMOUNT);
     expect(isCapped(press(['1', '0', '0']))).toBe(false);
+  });
+});
+
+describe('★ F-ENT-09 = 를 눌러도 안내가 사라지지 않는다', () => {
+  it('반올림한 사실은 = 뒤에도 말한다 — 1원 아래를 버린 금액인데 화면에 흔적이 없으면 안 된다', () => {
+    const divided = press(['1', '0', '0', '0', '0', '÷', '3']);
+    expect(isRounded(divided)).toBe(true);
+    const folded = pressKey(divided, '=');
+    expect(result(folded)).toBe(3333);
+    expect(isRounded(folded)).toBe(true);
+    expect(confirmedExpression(folded)).toBe('10,000 ÷ 3');
+  });
+
+  it('상한에 걸린 사실도 = 뒤에 남는다', () => {
+    const over = press(['5', '0', '0', '0', '0', '0', '0', '0', '0', '×', '3']);
+    expect(isCapped(over)).toBe(true);
+    expect(isCapped(pressKey(over, '='))).toBe(true);
+  });
+
+  it('접은 값은 이미 반올림된 정수다 — 보이는 3,333 과 다음 계산이 쓰는 값이 같다', () => {
+    expect(result(press(['1', '0', '0', '0', '0', '÷', '3', '=', '×', '3']))).toBe(9999);
   });
 });
 

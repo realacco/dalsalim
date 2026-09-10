@@ -12,7 +12,19 @@ export type Operator = '+' | '-' | '×' | '÷';
 export type Token = number | Operator;
 
 /** 확정된 토큰들과, 지금 치고 있는 숫자. 숫자를 문자열로 들고 있어야 앞자리 0 을 다룰 수 있다 */
-export type CalcState = { tokens: Token[]; draft: string };
+export type CalcState = {
+  tokens: Token[];
+  draft: string;
+  /**
+   * `=` 로 접기 직전의 토큰들.
+   *
+   * 접고 나면 남는 것은 결과 하나뿐이라 **무엇을 눌러 그 금액이 됐는지도, 반올림이
+   * 있었는지도 상태에서 지워진다.** 자판에 `=` 가 있으면 사람은 누르고 나서 확정하므로,
+   * 가장 흔한 손버릇에서 수식 한 줄과 "반올림했어요" 가 조용히 사라지는 셈이었다.
+   * 그래서 접기 전 원본을 한 벌 들고 간다. 다음 키를 누르면 버린다.
+   */
+  folded?: Token[];
+};
 
 export const MAX_AMOUNT = 1_000_000_000;
 const MAX_DIGITS = 10;
@@ -82,15 +94,23 @@ export function result(state: CalcState): number | null {
   return evaluate(allTokens(state));
 }
 
-/** 상한에 걸려 접혐나 — 조용히 접지 않고 한 줄 알려주기 위해 묻는다 */
+/**
+ * `=` 로 접었으면 접기 전 상태로 되돌려 본다.
+ * 수식·반올림·상한은 전부 "무엇을 눌렀나"에 대한 대답이라, 접힌 결과가 아니라 원본을 봐야 한다.
+ */
+function sourceState(state: CalcState): CalcState {
+  return state.folded ? { tokens: state.folded, draft: '' } : state;
+}
+
+/** 상한에 걸려 접혔나 — 조용히 접지 않고 한 줄 알려주기 위해 묻는다 */
 export function isCapped(state: CalcState): boolean {
-  const exact = evaluateExact(allTokens(state));
+  const exact = evaluateExact(allTokens(sourceState(state)));
   return exact !== null && Math.round(exact) > MAX_AMOUNT;
 }
 
 /** 반올림이 실제로 일어났나 — 일어났을 때만 "반올림했어요" 를 말한다 */
 export function isRounded(state: CalcState): boolean {
-  const exact = evaluateExact(allTokens(state));
+  const exact = evaluateExact(allTokens(sourceState(state)));
   return exact !== null && !Number.isInteger(exact);
 }
 
@@ -103,14 +123,20 @@ export function pressKey(state: CalcState, key: string): CalcState {
   if (key === 'C') return { tokens: [], draft: '' };
 
   if (key === '←') {
-    if (state.draft !== '') return { ...state, draft: state.draft.slice(0, -1) };
-    if (state.tokens.length === 0) return state;
-    return { ...state, tokens: state.tokens.slice(0, -1) };
+    // 접힌 결과가 draft 에 있으므로 여기서 한 글자만 지워진다.
+    // tokens 에 넣어뒀을 때는 ← 한 번에 105,000 이 통째로 날아갔다 (C 를 누른 것과 같았다)
+    if (state.draft !== '') return { tokens: state.tokens, draft: state.draft.slice(0, -1) };
+    if (state.tokens.length === 0) return { tokens: [], draft: '' };
+    return { tokens: state.tokens.slice(0, -1), draft: '' };
   }
 
   if (key === '=') {
     const value = result(state);
-    return value === null ? state : { tokens: [value], draft: '' };
+    if (value === null) return state;
+    // 결과를 tokens 가 아니라 draft 로 되돌린다 — 이어서 치거나 한 글자 지우는 길이 살아 있어야 한다.
+    // 접은 값은 이미 반올림된 정수다. 보이는 3,333 과 다음 계산이 쓰는 값이 같아야 하므로
+    // 정확값으로 되돌리지 않는다 (수식 줄과 결과가 갈라지면 안 된다는 아래 MAX_DIGITS 와 같은 축)
+    return { tokens: [], draft: String(value), folded: state.folded ?? allTokens(state) };
   }
 
   if (OPERATORS.includes(key as Operator)) {
@@ -120,9 +146,9 @@ export function pressKey(state: CalcState, key: string): CalcState {
       // 연산자를 잇달아 누르면 마지막 것을 바꾼다. 잘못 눌렀을 때 지우러 갈 필요가 없다
       const last = state.tokens[state.tokens.length - 1];
       if (isOperator(last)) {
-        return { ...state, tokens: [...state.tokens.slice(0, -1), operator] };
+        return { tokens: [...state.tokens.slice(0, -1), operator], draft: '' };
       }
-      return { ...state, tokens: [...state.tokens, operator] };
+      return { tokens: [...state.tokens, operator], draft: '' };
     }
     return { tokens: [...state.tokens, Number(state.draft), operator], draft: '' };
   }
@@ -135,7 +161,7 @@ export function pressKey(state: CalcState, key: string): CalcState {
   // 상한을 넘기면 아예 안 받는다. 수식 줄에는 100억이 보이는데 결과만 10억으로
   // 접히면, 보이는 것과 계산된 것이 달라진다 — 손으로 치는 칸과도 규칙이 갈라진다
   if (next.length > MAX_DIGITS || Number(next) > MAX_AMOUNT) return state;
-  return { ...state, draft: next };
+  return { tokens: state.tokens, draft: next };
 }
 
 /**
@@ -149,15 +175,17 @@ export function pressKey(state: CalcState, key: string): CalcState {
  * 지금 치는 중의 표시(`formatExpression`)는 덜 친 연산자를 그대로 보여준다. 그건 맞다.
  */
 export function confirmedExpression(state: CalcState): string {
-  const tokens = [...state.tokens];
-  if (state.draft === '' && tokens.length > 0 && isOperator(tokens[tokens.length - 1]))
-    tokens.pop();
+  const from = sourceState(state);
+  const tokens = [...from.tokens];
+  if (from.draft === '' && tokens.length > 0 && isOperator(tokens[tokens.length - 1])) tokens.pop();
   if (!tokens.some(isOperator)) return '';
-  return formatExpression({ tokens, draft: state.draft });
+  return formatExpression({ tokens, draft: from.draft });
 }
 
-/** `210,000 ÷ 2` — 지금까지 친 수식을 그대로 보여주는 한 줄 */
+/** `210,000 ÷ 2` — 지금까지 친 수식을 그대로 보여주는 한 줄. `=` 뒤에는 접기 전 수식이다 */
 export function formatExpression(state: CalcState): string {
-  const parts = allTokens(state).map((token) => (isOperator(token) ? token : formatAmount(token)));
+  const parts = allTokens(sourceState(state)).map((token) =>
+    isOperator(token) ? token : formatAmount(token),
+  );
   return parts.join(' ');
 }
