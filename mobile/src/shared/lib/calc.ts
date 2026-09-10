@@ -16,6 +16,18 @@ export type CalcState = {
   tokens: Token[];
   draft: string;
   /**
+   * 열 때 실려 온 금액이 아직 그대로인가.
+   *
+   * 옆의 금액 칸은 포커스하는 순간 전체를 선택해 **첫 글자가 통째로 대체**된다
+   * ("다른 금액을 적으려면 먼저 지워야 하는 칸이 되면 매달 성가시다"가 그 근거다).
+   * 계산기만 뒤에 이어 붙으면 같은 화면에서 같은 값을 두 규칙으로 다루게 되고,
+   * 180,000 이 실린 채 `2` 를 누르면 1,800,002 가 된다.
+   *
+   * 그래서 **첫 키가 숫자면 실려 온 값을 대체한다.** 연산자를 먼저 누르면(180,000 + …)
+   * 실려 온 값을 쓰겠다는 뜻이므로 그대로 둔다. 어떤 키든 한 번 누르면 이 표시는 사라진다.
+   */
+  fresh?: boolean;
+  /**
    * `=` 로 접기 직전의 토큰들.
    *
    * 접고 나면 남는 것은 결과 하나뿐이라 **무엇을 눌러 그 금액이 됐는지도, 반올림이
@@ -37,7 +49,8 @@ export function isOperator(token: Token): token is Operator {
 
 /** 칸에 있던 금액을 첫 숫자로 싣고 연다. 0 이나 빈 칸이면 빈 채로 */
 export function initialState(value: number | null): CalcState {
-  return { tokens: [], draft: value === null || value === 0 ? '' : String(value) };
+  const draft = value === null || value === 0 ? '' : String(value);
+  return draft === '' ? { tokens: [], draft } : { tokens: [], draft, fresh: true };
 }
 
 export function isEmpty(state: CalcState): boolean {
@@ -147,7 +160,10 @@ export function isNegative(state: CalcState): boolean {
  *
  * 숫자 · `00` · 연산자 · `C`(전부 지우기) · `←`(한 글자) · `=`(지금까지를 하나로 접기)
  */
-export function pressKey(state: CalcState, key: string): CalcState {
+export function pressKey(input: CalcState, key: string): CalcState {
+  // 어떤 키를 누르든 "실려 온 값" 상태는 여기서 끝난다
+  const { fresh, ...state } = input;
+
   if (key === 'C') return { tokens: [], draft: '' };
 
   if (key === '←') {
@@ -185,7 +201,8 @@ export function pressKey(state: CalcState, key: string): CalcState {
   const digits = key.replace(/[^0-9]/g, '');
   if (digits === '') return state;
 
-  const next = (state.draft + digits).replace(/^0+(?=\d)/, '');
+  // 실려 온 값이 그대로면 이어 붙이지 않고 갈아탄다 (위 fresh 주석)
+  const next = (fresh ? digits : state.draft + digits).replace(/^0+(?=\d)/, '');
   // 상한을 넘기면 아예 안 받는다. 수식 줄에는 100억이 보이는데 결과만 10억으로
   // 접히면, 보이는 것과 계산된 것이 달라진다 — 손으로 치는 칸과도 규칙이 갈라진다
   if (next.length > MAX_DIGITS || Number(next) > MAX_AMOUNT) return state;

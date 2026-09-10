@@ -70,7 +70,7 @@ describe('★ F-ENT-09 정수로 만드는 자리는 마지막 한 번뿐이다 
 
 describe('F-ENT-09 자판', () => {
   it('칸에 있던 금액을 싣고 연다 — 지우고 시작할 필요가 없다', () => {
-    expect(initialState(180000)).toEqual({ tokens: [], draft: '180000' });
+    expect(initialState(180000)).toEqual({ tokens: [], draft: '180000', fresh: true });
     expect(initialState(null)).toEqual({ tokens: [], draft: '' });
     expect(initialState(0)).toEqual({ tokens: [], draft: '' });
   });
@@ -248,7 +248,15 @@ describe('★ F-ENT-09 관리비를 형과 반씩 낸다', () => {
     expect(isRounded(state)).toBe(false);
   });
 
-  it('실려 온 금액에 이어서 치면 그 뒤에 붙는다 — 그래서 먼저 지우는 것이 정상 경로다', () => {
-    expect(press(['2'], initialState(180000)).draft).toBe('1800002');
+  it('실려 온 금액은 첫 숫자를 치면 갈아탄다 — 옆 금액 칸이 포커스에 전체 선택하는 것과 같은 규칙', () => {
+    expect(press(['2'], initialState(180000)).draft).toBe('2');
+    expect(press(['2', '1'], initialState(180000)).draft).toBe('21');
+  });
+
+  it('연산자를 먼저 누르면 실려 온 값을 쓰겠다는 뜻이라 그대로 둔다', () => {
+    expect(press(['+', '2', '0'], initialState(180000))).toEqual({
+      tokens: [180000, '+'],
+      draft: '20',
+    });
   });
 });
