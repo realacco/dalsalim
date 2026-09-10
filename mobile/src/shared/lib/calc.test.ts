@@ -221,6 +221,23 @@ describe('★ F-ENT-09 음수는 칸에 넣을 수 없다', () => {
     // 아무것도 안 친 상태는 음수가 아니다 — 막을 이유가 없다
     expect(isNegative({ tokens: [], draft: '' })).toBe(false);
   });
+
+  it('★ = 로 접힌 음수를 ← 로 지워도 NaN 이 새어 나가지 않는다', () => {
+    // '=' 가 결과를 draft 로 되돌리므로 음수일 때 draft 에 '-' 가 들어간다.
+    // 거기서 ← 를 눌러 '-' 하나만 남으면 Number('-') 는 NaN 이다.
+    const minus = press(['1', '-', '5', '=']);
+    expect(minus.draft).toBe('-4');
+
+    const rubbed = press(['←', '←'], minus);
+    expect(rubbed.draft).toBe('');
+    expect(result(rubbed)).toBeNull();
+
+    // 지우다 '-' 하나만 남는 순간이 문제였다 — 값이 없는 것으로 봐야 한다
+    const dashOnly = { tokens: [], draft: '-' };
+    expect(result(dashOnly)).toBeNull();
+    expect(isNegative(dashOnly)).toBe(false);
+    expect(formatExpression(dashOnly)).toBe('');
+  });
 });
 
 describe('★ F-ENT-09 관리비를 형과 반씩 낸다', () => {

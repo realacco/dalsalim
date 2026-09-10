@@ -46,7 +46,15 @@ export function isEmpty(state: CalcState): boolean {
 
 /** 확정된 것 + 지금 치는 숫자. 계산은 언제나 이걸로 한다 — 상태를 두 벌 두지 않기 위해서다 */
 function allTokens(state: CalcState): Token[] {
-  return state.draft === '' ? state.tokens : [...state.tokens, Number(state.draft)];
+  const typed = Number(state.draft);
+  // draft 가 숫자가 아니면 아직 안 친 것으로 본다.
+  //
+  // ★ '=' 가 결과를 draft 로 되돌리는데 그 값이 음수면 '-' 가 draft 에 들어간다.
+  //   거기서 ← 로 자릿수를 지워 나가면 '-' 하나만 남고, Number('-') 는 NaN 이다.
+  //   그대로 흘리면 evaluate 가 null 이 아니라 NaN 을 내고 → isNegative 가 false 가 되어
+  //   경고가 사라진 채 [이 금액 쓰기] 가 열린다. 칸에 NaN 이 박히고 저장은 400 으로 끝난다.
+  if (state.draft === '' || !Number.isFinite(typed)) return state.tokens;
+  return [...state.tokens, typed];
 }
 
 /**
@@ -87,7 +95,8 @@ export function evaluateExact(tokens: Token[]): number | null {
 /** 화면에 보여주고 칸에 넣을 값 — 원 단위 정수 (하드룰 5). 소수는 여기서 한 번만 반올림한다 */
 export function evaluate(tokens: Token[]): number | null {
   const exact = evaluateExact(tokens);
-  return exact === null ? null : Math.min(Math.round(exact), MAX_AMOUNT);
+  if (exact === null || !Number.isFinite(exact)) return null;
+  return Math.min(Math.round(exact), MAX_AMOUNT);
 }
 
 export function result(state: CalcState): number | null {
