@@ -9,6 +9,7 @@ import {
   isCapped,
   isNegative,
   isRounded,
+  isSettled,
   pressKey,
   result,
 } from './calc';
@@ -136,6 +137,21 @@ describe('F-ENT-09 수식 한 줄', () => {
 
   it('아무것도 안 쳤으면 빈 줄이다', () => {
     expect(formatExpression({ tokens: [], draft: '' })).toBe('');
+  });
+});
+
+describe('★ F-ENT-09 = 를 눌러야 결과가 주인공이 된다', () => {
+  it('치는 동안에는 확정 전이다 — 수식이 주인공', () => {
+    expect(isSettled(press(['2', '1', '0', '0', '0', '0', '÷', '2']))).toBe(false);
+    expect(isSettled(initialState(180000))).toBe(false);
+  });
+
+  it('= 를 누르면 확정된다', () => {
+    expect(isSettled(press(['2', '1', '0', '0', '0', '0', '÷', '2', '=']))).toBe(true);
+  });
+
+  it('다음 키를 누르면 다시 치는 중이다', () => {
+    expect(isSettled(press(['1', '0', '+', '5', '=', '+']))).toBe(false);
   });
 });
 

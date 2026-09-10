@@ -108,6 +108,16 @@ export function isCapped(state: CalcState): boolean {
   return exact !== null && Math.round(exact) > MAX_AMOUNT;
 }
 
+/**
+ * `=` 로 값을 확정했나.
+ *
+ * 계산기는 **치는 동안에는 수식이 주인공**이고, `=` 를 눌러야 결과가 주인공이 된다.
+ * 그게 사람이 아는 계산기라, 화면도 그 순서를 따라야 지금 무엇을 치고 있는지가 보인다.
+ */
+export function isSettled(state: CalcState): boolean {
+  return state.folded !== undefined;
+}
+
 /** 반올림이 실제로 일어났나 — 일어났을 때만 "반올림했어요" 를 말한다 */
 export function isRounded(state: CalcState): boolean {
   const exact = evaluateExact(allTokens(sourceState(state)));
