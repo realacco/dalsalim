@@ -13,6 +13,7 @@ import {
   isCapped,
   isNegative,
   isRounded,
+  isSettled,
   pressKey,
   result,
 } from '@/shared/lib/calc';
@@ -115,10 +116,18 @@ export function CalculatorSheet({
 
   const value = result(state);
   const expression = formatExpression(state);
+  /**
+   * 치는 동안에는 **수식이 주인공**이고, `=` 를 눌러야 결과가 주인공이 된다.
+   * 사람이 아는 계산기가 그 순서라, 반대로 두면 지금 무엇을 치고 있는지가 안 보인다.
+   */
+  const settled = isSettled(state);
+  /** 보여줄 수식이 있나 — 숫자 하나뿐이면 결과를 두 번 적는 셈이라 한 줄로 끝낸다 */
+  const detail = confirmedExpression(state);
   const rounded = isRounded(state);
   const capped = isCapped(state);
   const negative = isNegative(state);
-  const bottom = Math.max(insets.bottom + space.md, space.xl);
+  // 시스템 내비게이션 위에 딱 붙는다. 시트 바닥이 그보다 더 떠 있으면 버튼이 허공에 뜬 것처럼 보인다
+  const bottom = Math.max(insets.bottom, space.md);
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onCancel}>
@@ -141,10 +150,23 @@ export function CalculatorSheet({
                 style={styles.display}
                 accessibilityLabel={`${expression} 결과 ${formatWon(value ?? 0)}`}
               >
-                <Text style={styles.expression} numberOfLines={2}>
-                  {expression}
-                </Text>
-                <Text style={styles.result}>{formatWon(value ?? 0)}</Text>
+                {settled ? (
+                  <>
+                    {detail ? (
+                      <Text style={styles.sub} numberOfLines={2}>
+                        {detail}
+                      </Text>
+                    ) : null}
+                    <Text style={styles.main}>{formatWon(value ?? 0)}</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.main} numberOfLines={2}>
+                      {expression || '0'}
+                    </Text>
+                    {detail ? <Text style={styles.sub}>= {formatWon(value ?? 0)}</Text> : null}
+                  </>
+                )}
                 {rounded ? <Text style={styles.rounded}>1원 아래는 반올림했어요.</Text> : null}
                 {capped ? (
                   <Text style={styles.rounded}>금액은 10억까지만 적을 수 있어요.</Text>
@@ -177,13 +199,14 @@ export function CalculatorSheet({
                 ))}
               </View>
 
-              <View style={{ gap: space.sm }}>
+              <View style={styles.actions}>
+                <Button label="취소" variant="ghost" onPress={onCancel} style={styles.action} />
                 <Button
                   label="이 금액 쓰기"
                   disabled={value === null || negative}
-                  onPress={() => onConfirm(value ?? 0, confirmedExpression(state))}
+                  onPress={() => onConfirm(value ?? 0, detail)}
+                  style={styles.confirm}
                 />
-                <Button label="취소" variant="ghost" onPress={onCancel} />
               </View>
             </View>
           </Animated.View>
@@ -242,17 +265,23 @@ const useStyles = makeStyles((t) => ({
     84 는 그 세 줄의 실제 높이다 — 토큰으로 조합되는 값이 아니라 세 폰트 크기의 합이다.
   */
   display: { gap: t.space.xxs, paddingHorizontal: t.space.sm, minHeight: 84 },
-  expression: { ...t.font.small, color: t.colors.inkFaint, textAlign: 'right' },
-  result: {
+  /** 주인공 — 치는 동안엔 수식, `=` 뒤엔 결과가 여기 온다 */
+  main: {
     ...t.font.amountLg,
     fontWeight: t.weight.heavy,
     color: t.colors.ink,
     textAlign: 'right',
   },
+  /** 거들 — 주인공의 반대쪽이 여기 온다 */
+  sub: { ...t.font.small, color: t.colors.inkFaint, textAlign: 'right' },
   rounded: { ...t.font.hint, color: t.colors.inkFaint, textAlign: 'right' },
   negative: { ...t.font.hint, color: t.colors.danger, textAlign: 'right' },
 
   row: { flexDirection: 'row', gap: t.space.sm },
+  /* 취소와 확정은 한 줄에 둔다. 취소가 왼쪽 — 확인 다이얼로그와 같은 자리다 */
+  actions: { flexDirection: 'row', gap: t.space.sm },
+  action: { flex: 1 },
+  confirm: { flex: 2 },
   keySlot: { flex: 1 },
   key: {
     minHeight: t.space.xxl + t.space.lg,
