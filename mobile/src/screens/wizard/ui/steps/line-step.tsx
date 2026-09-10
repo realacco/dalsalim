@@ -72,6 +72,12 @@ export function LineStep({
         {isIncome ? '이번 달 수입은\n얼마나 들어왔나요?' : line.name}
       </Text>
 
+      {/*
+        이 스텝은 이름 하나만 크게 뜨는 화면이라 "이게 뭐였더라" 가 가장 자주 나는 자리다.
+        적어둔 사람은 알아도 지금 적는 사람은 모를 수 있다 — 고정비는 가족끼리 서로 고친다.
+      */}
+      {line.description ? <Text style={styles.description}>{line.description}</Text> : null}
+
       <View style={{ gap: space.sm, marginTop: space.lg }}>
         <AmountInput value={amount} onChange={setAmount} autoFocus calculator />
         <DiffHint planned={line.plannedAmount} source={line.plannedSource} amount={amount} />
@@ -145,6 +151,7 @@ const useStyles = makeStyles((t) => ({
     fontWeight: t.weight.bold,
     marginBottom: t.space.xs,
   },
+  description: { ...t.font.small, color: t.colors.inkFaint, marginTop: t.space.xs },
   hintSame: { ...t.font.small, color: t.colors.inkFaint, textAlign: 'right' },
   hintDiff: { ...t.font.small, fontWeight: t.weight.bold, textAlign: 'right' },
   reasonCard: {

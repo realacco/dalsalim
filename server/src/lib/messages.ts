@@ -73,6 +73,11 @@ export const ERRORS = {
     status: 403,
     message: '제출한 기록이에요. [수정하기]를 눌러 다시 열어주세요.',
   },
+  /** ★ 하드룰 6 — 지난 달 기록은 이미 요약·추이에 들어가 있어 지우면 과거 합계가 바뀐다 */
+  PAST_MONTH_ENTRY: {
+    status: 403,
+    message: '지난 달 기록은 지울 수 없어요. [수정하기]로 고칠 수는 있어요.',
+  },
   LINE_NOT_FOUND: { status: 404, message: '입력 줄을 찾을 수 없어요.' },
   NOT_DELETABLE: { status: 400, message: '추가 지출 항목만 지울 수 있어요.' },
   /** ★ 하드룰 2·3 — 줄 저장에서는 항목 없이, 제출에서는 비어 있는 항목 이름을 붙여서 */

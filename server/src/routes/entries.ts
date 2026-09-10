@@ -1,4 +1,4 @@
-// 기능: F-ENT-02 F-ENT-03 F-ENT-04 F-ENT-05 F-ENT-06 F-ENT-07 F-ENT-08
+// 기능: F-ENT-02 F-ENT-03 F-ENT-04 F-ENT-05 F-ENT-06 F-ENT-07 F-ENT-08 F-ENT-10
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
@@ -7,6 +7,7 @@ import { amount, category } from '../lib/schemas.js';
 import {
   addExtraLine,
   assertDraft,
+  deleteEntry,
   deleteExtraLine,
   reopenEntry,
   serializeEntry,
@@ -96,6 +97,21 @@ export async function entryRoutes(app: FastifyInstance) {
 
     const bookStatus = await submitEntry(entry);
     return { entry: await serializeEntry(id), bookStatus };
+  });
+
+  /**
+   * 기록을 지운다. **작성 중인 이번 달 기록만** 지워진다 (하드룰 6 — services/entry 참조).
+   *
+   * 다른 핸들러와 달리 여기서 assertDraft 를 부르지 않는다. 월 검사보다 먼저 돌면
+   * 지난 달 제출본에 "되열어라"는 안내가 나가는데 되열어도 못 지운다 — 순서를 services 가 쥔다.
+   */
+  app.delete('/entries/:id', async (request) => {
+    const user = await requireUser(request);
+    const { id } = entryParams.parse(request.params);
+    const entry = await requireOwnEntry(user.id, id);
+
+    const bookStatus = await deleteEntry(entry);
+    return { ok: true, bookStatus };
   });
 
   /** 제출한 기록을 다시 연다. 장부가 완성돼 있었다면 다시 '진행 중'으로 내려간다. */

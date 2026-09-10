@@ -54,6 +54,14 @@ export function submitEntry(entryId: string) {
   });
 }
 
+/**
+ * 작성 중인 이번 달 기록을 지운다. 적어둔 금액이 통째로 사라지고 되돌릴 수 없다.
+ * 제출본(ENTRY_SUBMITTED)과 지난 달(PAST_MONTH_ENTRY)은 서버가 막는다.
+ */
+export function deleteEntry(entryId: string) {
+  return api<{ ok: true; bookStatus: string }>(`/entries/${entryId}`, { method: 'DELETE' });
+}
+
 /** 제출한 기록을 다시 연다. 장부가 완성돼 있었다면 다시 진행 중으로 내려간다. */
 export function reopenEntry(entryId: string) {
   return api<{ entry: Entry; bookStatus: string }>(`/entries/${entryId}/reopen`, {

@@ -7,6 +7,7 @@ describe('F-FIX-02 · F-FIX-03 고정비 편집 초안', () => {
       id: null,
       membershipId: 'm1',
       name: '',
+      description: '',
       category: '주거',
       defaultAmount: null,
       dayOfMonth: '',
@@ -15,19 +16,49 @@ describe('F-FIX-02 · F-FIX-03 고정비 편집 초안', () => {
 
   it('기존 항목을 열면 결제일이 입력창 문자열이 된다', () => {
     const draft = draftFromItem(
-      { id: 'f1', name: '월세', category: '주거', defaultAmount: 600000, dayOfMonth: 25 },
+      {
+        id: 'f1',
+        name: '월세',
+        description: '전세 아니고 월세 · 2027년 만기',
+        category: '주거',
+        defaultAmount: 600000,
+        dayOfMonth: 25,
+      },
       'm1',
     );
     expect(draft.dayOfMonth).toBe('25');
     expect(draft.id).toBe('f1');
+    expect(draft.description).toBe('전세 아니고 월세 · 2027년 만기');
   });
 
   it('결제일이 없는 항목은 빈 칸으로 연다', () => {
     const draft = draftFromItem(
-      { id: 'f2', name: '통신비', category: '통신', defaultAmount: 55000, dayOfMonth: null },
+      {
+        id: 'f2',
+        name: '통신비',
+        description: null,
+        category: '통신',
+        defaultAmount: 55000,
+        dayOfMonth: null,
+      },
       'm1',
     );
     expect(draft.dayOfMonth).toBe('');
+  });
+
+  it('설명이 없는 항목은 빈 칸으로 연다 — null 과 빈 문자열을 칸에서 가르지 않는다', () => {
+    const draft = draftFromItem(
+      {
+        id: 'f3',
+        name: '적금',
+        description: null,
+        category: '기타',
+        defaultAmount: 300000,
+        dayOfMonth: null,
+      },
+      'm1',
+    );
+    expect(draft.description).toBe('');
   });
 });
 
@@ -62,6 +93,7 @@ describe('F-FIX-02 · F-FIX-03 서버로 보낼 모양', () => {
   it('금액을 안 적었으면 0 원, 결제일이 비었으면 null', () => {
     expect(draftToInput({ ...emptyDraft('m1'), name: ' 월세 ' })).toEqual({
       name: '월세',
+      description: null,
       category: '주거',
       defaultAmount: 0,
       dayOfMonth: null,
@@ -71,6 +103,22 @@ describe('F-FIX-02 · F-FIX-03 서버로 보낼 모양', () => {
   it('적은 값은 숫자로 넘어간다', () => {
     expect(
       draftToInput({ ...emptyDraft('m1'), name: '월세', defaultAmount: 600000, dayOfMonth: '25' }),
-    ).toEqual({ name: '월세', category: '주거', defaultAmount: 600000, dayOfMonth: 25 });
+    ).toEqual({
+      name: '월세',
+      description: null,
+      category: '주거',
+      defaultAmount: 600000,
+      dayOfMonth: 25,
+    });
+  });
+
+  it('F-FIX-02 설명은 앞뒤 공백을 다듬고, 공백만 적었으면 null 로 보낸다', () => {
+    expect(
+      draftToInput({ ...emptyDraft('m1'), name: '보험료', description: '  엄마 실손  ' })
+        .description,
+    ).toBe('엄마 실손');
+    expect(
+      draftToInput({ ...emptyDraft('m1'), name: '보험료', description: '   ' }).description,
+    ).toBeNull();
   });
 });

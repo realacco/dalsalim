@@ -758,6 +758,162 @@ async function main() {
   });
   check('F-FAM-07 되돌릴 수 있다', restored.body.membership?.displayName === OWNER, restored.body);
 
+  console.log('\n[고정비 설명]');
+  // F-FIX-02 · F-FIX-03 — 설명은 선택이고, 빈 문자열은 null 로 저장한다.
+  //   여기서 만드는 항목은 이 절 끝에서 지운다 — 스모크는 몇 번이고 다시 돌 수 있어야 한다.
+  const descGroup = (
+    await call('GET', `/families/${dad.familyId}/fixed-expenses`, { token: dad.token })
+  ).body.groups?.[0];
+
+  const withDesc = await call('POST', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+    body: {
+      membershipId: descGroup?.membershipId,
+      name: '보험료',
+      description: '  엄마 실손 · 2031년 만기  ',
+      category: '보험',
+      defaultAmount: 88_000,
+    },
+  });
+  const withDescId = withDesc.body.fixedExpense?.id;
+  check(
+    'F-FIX-02 설명을 적어 등록하면 앞뒤 공백이 다듬어져 저장된다',
+    withDesc.status === 200 &&
+      withDesc.body.fixedExpense?.description === '엄마 실손 · 2031년 만기',
+    withDesc.body,
+  );
+
+  const descListed = await call('GET', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+  });
+  const descItem = (descListed.body.groups ?? [])
+    .flatMap((g) => g.items ?? [])
+    .find((i) => i.id === withDescId);
+  check(
+    'F-FIX-01 목록에도 설명이 실려 온다',
+    descItem?.description === '엄마 실손 · 2031년 만기',
+    descItem,
+  );
+
+  const blankDesc = await call('POST', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+    body: {
+      membershipId: descGroup?.membershipId,
+      name: '적금',
+      description: '   ',
+      category: '기타',
+      defaultAmount: 300_000,
+    },
+  });
+  check(
+    'F-FIX-02 공백만 적은 설명은 null 로 저장한다 — 안 적음을 두 가지로 표현하지 않는다',
+    blankDesc.status === 200 && blankDesc.body.fixedExpense?.description === null,
+    blankDesc.body,
+  );
+
+  const tooLong = await call('POST', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+    body: {
+      membershipId: descGroup?.membershipId,
+      name: '긴설명',
+      description: '가'.repeat(61),
+      category: '기타',
+      defaultAmount: 1000,
+    },
+  });
+  check(
+    'F-FIX-02 설명이 60자를 넘으면 VALIDATION',
+    tooLong.body.code === 'VALIDATION',
+    tooLong.body,
+  );
+
+  // 길이를 재는 순서 — 다듬고 나서 재야 한다.
+  //   61자만 보면 trim 과 max 의 순서가 뒤바뀜을 때 아무것도 빨개지지 않는다.
+  const exact60 = await call('POST', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+    body: {
+      membershipId: descGroup?.membershipId,
+      name: '경계',
+      description: `  ${'가'.repeat(60)}  `,
+      category: '기타',
+      defaultAmount: 1000,
+    },
+  });
+  check(
+    'F-FIX-02 앞뒤 공백을 다듬으면 60자인 설명은 통과한다',
+    exact60.status === 200 && exact60.body.fixedExpense?.description?.length === 60,
+    { status: exact60.status, length: exact60.body.fixedExpense?.description?.length },
+  );
+
+  const descPatched = await call('PATCH', `/fixed-expenses/${withDescId}`, {
+    token: dad.token,
+    body: { description: '엄마 실손 · 2035년 만기' },
+  });
+  check(
+    'F-FIX-03 설명만 보내면 설명만 바뀐다',
+    descPatched.body.fixedExpense?.description === '엄마 실손 · 2035년 만기' &&
+      descPatched.body.fixedExpense?.name === '보험료',
+    descPatched.body,
+  );
+
+  const nameOnly = await call('PATCH', `/fixed-expenses/${withDescId}`, {
+    token: dad.token,
+    body: { name: '엄마 보험료' },
+  });
+  check(
+    'F-FIX-03 설명을 안 보내면 지워지지 않는다 — 안 건드림과 지움은 다르다',
+    nameOnly.body.fixedExpense?.description === '엄마 실손 · 2035년 만기',
+    nameOnly.body,
+  );
+
+  const cleared = await call('PATCH', `/fixed-expenses/${withDescId}`, {
+    token: dad.token,
+    body: { description: '' },
+  });
+  check(
+    'F-FIX-03 빈 문자열을 보내면 설명이 지워진다',
+    cleared.body.fixedExpense?.description === null,
+    cleared.body,
+  );
+
+  // 설명이 위저드 줄에도 실려 온다. 그리고 ★ 이름과 달리 스냅샷이 아니다 —
+  //   줄에 복사돼 있지 않고 지금의 고정비에서 읽어오므로, 항목을 고치면 이미 적은 달에도 새 설명이 보인다.
+  const dadEntryForDesc = await call('GET', `/entries/${dad.entryId}`, { token: dad.token });
+  const fixedLine = (dadEntryForDesc.body.entry?.lines ?? []).find(
+    (l) => l.kind === 'FIXED' && l.fixedExpenseId,
+  );
+  check(
+    'F-ENT-04 고정비 줄에 설명 칸이 실려 온다',
+    fixedLine !== undefined && 'description' in fixedLine,
+    fixedLine,
+  );
+
+  await call('PATCH', `/fixed-expenses/${fixedLine?.fixedExpenseId}`, {
+    token: dad.token,
+    body: { description: '스모크가 붙인 설명' },
+  });
+  const afterDesc = await call('GET', `/entries/${dad.entryId}`, { token: dad.token });
+  const sameLine = (afterDesc.body.entry?.lines ?? []).find((l) => l.id === fixedLine?.id);
+  check(
+    'F-FIX-03 설명은 스냅샷이 아니다 — 항목을 고치면 이미 적은 달에도 새 설명이 보인다',
+    sameLine?.description === '스모크가 붙인 설명',
+    sameLine,
+  );
+  check(
+    '★ F-ENT-04 그래도 이름은 그 달의 스냅샷이라 안 바뀐다',
+    sameLine?.name === fixedLine?.name,
+    { before: fixedLine?.name, after: sameLine?.name },
+  );
+  // 다시 돌 수 있게 되돌린다
+  await call('PATCH', `/fixed-expenses/${fixedLine?.fixedExpenseId}`, {
+    token: dad.token,
+    body: { description: '' },
+  });
+
+  for (const id of [withDescId, blankDesc.body.fixedExpense?.id, exact60.body.fixedExpense?.id]) {
+    if (id) await call('DELETE', `/fixed-expenses/${id}`, { token: dad.token });
+  }
+
   console.log('\n[고정비 삭제]');
   // ★ 하드룰 6 — 이 기능이 존재하는 이유가 곧 하드룰 6 이다.
   //   실제 삭제는 과거 장부의 합계를 바꾼다. 지운 뒤에도 지난달이 그대로여야 한다.
@@ -815,6 +971,132 @@ async function main() {
     'F-FIX-04 없는 항목을 지우면 FIXED_EXPENSE_NOT_FOUND',
     ghost.body.code === 'FIXED_EXPENSE_NOT_FOUND',
     ghost.body,
+  );
+
+  console.log('\n[기록 지우기]');
+  // ★ 하드룰 6 — 이 기능의 경계가 곧 하드룰 6 이다.
+  //   초안은 요약·추이 어디에도 안 들어가므로 지워도 바뀌는 숫자가 없다.
+  //   반대로 제출본과 지난 달은 이미 집계에 들어가 있어 못 지운다.
+  const lastMonthSummaryPath = `/families/${dad.familyId}/books/${lastMonth}/summary`;
+  const lastMonthBefore = await call('GET', lastMonthSummaryPath, { token: dad.token });
+  const lastMonthIncomeBefore = lastMonthBefore.body.totals?.income;
+
+  const deleteSubmitted = await call('DELETE', `/entries/${dad.entryId}`, { token: dad.token });
+  check(
+    '★ F-ENT-10 제출한 기록은 못 지운다',
+    deleteSubmitted.status === 403 && deleteSubmitted.body.code === 'ENTRY_SUBMITTED',
+    deleteSubmitted.body,
+  );
+
+  const deleteOthers = await call('DELETE', `/entries/${mom.entryId}`, { token: dad.token });
+  check(
+    'F-ENT-10 남의 기록은 못 지운다 — 가족장도 예외 없다',
+    deleteOthers.status === 403 && deleteOthers.body.code === 'NOT_MY_ENTRY',
+    deleteOthers.body,
+  );
+
+  // 지난 달은 제출본이든 초안이든 같은 이유로 막힌다.
+  // 제출본에 ENTRY_SUBMITTED("되열어주세요")가 나가면 시킨 대로 해도 결국 못 지우게 되므로,
+  // 월 검사가 초안 검사보다 먼저다. 아래 두 케이스가 그 순서를 고정한다.
+  const lastEntry = await call('POST', `/families/${dad.familyId}/books/${lastMonth}/my-entry`, {
+    token: dad.token,
+  });
+  const lastEntryId = lastEntry.body.entry.id;
+
+  const deletePastSubmitted = await call('DELETE', `/entries/${lastEntryId}`, {
+    token: dad.token,
+  });
+  check(
+    '★ F-ENT-10 지난 달 제출본은 되열라고 하지 않고 바로 막는다',
+    deletePastSubmitted.status === 403 && deletePastSubmitted.body.code === 'PAST_MONTH_ENTRY',
+    deletePastSubmitted.body,
+  );
+
+  await call('POST', `/entries/${lastEntryId}/reopen`, { token: dad.token });
+
+  const deletePast = await call('DELETE', `/entries/${lastEntryId}`, { token: dad.token });
+  check(
+    '★ F-ENT-10 지난 달 기록은 되열어도 못 지운다',
+    deletePast.status === 403 && deletePast.body.code === 'PAST_MONTH_ENTRY',
+    deletePast.body,
+  );
+  await call('POST', `/entries/${lastEntryId}/submit`, { token: dad.token });
+
+  // 여기부터 성공 경로 — 제출본을 되열어 초안으로 만든 뒤에 지운다
+  const thisMonthSummaryPath = `/families/${dad.familyId}/books/${thisMonth}/summary`;
+  const thisMonthBefore = await call('GET', thisMonthSummaryPath, { token: dad.token });
+  const thisMonthIncomeBefore = thisMonthBefore.body.totals?.income;
+  const dadIncomeBefore =
+    thisMonthBefore.body.perMember?.find((m) => m.displayName === OWNER)?.income ?? 0;
+
+  await call('POST', `/entries/${dad.entryId}/reopen`, { token: dad.token });
+  const removed = await call('DELETE', `/entries/${dad.entryId}`, { token: dad.token });
+  // 리소스가 없어지는 동작이라 돌려줄 리소스가 없다 — { ok: true } 와 이어서 필요한 장부 상태만 온다
+  check(
+    '★ F-ENT-10 작성 중인 이번 달 기록을 지운다',
+    removed.status === 200 && removed.body.ok === true && removed.body.bookStatus === 'OPEN',
+    removed.body,
+  );
+
+  const gone = await call('GET', `/entries/${dad.entryId}`, { token: dad.token });
+  check(
+    'F-ENT-10 지운 기록은 줄까지 통째로 사라진다',
+    gone.status === 404 && gone.body.code === 'ENTRY_NOT_FOUND',
+    gone.body,
+  );
+
+  // 짝이 되는 두 케이스 — 지운 달은 바뀌고, 지난 달은 안 바뀐다.
+  // 한쪽만 두면 "지워도 합계가 안 바뀐다"가 마치 삭제가 아무 일도 안 하는 것처럼 읽힌다.
+  //
+  // ⚠️ 되열기(F-ENT-08)가 이미 집계에서 빼내므로, 아래 첫 케이스가 고정하는 것은
+  //    "삭제가 합계를 바꿨다"는 인과가 아니라 **지운 뒤의 최종 상태**다 —
+  //    지운 사람의 숫자가 유령처럼 요약에 남아 있지 않은지를 본다.
+  const thisMonthAfter = await call('GET', thisMonthSummaryPath, { token: dad.token });
+  check(
+    '★ F-ENT-10 지운 사람은 이번 달 합계에서 빠진다',
+    thisMonthAfter.body.totals?.income === thisMonthIncomeBefore - dadIncomeBefore &&
+      thisMonthAfter.body.perMember?.find((m) => m.displayName === OWNER)?.submitted === false,
+    {
+      before: thisMonthIncomeBefore,
+      dad: dadIncomeBefore,
+      after: thisMonthAfter.body.totals?.income,
+    },
+  );
+
+  const lastMonthAfter = await call('GET', lastMonthSummaryPath, { token: dad.token });
+  check(
+    '★ F-ENT-10 이번 달을 지워도 지난달 합계는 그대로다 — 과거를 지우지 않는다',
+    lastMonthAfter.body.totals?.income === lastMonthIncomeBefore,
+    { before: lastMonthIncomeBefore, after: lastMonthAfter.body.totals?.income },
+  );
+
+  const homeAfter = await call('GET', `/families/${dad.familyId}/books/${thisMonth}`, {
+    token: dad.token,
+  });
+  const meAfter = homeAfter.body.members?.find((m) => m.isMe);
+  check(
+    '★ F-ENT-10 홈이 다시 시작 안 함 으로 돌아간다',
+    meAfter?.status === 'NONE' && meAfter?.entryId === null,
+    meAfter,
+  );
+
+  // plannedAmount 가 null 이 아닌 것만 보면 고정비 등록 금액(FIXED_DEFAULT)으로 채워져도 통과한다.
+  // plannedSource 까지 봐야 "지난달 실제 금액 → 없으면 등록 금액"이라는 프리필 우선순위(F-ENT-01)가
+  // 지운 뒤에도 살아 있다는 것이 고정된다.
+  const dadLastMonthIncome =
+    lastMonthAfter.body.perMember?.find((m) => m.displayName === OWNER)?.income ?? 0;
+  const restarted = await call('POST', `/families/${dad.familyId}/books/${thisMonth}/my-entry`, {
+    token: dad.token,
+  });
+  const restartedIncome = restarted.body.entry?.lines?.find((l) => l.kind === 'INCOME');
+  check(
+    '★ F-ENT-10 다시 시작해도 프리필 근거가 지난달 기록이다',
+    restarted.status === 200 &&
+      restarted.body.entry.id !== dad.entryId &&
+      restarted.body.entry.status === 'DRAFT' &&
+      restartedIncome?.plannedSource === 'LAST_MONTH' &&
+      restartedIncome?.plannedAmount === dadLastMonthIncome,
+    { id: restarted.body.entry?.id, status: restarted.body.entry?.status, line: restartedIncome },
   );
 
   console.log('\n[레이트리밋]');
