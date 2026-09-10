@@ -876,6 +876,40 @@ async function main() {
     cleared.body,
   );
 
+  // 설명이 위저드 줄에도 실려 온다. 그리고 ★ 이름과 달리 스냅샷이 아니다 —
+  //   줄에 복사돼 있지 않고 지금의 고정비에서 읽어오므로, 항목을 고치면 이미 적은 달에도 새 설명이 보인다.
+  const dadEntryForDesc = await call('GET', `/entries/${dad.entryId}`, { token: dad.token });
+  const fixedLine = (dadEntryForDesc.body.entry?.lines ?? []).find(
+    (l) => l.kind === 'FIXED' && l.fixedExpenseId,
+  );
+  check(
+    'F-ENT-04 고정비 줄에 설명 칸이 실려 온다',
+    fixedLine !== undefined && 'description' in fixedLine,
+    fixedLine,
+  );
+
+  await call('PATCH', `/fixed-expenses/${fixedLine?.fixedExpenseId}`, {
+    token: dad.token,
+    body: { description: '스모크가 붙인 설명' },
+  });
+  const afterDesc = await call('GET', `/entries/${dad.entryId}`, { token: dad.token });
+  const sameLine = (afterDesc.body.entry?.lines ?? []).find((l) => l.id === fixedLine?.id);
+  check(
+    'F-FIX-03 설명은 스냅샷이 아니다 — 항목을 고치면 이미 적은 달에도 새 설명이 보인다',
+    sameLine?.description === '스모크가 붙인 설명',
+    sameLine,
+  );
+  check(
+    '★ F-ENT-04 그래도 이름은 그 달의 스냅샷이라 안 바뀐다',
+    sameLine?.name === fixedLine?.name,
+    { before: fixedLine?.name, after: sameLine?.name },
+  );
+  // 다시 돌 수 있게 되돌린다
+  await call('PATCH', `/fixed-expenses/${fixedLine?.fixedExpenseId}`, {
+    token: dad.token,
+    body: { description: '' },
+  });
+
   for (const id of [withDescId, blankDesc.body.fixedExpense?.id, exact60.body.fixedExpense?.id]) {
     if (id) await call('DELETE', `/fixed-expenses/${id}`, { token: dad.token });
   }
