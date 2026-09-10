@@ -25,7 +25,7 @@ describe('아래 시트 — 따라가는 거리', () => {
   });
 });
 
-describe('고정비 아래 시트 — 닫기 판정', () => {
+describe('아래 시트 — 닫기 판정', () => {
   it('충분히 끌어내리면 닫는다', () => {
     expect(shouldDismiss(DISMISS_DISTANCE + 1, 0)).toBe(true);
   });

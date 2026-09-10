@@ -147,6 +147,7 @@ export function CalculatorSheet({
                 틀렸을 때 사람이 못 찾는다.
               */}
               <View
+                accessible
                 style={styles.display}
                 accessibilityLabel={`${expression} 결과 ${formatWon(value ?? 0)}`}
               >
@@ -264,7 +265,11 @@ const useStyles = makeStyles((t) => ({
     안내는 있다 없다 하는데, 그때마다 시트 높이가 출렁이면 자판이 손 밑에서 움직인다.
     84 는 그 세 줄의 실제 높이다 — 토큰으로 조합되는 값이 아니라 세 폰트 크기의 합이다.
   */
-  display: { gap: t.space.xxs, paddingHorizontal: t.space.sm, minHeight: 84 },
+  display: {
+    gap: t.space.xxs,
+    paddingHorizontal: t.space.sm,
+    minHeight: t.font.amountLg.lineHeight + t.font.small.lineHeight + t.font.hint.lineHeight,
+  },
   /** 주인공 — 치는 동안엔 수식, `=` 뒤엔 결과가 여기 온다 */
   main: {
     ...t.font.amountLg,
