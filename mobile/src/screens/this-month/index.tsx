@@ -1,4 +1,4 @@
-// 기능: F-BOOK-01 F-ENT-01 F-ENT-08
+// 기능: F-BOOK-01 F-ENT-01 F-ENT-08 F-ENT-10
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -84,8 +84,12 @@ export default function ThisMonthScreen() {
               progress={m.mine.progress}
               summary={m.mine.summary}
               busy={m.busy}
+              opening={m.opening}
+              deleting={m.deleting}
+              canDelete={m.canDelete}
               onStart={m.start}
               onEdit={m.edit}
+              onDelete={m.remove}
             />
 
             <ErrorText>{m.actionError}</ErrorText>

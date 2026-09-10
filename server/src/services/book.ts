@@ -149,7 +149,8 @@ export async function openMyEntry(familyId: string, yearMonth: string, membershi
   const lastIncome = lastMonthLines.find((l) => l.kind === 'INCOME')?.actualAmount ?? null;
   const lastByFixedId = new Map(
     lastMonthLines
-      // 금액이 비어 있는 줄(제출하지 않은 초안)은 기본값의 근거가 될 수 없다
+      // 금액이 비어 있는 줄은 기본값의 근거가 될 수 없다.
+      // 제출 여부는 보지 않는다 — 지난달에 적다 만 초안의 금액도 근거가 된다.
       .filter((l) => l.kind === 'FIXED' && l.fixedExpenseId && l.actualAmount !== null)
       .map((l) => [l.fixedExpenseId as string, l.actualAmount as number]),
   );
