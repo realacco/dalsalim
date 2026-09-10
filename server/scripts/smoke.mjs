@@ -904,6 +904,36 @@ async function main() {
     sameLine?.name === fixedLine?.name,
     { before: fixedLine?.name, after: sameLine?.name },
   );
+  // 줄을 돌려주는 자리가 셋이다 — 기록 한 벌 · 줄 저장 · 추가 지출 추가.
+  //   셋이 같은 모양이어야 앱이 하나의 타입으로 받는다. 저장 응답만 칸이 빠져 있으면
+  //   타입은 "있다"고 하는데 런타임엔 없고, 그 응답으로 화면을 갱신하는 순간 설명이 사라진다.
+  await call('POST', `/entries/${dad.entryId}/reopen`, { token: dad.token });
+  const savedLine = await call('PATCH', `/entries/${dad.entryId}/lines/${fixedLine?.id}`, {
+    token: dad.token,
+    body: { actualAmount: fixedLine?.actualAmount ?? 0, changeReason: fixedLine?.changeReason },
+  });
+  check(
+    'F-ENT-04 줄을 저장한 응답에도 설명이 실려 온다',
+    savedLine.status === 200 && savedLine.body.line?.description === '스모크가 붙인 설명',
+    savedLine.body.line,
+  );
+
+  const addedLine = await call('POST', `/entries/${dad.entryId}/lines`, {
+    token: dad.token,
+    body: { name: '응답 모양 확인', category: '기타', actualAmount: 1000 },
+  });
+  check(
+    'F-ENT-05 추가 지출을 만든 응답에도 설명 칸이 있다 (고정비가 아니라 null)',
+    addedLine.status === 200 &&
+      'description' in (addedLine.body.line ?? {}) &&
+      addedLine.body.line.description === null,
+    addedLine.body.line,
+  );
+  await call('DELETE', `/entries/${dad.entryId}/lines/${addedLine.body.line?.id}`, {
+    token: dad.token,
+  });
+  await call('POST', `/entries/${dad.entryId}/submit`, { token: dad.token });
+
   // 다시 돌 수 있게 되돌린다
   await call('PATCH', `/fixed-expenses/${fixedLine?.fixedExpenseId}`, {
     token: dad.token,

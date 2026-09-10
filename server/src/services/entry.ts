@@ -1,5 +1,5 @@
 // 기능: F-ENT-01 F-ENT-02 F-ENT-03 F-ENT-04 F-ENT-05 F-ENT-06 F-ENT-07 F-ENT-08
-import type { MemberEntry } from '@prisma/client';
+import type { EntryLine, MemberEntry } from '@prisma/client';
 
 import { prisma } from '../lib/db.js';
 import { fail } from '../lib/http.js';
@@ -13,16 +13,49 @@ import { refreshBookStatus } from './book.js';
  * 알리는 한 방향이다 — 제출하면 "전원이 냈나"를 다시 세야 하기 때문이다.
  */
 
+/**
+ * 줄을 돌려줄 때 항상 같이 읽는 것. 설명은 줄에 복사돼 있지 않아 항목에서 가져와야 한다.
+ */
+const LINE_INCLUDE = { fixedExpense: { select: { description: true } } } as const;
+
+type LineRow = EntryLine & { fixedExpense: { description: string | null } | null };
+
+/**
+ * 줄 하나의 응답 모양. **한 곳에서만 정한다** — 줄을 돌려주는 자리가 셋이다
+ * (기록 한 벌 · 줄 저장 · 추가 지출 추가).
+ *
+ * 앱은 셋을 같은 타입으로 받는다. 한 곳만 prisma 원본을 그대로 흘리면 타입은 "있다"고 하는데
+ * 런타임엔 그 칸이 없고, 나중에 저장 응답으로 화면을 갱신하는 순간 조용히 사라진다.
+ */
+export function serializeLine(line: LineRow) {
+  return {
+    id: line.id,
+    kind: line.kind,
+    fixedExpenseId: line.fixedExpenseId,
+    name: line.name,
+    /**
+     * 항목의 한 줄 설명. ★ **스냅샷이 아니다** — 줄에 복사해 두지 않고
+     * fixedExpenseId 로 지금의 고정비에서 읽어온다.
+     *
+     * 이름·분류를 복사하는 이유는 그 둘이 과거 장부의 표시와 합계를 바꾸기 때문이다.
+     * 설명은 금액에도 집계에도 관여하지 않는 힌트라, "이게 무엇인지" 를 알려주는 게
+     * 목적이므로 항상 최신인 쪽이 맞다. (기획서 8장)
+     */
+    description: line.fixedExpense?.description ?? null,
+    category: line.category,
+    plannedAmount: line.plannedAmount,
+    plannedSource: line.plannedSource,
+    actualAmount: line.actualAmount,
+    changeReason: line.changeReason,
+  };
+}
+
 /** 위저드가 들고 다니는 기록 한 벌 */
 export async function serializeEntry(entryId: string) {
   const entry = await prisma.memberEntry.findUniqueOrThrow({
     where: { id: entryId },
     include: {
-      lines: {
-        orderBy: { sortOrder: 'asc' },
-        // 설명은 줄에 복사돼 있지 않아 항목에서 읽어온다 — 아래 map 의 주석 참조
-        include: { fixedExpense: { select: { description: true } } },
-      },
+      lines: { orderBy: { sortOrder: 'asc' }, include: LINE_INCLUDE },
       book: true,
       membership: true,
     },
@@ -37,26 +70,7 @@ export async function serializeEntry(entryId: string) {
     status: entry.status,
     note: entry.note,
     cursor: entry.cursor,
-    lines: entry.lines.map((line) => ({
-      id: line.id,
-      kind: line.kind,
-      fixedExpenseId: line.fixedExpenseId,
-      name: line.name,
-      /**
-       * 항목의 한 줄 설명. ★ **스냅샷이 아니다** — 줄에 복사해 두지 않고
-       * fixedExpenseId 로 지금의 고정비에서 읽어온다.
-       *
-       * 이름·분류를 복사하는 이유는 그 둘이 과거 장부의 표시와 합계를 바꾸기 때문이다.
-       * 설명은 금액에도 집계에도 관여하지 않는 힌트라, "이게 무엇인지" 를 알려주는 게
-       * 목적이므로 항상 최신인 쪽이 맞다. (기획서 8장)
-       */
-      description: line.fixedExpense?.description ?? null,
-      category: line.category,
-      plannedAmount: line.plannedAmount,
-      plannedSource: line.plannedSource,
-      actualAmount: line.actualAmount,
-      changeReason: line.changeReason,
-    })),
+    lines: entry.lines.map(serializeLine),
     summary: entrySummary(entry.lines),
   };
 }
@@ -94,7 +108,7 @@ export async function updateLine(
 
   if (reasonNeeded && !trimmedReason) throw fail('REASON_REQUIRED');
 
-  return prisma.entryLine.update({
+  const saved = await prisma.entryLine.update({
     where: { id: lineId },
     data: {
       actualAmount: body.actualAmount,
@@ -102,7 +116,9 @@ export async function updateLine(
       changeReason: reasonNeeded ? trimmedReason : null,
       ...(body.name && line.kind === 'EXTRA' ? { name: body.name } : {}),
     },
+    include: LINE_INCLUDE,
   });
+  return serializeLine(saved);
 }
 
 /** 추가 지출 항목 — 비교 대상이 없으므로 사유도 묻지 않는다. 이름이 곧 사유다. */
@@ -112,7 +128,7 @@ export async function addExtraLine(
 ) {
   const count = await prisma.entryLine.count({ where: { entryId, kind: 'EXTRA' } });
 
-  return prisma.entryLine.create({
+  const created = await prisma.entryLine.create({
     data: {
       entryId,
       kind: 'EXTRA',
@@ -123,7 +139,9 @@ export async function addExtraLine(
       // 추가 지출은 1000번대 — 고정비(100번대) 뒤에 온다
       sortOrder: 1000 + count,
     },
+    include: LINE_INCLUDE,
   });
+  return serializeLine(created);
 }
 
 /** 추가 지출만 지울 수 있다. 수입·고정비 줄은 템플릿이라 비울 수는 있어도 없앨 수는 없다. */
