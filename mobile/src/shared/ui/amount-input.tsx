@@ -144,7 +144,7 @@ export function AmountInput({
           onCancel={() => setCalcOpen(false)}
           onConfirm={(next, expr) => {
             setCalcOpen(false);
-            // 포스스가 남은 채 열었다면 editing 이 true 라 칸에 역 드래프트가 그대로 보인다.
+            // 포커스가 남은 채 열었다면 editing 이 true 라 칸에 옛 드래프트가 그대로 보인다.
             // keyboardDidHide 가 오면 풀리긴 하지만, Modal 은 별도의 네이티브 창이라 그 이벤트를
             // 믿지 않는다 — 확정한 금액이 칸에 안 보이는 건 그 자체로 고장이다
             setEditing(false);

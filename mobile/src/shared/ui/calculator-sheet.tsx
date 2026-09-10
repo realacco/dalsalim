@@ -11,6 +11,7 @@ import {
   formatExpression,
   initialState,
   isCapped,
+  isNegative,
   isRounded,
   pressKey,
   result,
@@ -116,7 +117,7 @@ export function CalculatorSheet({
   const expression = formatExpression(state);
   const rounded = isRounded(state);
   const capped = isCapped(state);
-  const negative = value !== null && value < 0;
+  const negative = isNegative(state);
   const bottom = Math.max(insets.bottom + space.md, space.xl);
 
   return (
@@ -235,6 +236,11 @@ const useStyles = makeStyles((t) => ({
   },
   body: { paddingHorizontal: t.space.lg, gap: t.space.lg },
 
+  /*
+    수식 한 줄 + 결과 한 줄 + 안내 한 줄(반올림·상한·음수) 자리를 미리 잡아둔다.
+    안내는 있다 없다 하는데, 그때마다 시트 높이가 출렁이면 자판이 손 밑에서 움직인다.
+    84 는 그 세 줄의 실제 높이다 — 토큰으로 조합되는 값이 아니라 세 폰트 크기의 합이다.
+  */
   display: { gap: t.space.xxs, paddingHorizontal: t.space.sm, minHeight: 84 },
   expression: { ...t.font.small, color: t.colors.inkFaint, textAlign: 'right' },
   result: {

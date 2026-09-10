@@ -7,6 +7,7 @@ import {
   formatExpression,
   initialState,
   isCapped,
+  isNegative,
   isRounded,
   pressKey,
   result,
@@ -194,6 +195,15 @@ describe('★ F-ENT-09 = 를 눌러도 안내가 사라지지 않는다', () => 
 
   it('접은 값은 이미 반올림된 정수다 — 보이는 3,333 과 다음 계산이 쓰는 값이 같다', () => {
     expect(result(press(['1', '0', '0', '0', '0', '÷', '3', '=', '×', '3']))).toBe(9999);
+  });
+});
+
+describe('★ F-ENT-09 음수는 칸에 넣을 수 없다', () => {
+  it('결과가 음수면 확정을 막는다', () => {
+    expect(isNegative(press(['1', '0', '0', '-', '5', '0', '0']))).toBe(true);
+    expect(isNegative(press(['5', '0', '0', '-', '1', '0', '0']))).toBe(false);
+    // 아무것도 안 친 상태는 음수가 아니다 — 막을 이유가 없다
+    expect(isNegative({ tokens: [], draft: '' })).toBe(false);
   });
 });
 

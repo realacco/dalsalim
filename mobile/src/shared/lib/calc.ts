@@ -115,6 +115,15 @@ export function isRounded(state: CalcState): boolean {
 }
 
 /**
+ * 결과가 음수인가 — 칸에 넣을 수 없다.
+ * 상한·반올림과 같은 자리에 둔다. 셋이 흩어지면 "확정할 수 있는 조건"을 한 곳에서 못 읽는다.
+ */
+export function isNegative(state: CalcState): boolean {
+  const value = result(state);
+  return value !== null && value < 0;
+}
+
+/**
  * 키 하나를 눌렀을 때의 다음 상태.
  *
  * 숫자 · `00` · 연산자 · `C`(전부 지우기) · `←`(한 글자) · `=`(지금까지를 하나로 접기)
