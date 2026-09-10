@@ -64,7 +64,8 @@ export default function FixedScreen() {
                     /*
                       라벨을 주지 않는다. 주면 안쪽 Text 들을 훑어 만들던 기본 라벨을 **대체**해서
                       스크린리더에서 분류와 금액이 사라진다. 지금 그대로 두면
-                      "통신비, 통신 · 매월 25일, 55,000원" 이 읽히고, 옆의 × 는 자기 라벨이 있어 구분된다.
+                      "통신비, 통신 · 매월 25일, 아빠 휴대폰 · 5G, 55,000원" 이 읽히고(설명은 적었을 때만),
+                      옆의 × 는 자기 라벨이 있어 구분된다.
                     */
                     accessibilityRole="button"
                   >
@@ -74,6 +75,15 @@ export default function FixedScreen() {
                         {item.category}
                         {item.dayOfMonth ? ` · 매월 ${item.dayOfMonth}일` : ''}
                       </Text>
+                      {/*
+                        적었을 때만 한 줄. 한 줄로 자르는 이유는 행 높이를 항목마다
+                        다르게 만들지 않기 위해서다 — 목록의 주인공은 이름과 금액이다.
+                      */}
+                      {item.description ? (
+                        <Text style={styles.itemDescription} numberOfLines={1}>
+                          {item.description}
+                        </Text>
+                      ) : null}
                     </View>
                     <Text style={styles.itemAmount}>{formatWon(item.defaultAmount)}</Text>
                   </Pressable>
@@ -194,6 +204,7 @@ const useStyles = makeStyles((t) => ({
   itemDeleteGlyph: { ...t.font.title, color: t.colors.inkFaint },
   itemName: { ...t.font.body, color: t.colors.ink, fontWeight: t.weight.semibold },
   itemMeta: { ...t.font.caption, color: t.colors.inkFaint },
+  itemDescription: { ...t.font.caption, color: t.colors.inkFaint },
   itemAmount: {
     ...t.font.body,
     color: t.colors.ink,

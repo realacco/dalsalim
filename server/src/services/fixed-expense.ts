@@ -5,6 +5,7 @@ import { ACTIVE_MEMBER } from '../lib/shared.js';
 
 export type FixedExpenseInput = {
   name: string;
+  description?: string | null;
   category: string;
   defaultAmount: number;
   dayOfMonth?: number | null;
@@ -42,6 +43,7 @@ export async function createFixedExpense(
       familyId,
       membershipId,
       name: input.name,
+      description: input.description ?? null,
       category: input.category,
       defaultAmount: input.defaultAmount,
       dayOfMonth: input.dayOfMonth ?? null,

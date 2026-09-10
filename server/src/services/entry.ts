@@ -19,7 +19,11 @@ export async function serializeEntry(entryId: string) {
   const entry = await prisma.memberEntry.findUniqueOrThrow({
     where: { id: entryId },
     include: {
-      lines: { orderBy: { sortOrder: 'asc' } },
+      lines: {
+        orderBy: { sortOrder: 'asc' },
+        // 설명은 줄에 복사돼 있지 않아 항목에서 읽어온다 — 아래 map 의 주석 참조
+        include: { fixedExpense: { select: { description: true } } },
+      },
       book: true,
       membership: true,
     },
@@ -39,6 +43,15 @@ export async function serializeEntry(entryId: string) {
       kind: line.kind,
       fixedExpenseId: line.fixedExpenseId,
       name: line.name,
+      /**
+       * 항목의 한 줄 설명. ★ **스냅샷이 아니다** — 줄에 복사해 두지 않고
+       * fixedExpenseId 로 지금의 고정비에서 읽어온다.
+       *
+       * 이름·분류를 복사하는 이유는 그 둘이 과거 장부의 표시와 합계를 바꾸기 때문이다.
+       * 설명은 금액에도 집계에도 관여하지 않는 힌트라, "이게 무엇인지" 를 알려주는 게
+       * 목적이므로 항상 최신인 쪽이 맞다. (기획서 8장)
+       */
+      description: line.fixedExpense?.description ?? null,
       category: line.category,
       plannedAmount: line.plannedAmount,
       plannedSource: line.plannedSource,
