@@ -238,6 +238,19 @@ describe('★ F-ENT-09 음수는 칸에 넣을 수 없다', () => {
     expect(isNegative(dashOnly)).toBe(false);
     expect(formatExpression(dashOnly)).toBe('');
   });
+
+  it('★ - 하나만 남은 채 연산자를 눌러도 NaN 이 수식 줄에 들어가지 않는다', () => {
+    // 계산 쪽만 막았을 때는 연산자 분기가 Number('-') 를 그대로 tokens 에 넣어 'NaN +' 가 보였다
+    const dashOnly = press(['1', '-', '5', '=', '←']);
+    expect(dashOnly.draft).toBe('-');
+
+    expect(press(['+'], dashOnly)).toEqual({ tokens: [], draft: '' });
+    expect(formatExpression(press(['+', '5'], dashOnly))).toBe('5');
+
+    // 앞에 토큰이 있으면 값 없는 draft 는 버리고 연산자만 잇는다
+    const afterTokens: CalcState = { tokens: [100, '+'], draft: '-' };
+    expect(press(['×'], afterTokens)).toEqual({ tokens: [100, '×'], draft: '' });
+  });
 });
 
 describe('★ F-ENT-09 관리비를 형과 반씩 낸다', () => {

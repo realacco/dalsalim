@@ -57,17 +57,26 @@ export function isEmpty(state: CalcState): boolean {
   return state.tokens.length === 0 && state.draft === '';
 }
 
+/**
+ * 지금 치는 숫자의 값. 숫자가 아니면 아직 안 친 것으로 본다 — `null`.
+ *
+ * ★ '=' 가 결과를 draft 로 되돌리는데 그 값이 음수면 '-' 가 draft 에 들어간다.
+ *   거기서 ← 로 자릿수를 지워 나가면 '-' 하나만 남고, Number('-') 는 NaN 이다.
+ *   그대로 흘리면 evaluate 가 null 이 아니라 NaN 을 내고 → isNegative 가 false 가 되어
+ *   경고가 사라진 채 [이 금액 쓰기] 가 열린다. 칸에 NaN 이 박히고 저장은 400 으로 끝난다.
+ *   draft 를 숫자로 읽는 곳은 전부 여기를 거친다 — 한 곳만 막으면 다른 곳으로 샌다
+ *   (처음엔 계산 쪽만 막았더니 연산자를 누를 때 NaN 이 tokens 로 들어가 수식 줄에 보였다).
+ */
+function draftValue(state: CalcState): number | null {
+  if (state.draft === '') return null;
+  const typed = Number(state.draft);
+  return Number.isFinite(typed) ? typed : null;
+}
+
 /** 확정된 것 + 지금 치는 숫자. 계산은 언제나 이걸로 한다 — 상태를 두 벌 두지 않기 위해서다 */
 function allTokens(state: CalcState): Token[] {
-  const typed = Number(state.draft);
-  // draft 가 숫자가 아니면 아직 안 친 것으로 본다.
-  //
-  // ★ '=' 가 결과를 draft 로 되돌리는데 그 값이 음수면 '-' 가 draft 에 들어간다.
-  //   거기서 ← 로 자릿수를 지워 나가면 '-' 하나만 남고, Number('-') 는 NaN 이다.
-  //   그대로 흘리면 evaluate 가 null 이 아니라 NaN 을 내고 → isNegative 가 false 가 되어
-  //   경고가 사라진 채 [이 금액 쓰기] 가 열린다. 칸에 NaN 이 박히고 저장은 400 으로 끝난다.
-  if (state.draft === '' || !Number.isFinite(typed)) return state.tokens;
-  return [...state.tokens, typed];
+  const typed = draftValue(state);
+  return typed === null ? state.tokens : [...state.tokens, typed];
 }
 
 /**
@@ -185,8 +194,10 @@ export function pressKey(input: CalcState, key: string): CalcState {
 
   if (OPERATORS.includes(key as Operator)) {
     const operator = key as Operator;
-    if (state.draft === '') {
-      if (state.tokens.length === 0) return state;
+    const typed = draftValue(state);
+    if (typed === null) {
+      // 값이 없는 draft('-' 하나만 남은 것)는 여기서 같이 버린다. 남겨두면 다음 숫자가 그 뒤에 붙는다
+      if (state.tokens.length === 0) return { tokens: [], draft: '' };
       // 연산자를 잇달아 누르면 마지막 것을 바꾼다. 잘못 눌렀을 때 지우러 갈 필요가 없다
       const last = state.tokens[state.tokens.length - 1];
       if (isOperator(last)) {
@@ -194,7 +205,7 @@ export function pressKey(input: CalcState, key: string): CalcState {
       }
       return { tokens: [...state.tokens, operator], draft: '' };
     }
-    return { tokens: [...state.tokens, Number(state.draft), operator], draft: '' };
+    return { tokens: [...state.tokens, typed, operator], draft: '' };
   }
 
   // 여기부터는 숫자 — '0'~'9' 와 '00'
