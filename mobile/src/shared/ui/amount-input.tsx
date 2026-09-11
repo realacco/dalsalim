@@ -148,7 +148,8 @@ export function AmountInput({
             // keyboardDidHide 가 오면 풀리긴 하지만, Modal 은 별도의 네이티브 창이라 그 이벤트를
             // 믿지 않는다 — 확정한 금액이 칸에 안 보이는 건 그 자체로 고장이다
             setEditing(false);
-            setExpression(expr);
+            // 0 은 칸을 빈칸으로 그린다(위 text). 빈 칸 아래에 `5 - 5` 만 남으면 무엇의 근거인지 안 보인다
+            setExpression(next === 0 ? '' : expr);
             onChange(next);
           }}
         />
