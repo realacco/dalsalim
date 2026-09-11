@@ -16,7 +16,7 @@ export type CalcState = {
   tokens: Token[];
   draft: string;
   /**
-   * 열 때 실려 온 금액이 아직 그대로인가.
+   * draft 가 "이어 붙일 것"이 아니라 "갈아탈 것"인가.
    *
    * 옆의 금액 칸은 포커스하는 순간 전체를 선택해 **첫 글자가 통째로 대체**된다
    * ("다른 금액을 적으려면 먼저 지워야 하는 칸이 되면 매달 성가시다"가 그 근거다).
@@ -25,6 +25,9 @@ export type CalcState = {
    *
    * 그래서 **첫 키가 숫자면 실려 온 값을 대체한다.** 연산자를 먼저 누르면(180,000 + …)
    * 실려 온 값을 쓰겠다는 뜻이므로 그대로 둔다. 어떤 키든 한 번 누르면 이 표시는 사라진다.
+   *
+   * `=` 로 접힌 결과도 같은 자리에 있다 — 사람이 아는 계산기는 `=` 뒤 첫 숫자에서 새로 시작한다.
+   * 안 그러면 `100 + 50 =` 뒤에 `7` 을 눌렀을 때 1,507 이 된다.
    */
   fresh?: boolean;
   /**
@@ -41,9 +44,9 @@ export type CalcState = {
 export const MAX_AMOUNT = 1_000_000_000;
 const MAX_DIGITS = 10;
 
-export const OPERATORS: Operator[] = ['+', '-', '×', '÷'];
+const OPERATORS: Operator[] = ['+', '-', '×', '÷'];
 
-export function isOperator(token: Token): token is Operator {
+function isOperator(token: Token): token is Operator {
   return typeof token === 'string';
 }
 
@@ -51,10 +54,6 @@ export function isOperator(token: Token): token is Operator {
 export function initialState(value: number | null): CalcState {
   const draft = value === null || value === 0 ? '' : String(value);
   return draft === '' ? { tokens: [], draft } : { tokens: [], draft, fresh: true };
-}
-
-export function isEmpty(state: CalcState): boolean {
-  return state.tokens.length === 0 && state.draft === '';
 }
 
 /**
@@ -86,7 +85,7 @@ function allTokens(state: CalcState): Token[] {
  * 여기서는 **반올림하지 않는다.** 나눗셈이 섞이면 중간값이 소수일 수 있고,
  * 매 단계 반올림하면 오차가 쌓인다. 정수로 만드는 것은 마지막에 딱 한 번이다.
  */
-export function evaluateExact(tokens: Token[]): number | null {
+function evaluateExact(tokens: Token[]): number | null {
   const items = [...tokens];
   // 연산자로 끝나면 아직 덜 친 것이다. 그 자리는 없는 셈 친다
   if (items.length > 0 && isOperator(items[items.length - 1])) items.pop();
@@ -170,17 +169,25 @@ export function isNegative(state: CalcState): boolean {
  * 숫자 · `00` · 연산자 · `C`(전부 지우기) · `←`(한 글자) · `=`(지금까지를 하나로 접기)
  */
 export function pressKey(input: CalcState, key: string): CalcState {
-  // 어떤 키를 누르든 "실려 온 값" 상태는 여기서 끝난다
+  // 어떤 키를 누르든 "갈아탈 값" 상태는 여기서 끝난다
   const { fresh, ...state } = input;
 
   if (key === 'C') return { tokens: [], draft: '' };
 
   if (key === '←') {
-    // 접힌 결과가 draft 에 있으므로 여기서 한 글자만 지워진다.
-    // tokens 에 넣어뒀을 때는 ← 한 번에 105,000 이 통째로 날아갔다 (C 를 누른 것과 같았다)
+    // 치던 숫자가 있으면 그 한 글자만 지운다
     if (state.draft !== '') return { tokens: state.tokens, draft: state.draft.slice(0, -1) };
-    if (state.tokens.length === 0) return { tokens: [], draft: '' };
-    return { tokens: state.tokens.slice(0, -1), draft: '' };
+
+    const tokens = [...state.tokens];
+    const last = tokens.pop();
+    if (last === undefined) return { tokens: [], draft: '' };
+    // 연산자를 지우면 그 앞의 숫자가 다시 "치던 숫자"가 된다. tokens 에 남겨두면 다음 ← 에
+    // 10 이 1 로 줄지 않고 통째로 날아간다 — `=` 가 결과를 tokens 아닌 draft 로 되돌리는 것과 같은 이유다
+    if (isOperator(last)) {
+      const number = tokens.pop();
+      return { tokens, draft: number === undefined ? '' : String(number) };
+    }
+    return { tokens, draft: String(last).slice(0, -1) };
   }
 
   if (key === '=') {
@@ -189,7 +196,12 @@ export function pressKey(input: CalcState, key: string): CalcState {
     // 결과를 tokens 가 아니라 draft 로 되돌린다 — 이어서 치거나 한 글자 지우는 길이 살아 있어야 한다.
     // 접은 값은 이미 반올림된 정수다. 보이는 3,333 과 다음 계산이 쓰는 값이 같아야 하므로
     // 정확값으로 되돌리지 않는다 (수식 줄과 결과가 갈라지면 안 된다는 아래 MAX_DIGITS 와 같은 축)
-    return { tokens: [], draft: String(value), folded: state.folded ?? allTokens(state) };
+    return {
+      tokens: [],
+      draft: String(value),
+      fresh: true,
+      folded: state.folded ?? allTokens(state),
+    };
   }
 
   if (OPERATORS.includes(key as Operator)) {
@@ -212,7 +224,7 @@ export function pressKey(input: CalcState, key: string): CalcState {
   const digits = key.replace(/[^0-9]/g, '');
   if (digits === '') return state;
 
-  // 실려 온 값이 그대로면 이어 붙이지 않고 갈아탄다 (위 fresh 주석)
+  // 갈아탈 값이면 이어 붙이지 않는다 (위 fresh 주석)
   const next = (fresh ? digits : state.draft + digits).replace(/^0+(?=\d)/, '');
   // 상한을 넘기면 아예 안 받는다. 수식 줄에는 100억이 보이는데 결과만 10억으로
   // 접히면, 보이는 것과 계산된 것이 달라진다 — 손으로 치는 칸과도 규칙이 갈라진다
