@@ -135,6 +135,18 @@ export function CalculatorSheet({
   /** 한 번에 하나만 — 둘을 그리면 시트가 한 줄만큼 커져 자판이 손 밑에서 움직인다 (calc.notice) */
   const shown = notice(state);
   const negative = isNegative(state);
+  /**
+   * 표시부를 스크린리더가 한 덩어리로 읽는다. accessible + accessibilityLabel 은 자식 텍스트를
+   * 덮으므로 안내 문장을 여기 이어 붙여야 읽힌다 — 음수 안내는 [이 금액 쓰기] 가 왜 안 눌리는지를
+   * 말하는 유일한 문장이라, 눈으로만 성립하면 "막힌 이유가 곧 다음 행동" 이 안 된다.
+   * 숫자 하나뿐이면 "결과" 가 아니다 — 열자마자 " 결과 0원" 으로 읽히면 안 된다.
+   */
+  const readout = [
+    showsResult ? `${expression} 결과 ${formatWon(value ?? 0)}` : expression || '0',
+    shown ? NOTICES[shown] : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
   // 시스템 내비게이션 위에 딱 붙는다. 시트 바닥이 그보다 더 떠 있으면 버튼이 허공에 뜬 것처럼 보인다
   const bottom = Math.max(insets.bottom, space.md);
 
@@ -155,14 +167,7 @@ export function CalculatorSheet({
                 수식과 결과는 늘 같이 보인다. 무엇을 눌러 이 금액이 됐는지 안 보이면
                 틀렸을 때 사람이 못 찾는다.
               */}
-              <View
-                accessible
-                style={styles.display}
-                // 숫자 하나뿐이면 "결과" 가 아니다 — 열자마자 " 결과 0원" 으로 읽히면 안 된다
-                accessibilityLabel={
-                  showsResult ? `${expression} 결과 ${formatWon(value ?? 0)}` : expression || '0'
-                }
-              >
+              <View accessible style={styles.display} accessibilityLabel={readout}>
                 {settled ? (
                   <>
                     {showsResult ? (
