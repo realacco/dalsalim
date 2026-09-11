@@ -308,7 +308,8 @@ const useStyles = makeStyles((t) => ({
   confirm: { flex: 2 },
   keySlot: { flex: 1 },
   key: {
-    minHeight: t.space.xxl + t.space.lg,
+    // 터치 최소 크기는 [계산기] 버튼과 같은 토큰이다. 실제 높이는 글자 + 패딩이 더 크게 정한다
+    minHeight: t.size.touch,
     paddingVertical: t.space.md,
     borderRadius: t.radius.md,
     backgroundColor: t.colors.surface,
