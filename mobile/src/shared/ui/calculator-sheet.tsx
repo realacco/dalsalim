@@ -285,14 +285,16 @@ const useStyles = makeStyles((t) => ({
   body: { paddingHorizontal: t.space.lg, gap: t.space.lg },
 
   /*
-    수식 한 줄 + 결과 한 줄 + 안내 한 줄 자리를 미리 잡아둔다.
-    안내는 있다 없다 하는데, 그때마다 시트 높이가 출렁이면 자판이 손 밑에서 움직인다.
-    그래서 안내는 언제나 한 줄이다 — 여럿이 걸려도 하나만 고르는 것은 calc.notice 의 몫이다.
+    수식 두 줄 + 결과 한 줄 + 안내 한 줄 자리를 미리 잡아둔다.
+    안내는 있다 없다 하고 수식은 길어지면 두 줄로 감기는데, 그때마다 시트 높이가 출렁이면
+    자판이 손 밑에서 움직인다. 그래서 안내는 언제나 한 줄(여럿이 걸려도 하나만 고르는 것은
+    calc.notice 의 몫)이고, 수식은 최대 두 줄(numberOfLines) 이며 그 두 줄을 여기서 미리 잡는다.
+    = 뒤에는 수식이 작은 글씨 두 줄 + 결과 한 줄이라 이 안에 들어온다.
   */
   display: {
     gap: t.space.xxs,
     paddingHorizontal: t.space.sm,
-    minHeight: t.font.amountLg.lineHeight + t.font.small.lineHeight + t.font.hint.lineHeight,
+    minHeight: t.font.amountLg.lineHeight * 2 + t.font.small.lineHeight + t.font.hint.lineHeight,
   },
   /** 주인공 — 치는 동안엔 수식, `=` 뒤엔 결과가 여기 온다 */
   main: {
