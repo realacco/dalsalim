@@ -1,5 +1,5 @@
 // 기능: F-ENT-09
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Keyboard, Text, TextInput, View } from 'react-native';
 
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
@@ -63,10 +63,20 @@ export function AmountInput({
   /** 계산기로 만든 금액이면 무엇을 해서 그렇게 됐는지 한 줄 남긴다. 손으로 고치면 지운다 */
   const [expression, setExpression] = useState('');
 
+  const inputRef = useRef<TextInput>(null);
+
   // 안드로이드는 뒤로가기로 키보드를 내려도 포커스가 풀리지 않아 onBlur 가 오지 않는다.
   // 그대로 두면 다 적고 키보드만 내렸을 때 콤마 없는 숫자가 계속 보인다.
+  //
+  // ★ editing 만 끄면 안 되고 포커스까지 놓아야 한다. 포커스를 쥔 채 두면 다음에 같은 칸을
+  //   눌렀을 때 onFocus 가 다시 안 와서 editing 이 false 인 채 타이핑이 시작된다 — 그러면
+  //   콤마 붙은 문자열 위에 글자가 들어가 커서가 밀린다 (시행착오 1-1 이 재현되는 조건).
+  //   blur 가 onBlur 를 태우지만, 혹시 안 와도 화면이 틀리면 안 되므로 editing 도 같이 끈다.
   useEffect(() => {
-    const subscription = Keyboard.addListener('keyboardDidHide', () => setEditing(false));
+    const subscription = Keyboard.addListener('keyboardDidHide', () => {
+      inputRef.current?.blur();
+      setEditing(false);
+    });
     return () => subscription.remove();
   }, []);
 
@@ -81,6 +91,7 @@ export function AmountInput({
     <View>
       <View style={styles.row}>
         <TextInput
+          ref={inputRef}
           value={text}
           onFocus={() => {
             const raw = value === null || value === 0 ? '' : String(value);
@@ -121,7 +132,12 @@ export function AmountInput({
           <PressableScale
             accessibilityRole="button"
             accessibilityLabel="계산기 열기"
-            onPress={() => setCalcOpen(true)}
+            onPress={() => {
+              // 열기 전에 칸의 포커스를 놓는다 (위 keyboardDidHide 주석과 같은 이유).
+              // 시트를 닫고 칸을 다시 누르면 onFocus 가 정상적으로 와야 전체 선택이 걸린다
+              inputRef.current?.blur();
+              setCalcOpen(true);
+            }}
             small
             containerStyle={styles.calcSlot}
             style={styles.calc}
@@ -148,9 +164,8 @@ export function AmountInput({
           }}
           onConfirm={(next, expr) => {
             setCalcOpen(false);
-            // 포커스가 남은 채 열었다면 editing 이 true 라 칸에 옛 드래프트가 그대로 보인다.
-            // keyboardDidHide 가 오면 풀리긴 하지만, Modal 은 별도의 네이티브 창이라 그 이벤트를
-            // 믿지 않는다 — 확정한 금액이 칸에 안 보이는 건 그 자체로 고장이다
+            // 열 때 포커스를 놓았으니 보통은 이미 false 다. 그래도 확정한 금액이 칸에 안 보이는 건
+            // 그 자체로 고장이라 여기서 한 번 더 끈다 — Modal 은 별도의 네이티브 창이라 이벤트 순서를 믿지 않는다
             setEditing(false);
             // 0 은 칸을 빈칸으로 그린다(위 text). 빈 칸 아래에 `5 - 5` 만 남으면 무엇의 근거인지 안 보인다
             setExpression(next === 0 ? '' : expr);
