@@ -65,13 +65,21 @@ export function CalculatorSheet({
     onCancelRef.current = onCancel;
   }, [onCancel]);
 
-  // 열 때마다 그 순간의 금액에서 새로 시작한다. 지난번에 계산하다 만 것이 남으면 안 된다.
-  // 떠 있던 시스템 키보드도 내린다 — 자판이 둘 겹치면 시트가 가려진다.
+  // 열리는 순간에만 그때의 금액에서 새로 시작한다. 지난번에 계산하다 만 것이 남으면 안 된다.
+  // `initial` 을 의존성으로 걸지 않는다 — 떠 있는 동안 부모의 값이 바뀌면 치던 수식이 통째로
+  // 날아간다. 지금 호출처 셋은 그러지 않지만 shared/ui 라 다음 화면은 이 조건을 모르고 들어온다.
+  // 렌더 중에 맞추는 것은 React 가 "프롭이 바뀌면 상태를 조정한다"에 두는 공식 패턴이다 —
+  // 이펙트로 하면 한 프레임은 지난번 상태가 그려진다.
+  const [wasVisible, setWasVisible] = useState(visible);
+  if (visible !== wasVisible) {
+    setWasVisible(visible);
+    if (visible) setState(initialState(initial));
+  }
+
+  // 떠 있던 시스템 키보드도 내린다 — 자판이 둘 겹치면 시트가 가려진다
   useEffect(() => {
-    if (!visible) return;
-    setState(initialState(initial));
-    Keyboard.dismiss();
-  }, [visible, initial]);
+    if (visible) Keyboard.dismiss();
+  }, [visible]);
 
   // 끌어내리다 만 위치가 다음에 열 때까지 남으면 안 된다. 그려지기 전에 되돌린다
   useLayoutEffect(() => {
