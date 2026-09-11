@@ -141,7 +141,11 @@ export function AmountInput({
         <CalculatorSheet
           visible={calcOpen}
           initial={value}
-          onCancel={() => setCalcOpen(false)}
+          onCancel={() => {
+            setCalcOpen(false);
+            // 확정과 같은 이유 — 취소해도 칸은 콤마 붙은 금액으로 돌아와야 한다
+            setEditing(false);
+          }}
           onConfirm={(next, expr) => {
             setCalcOpen(false);
             // 포커스가 남은 채 열었다면 editing 이 true 라 칸에 옛 드래프트가 그대로 보인다.

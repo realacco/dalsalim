@@ -158,7 +158,10 @@ export function CalculatorSheet({
               <View
                 accessible
                 style={styles.display}
-                accessibilityLabel={`${expression} 결과 ${formatWon(value ?? 0)}`}
+                // 숫자 하나뿐이면 "결과" 가 아니다 — 열자마자 " 결과 0원" 으로 읽히면 안 된다
+                accessibilityLabel={
+                  showsResult ? `${expression} 결과 ${formatWon(value ?? 0)}` : expression || '0'
+                }
               >
                 {settled ? (
                   <>
