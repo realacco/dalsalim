@@ -68,6 +68,15 @@ describe('★ F-ENT-09 정수로 만드는 자리는 마지막 한 번뿐이다 
     expect(isRounded({ tokens: [10000, '÷', 4], draft: '' })).toBe(false);
     expect(isRounded({ tokens: [], draft: '' })).toBe(false);
   });
+
+  it('★ 부동소수 잔차는 반올림이 아니다 — 29 ÷ 7 × 7 은 29 다', () => {
+    // 29 / 7 * 7 은 JS 에서 29.000000000000004 다. 정수 판정으로 재면 헛짚는다
+    expect(isRounded({ tokens: [29, '÷', 7, '×', 7], draft: '' })).toBe(false);
+    expect(isRounded({ tokens: [15, '÷', 11, '×', 11], draft: '' })).toBe(false);
+    expect(evaluate([29, '÷', 7, '×', 7])).toBe(29);
+    // 진짜 소수는 여전히 잡는다
+    expect(isRounded({ tokens: [29, '÷', 7], draft: '' })).toBe(true);
+  });
 });
 
 describe('F-ENT-09 자판', () => {

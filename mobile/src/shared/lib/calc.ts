@@ -186,11 +186,20 @@ export function isSettled(state: CalcState): boolean {
   return state.folded !== undefined;
 }
 
-/** 반올림이 실제로 일어났나 — 일어났을 때만 "반올림했어요" 를 말한다 */
+/**
+ * 반올림이 실제로 일어났나 — 일어났을 때만 "반올림했어요" 를 말한다.
+ *
+ * Number.isInteger 로 재면 안 된다. 나눗셈이 섞이면 정확히 떨어지는 수식도 마지막 자리에
+ * 부동소수 잔차가 남는다 (29 ÷ 7 × 7 = 29.000000000000004). 그러면 반올림한 적 없는데
+ * "1원 아래는 반올림했어요" 가 뜬다. 원 단위에서 의미 있는 차이만 센다.
+ */
 export function isRounded(state: CalcState): boolean {
   const exact = evaluateExact(allTokens(sourceState(state)));
-  return exact !== null && !Number.isInteger(exact);
+  return exact !== null && Math.abs(exact - Math.round(exact)) > ROUNDING_EPSILON;
 }
+
+/** 이보다 작은 차이는 부동소수 잔차로 본다. 1원의 10억분의 1 — 상한 10억까지 어떤 수식도 이 아래로 못 내려온다 */
+const ROUNDING_EPSILON = 1e-9;
 
 /**
  * 결과가 음수인가 — 칸에 넣을 수 없다.
