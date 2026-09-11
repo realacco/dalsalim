@@ -302,8 +302,8 @@ const useStyles = makeStyles((t) => ({
   header: { paddingTop: t.space.lg, paddingBottom: t.space.md, gap: t.space.md },
   grabber: {
     alignSelf: 'center',
-    width: 40,
-    height: 4,
+    width: t.size.grabberWidth,
+    height: t.size.grabberHeight,
     borderRadius: t.radius.pill,
     backgroundColor: t.colors.lineStrong,
   },

@@ -181,7 +181,7 @@ const useStyles = makeStyles((t) => ({
 
   calcSlot: { paddingBottom: t.space.xs },
   calc: {
-    height: 44,
+    height: t.size.touch,
     paddingHorizontal: t.space.md,
     borderRadius: t.radius.md,
     backgroundColor: t.colors.primarySoft,
