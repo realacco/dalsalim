@@ -100,7 +100,7 @@ export function ExtrasStep({ entry, onNext }: { entry: Entry; onNext: () => void
           </Field>
 
           <Field label="금액">
-            <AmountInput size="md" value={amount} onChange={setAmount} allowSum />
+            <AmountInput size="md" value={amount} onChange={setAmount} calculator />
           </Field>
 
           <ErrorText>{error}</ErrorText>

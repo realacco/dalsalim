@@ -17,7 +17,12 @@ import { AmountInput, Button, Chip, ErrorText, Field, Input, Notice } from '@/sh
 import { confirm } from '@/shared/lib/confirm';
 
 import { type Draft, sanitizeDay } from '../model/draft';
-import { DRAG_CANCEL_X, DRAG_START_SLOP, dragOffset, shouldDismiss } from '../model/gesture';
+import {
+  DRAG_CANCEL_X,
+  DRAG_START_SLOP,
+  dragOffset,
+  shouldDismiss,
+} from '@/shared/lib/sheet-gesture';
 
 /** 고정비 하나를 추가·수정하는 아래 시트. draft 가 없으면 닫혀 있다. */
 export function FixedExpenseSheet({
@@ -239,6 +244,7 @@ export function FixedExpenseSheet({
               <Field label="기본 금액" hint="매달 기록할 때 이 금액이 먼저 채워져요.">
                 <AmountInput
                   size="md"
+                  calculator
                   value={draft?.defaultAmount ?? null}
                   onChange={(defaultAmount) => onChange({ defaultAmount })}
                 />
@@ -296,8 +302,8 @@ const useStyles = makeStyles((t) => ({
   header: { paddingTop: t.space.lg, paddingBottom: t.space.md, gap: t.space.md },
   grabber: {
     alignSelf: 'center',
-    width: 40,
-    height: 4,
+    width: t.size.grabberWidth,
+    height: t.size.grabberHeight,
     borderRadius: t.radius.pill,
     backgroundColor: t.colors.lineStrong,
   },

@@ -1,12 +1,12 @@
 // 기능: F-ENT-09
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Keyboard, Text, TextInput, View } from 'react-native';
 
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
+import { MAX_AMOUNT } from '@/shared/lib/calc';
 import { digitsOnly, formatAmount } from '@/shared/lib/format';
+import { CalculatorSheet } from './calculator-sheet';
 import { PressableScale } from './pressable-scale';
-
-const MAX_AMOUNT = 1_000_000_000;
 
 /**
  * 큰 금액 입력.
@@ -26,19 +26,19 @@ export function AmountInput({
   onChange,
   autoFocus,
   size = 'lg',
-  allowSum = false,
+  calculator = false,
 }: {
   value: number | null;
   onChange: (next: number | null) => void;
   autoFocus?: boolean;
   size?: 'lg' | 'md';
   /**
-   * 여러 건을 더해서 한 줄로 적을 수 있게 한다.
+   * 옵션이다 — 켜면 칸 오른쪽에 [계산기] 가 붙고, 누르면 자판까지 있는 아래 시트가 올라온다.
    *
-   * 실제 흐름이 "카드 앱을 보면서 하나씩 골라 더한 총액을 적는 것"이라,
-   * 아픈 건 옮겨 적는 일이 아니라 더하는 일이다. (기획서 7.7)
+   * 기본은 꺼짐이다. 이 컴포넌트는 **금액 하나를 받는 일**만 알면 되고,
+   * 계산기가 필요한지는 부르는 화면이 안다. (기능 정의서 F-ENT-09 의 표가 어디에 켜져 있는지를 말한다)
    */
-  allowSum?: boolean;
+  calculator?: boolean;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -58,51 +58,46 @@ export function AmountInput({
    */
   const [selection, setSelection] = useState<{ start: number; end: number } | undefined>(undefined);
 
+  const [calcOpen, setCalcOpen] = useState(false);
+
   /**
-   * 담아둔 금액들. 총액(value)은 바깥이 갖고 있고 여기서는 "무엇을 더해 그 총액이 됐는지"만 기억한다.
-   * 그래서 입력칸에 보일 값은 빼서 구한다 — 상태를 두 벌 두면 서로 어긋난다.
+   * 계산기로 확정한 금액과 그 수식. 칸의 값이 **이 금액일 때만** 수식을 보여준다.
+   *
+   * 수식은 그 금액의 근거라, 값이 달라지면 근거가 아니다. 손으로 고치는 것만이 아니라
+   * 바깥이 갈아끼우는 길도 있다 — [이번 달은 안 냈어요] 가 0 을 넣고, 다른 줄로 넘어가면 null 이 된다.
+   * 이펙트로 조건을 열거해 지우면 하나씩 빠진다 (null 만 보다가 0 을 놓쳤다). 값과 짝지어 두고
+   * 렌더에서 비교하면 어느 길로 바뀌어도 같이 사라진다.
    */
-  const [parts, setParts] = useState<number[]>([]);
-  const banked = parts.reduce((sum, part) => sum + part, 0);
-  const current = value === null ? null : value - banked;
+  const [confirmed, setConfirmed] = useState<{ value: number; expression: string } | null>(null);
+  const expression = confirmed !== null && confirmed.value === value ? confirmed.expression : '';
+
+  const inputRef = useRef<TextInput>(null);
 
   // 안드로이드는 뒤로가기로 키보드를 내려도 포커스가 풀리지 않아 onBlur 가 오지 않는다.
   // 그대로 두면 다 적고 키보드만 내렸을 때 콤마 없는 숫자가 계속 보인다.
+  //
+  // ★ editing 만 끄면 안 되고 포커스까지 놓아야 한다. 포커스를 쥔 채 두면 다음에 같은 칸을
+  //   눌렀을 때 onFocus 가 다시 안 와서 editing 이 false 인 채 타이핑이 시작된다 — 그러면
+  //   콤마 붙은 문자열 위에 글자가 들어가 커서가 밀린다 (시행착오 1-1 이 재현되는 조건).
+  //   blur 가 onBlur 를 태우지만, 혹시 안 와도 화면이 틀리면 안 되므로 editing 도 같이 끈다.
   useEffect(() => {
-    const subscription = Keyboard.addListener('keyboardDidHide', () => setEditing(false));
+    const subscription = Keyboard.addListener('keyboardDidHide', () => {
+      inputRef.current?.blur();
+      setEditing(false);
+    });
     return () => subscription.remove();
   }, []);
 
-  // 바깥에서 값을 비우면(다른 줄로 넘어갔다는 뜻) 담아둔 것도 같이 버린다
-  useEffect(() => {
-    if (value === null) setParts([]);
-  }, [value]);
-
-  const text = editing ? draft : current === null || current === 0 ? '' : formatAmount(current);
-  const canBank = allowSum && current !== null && current > 0;
-
-  /** 지금 칸에 있는 금액을 담고 칸을 비운다. 총액은 그대로다. */
-  function bank() {
-    if (current === null || current <= 0) return;
-    setParts([...parts, current]);
-    setDraft('');
-  }
-
-  /** 마지막으로 담은 것을 뺀다. 총액에서도 같이 빠진다. */
-  function undo() {
-    const last = parts.at(-1);
-    if (last === undefined) return;
-    setParts(parts.slice(0, -1));
-    onChange((value ?? 0) - last);
-  }
+  const text = editing ? draft : value === null || value === 0 ? '' : formatAmount(value);
 
   return (
     <View>
       <View style={styles.row}>
         <TextInput
+          ref={inputRef}
           value={text}
           onFocus={() => {
-            const raw = current === null || current === 0 ? '' : String(current);
+            const raw = value === null || value === 0 ? '' : String(value);
             setDraft(raw);
             setEditing(true);
             // 채워져 있던 금액은 통째로 선택해 둔다. 바로 새 금액을 칠 수 있게
@@ -112,6 +107,8 @@ export function AmountInput({
           onChangeText={(next) => {
             // 첫 글자를 치는 순간 커서를 놓아준다. 계속 쥐고 있으면 매 글자가 선택된다
             setSelection(undefined);
+            // 손으로 고치면 아까 수식은 더 이상 이 금액의 근거가 아니다 — 같은 숫자를 다시 쳐도 마찬가지다
+            setConfirmed(null);
 
             // 자릿수를 먼저 자른다. 상한을 넘겨 잘린 값이 화면에 남으면
             // 사용자가 친 것과 보이는 게 어긋난다.
@@ -122,9 +119,7 @@ export function AmountInput({
 
             setDraft(typed === null ? '' : String(typed));
 
-            // 담아둔 게 있으면 칸을 비워도 총액은 남아 있어야 한다
-            if (typed === null) onChange(banked === 0 ? null : banked);
-            else onChange(banked + typed);
+            onChange(typed);
           }}
           keyboardType="number-pad"
           inputMode="numeric"
@@ -136,46 +131,50 @@ export function AmountInput({
         />
         <Text style={[styles.unit, size === 'md' && styles.unitMd]}>원</Text>
 
-        {allowSum ? (
+        {calculator ? (
           <PressableScale
             accessibilityRole="button"
-            accessibilityLabel="지금 금액을 담고 다음 금액 입력하기"
-            accessibilityState={{ disabled: !canBank }}
-            onPress={bank}
-            disabled={!canBank}
+            accessibilityLabel="계산기 열기"
+            onPress={() => {
+              // 열기 전에 칸의 포커스를 놓는다 (위 keyboardDidHide 주석과 같은 이유).
+              // 시트를 닫고 칸을 다시 누르면 onFocus 가 정상적으로 와야 전체 선택이 걸린다
+              inputRef.current?.blur();
+              setCalcOpen(true);
+            }}
             small
-            containerStyle={styles.plusSlot}
-            style={[styles.plus, !canBank && styles.plusOff]}
+            containerStyle={styles.calcSlot}
+            style={styles.calc}
           >
-            <Text style={styles.plusLabel}>+</Text>
+            <Text style={styles.calcLabel}>계산기</Text>
           </PressableScale>
         ) : null}
       </View>
 
       {/*
-        합계는 입력칸 "아래"에만 그린다. 칸 안의 글자를 우리가 바꾸면 커서가 밀린다 —
-        3자리 콤마로 이미 한 번 데였다. (시행착오 1-1)
+        어떻게 이 금액이 됐는지 한 줄. 칸 안에 안 쓰고 밖에 그린다 —
+        칸 속 글자를 우리가 바꾸면 커서가 밀린다 (시행착오 1-1).
       */}
-      {parts.length > 0 ? (
-        <View style={styles.sumRow}>
-          <Text style={styles.sumText} numberOfLines={2}>
-            {parts.map(formatAmount).join(' + ')}
-            {current !== null && current > 0 ? ` + ${formatAmount(current)}` : ''}
-            {' = '}
-            <Text style={styles.sumTotal}>{formatAmount(value ?? 0)}원</Text>
-          </Text>
+      {expression ? <Text style={styles.expression}>{expression}</Text> : null}
 
-          <PressableScale
-            accessibilityRole="button"
-            accessibilityLabel="마지막에 담은 금액 빼기"
-            onPress={undo}
-            small
-            containerStyle={styles.undoSlot}
-            style={styles.undo}
-          >
-            <Text style={styles.undoLabel}>되돌리기</Text>
-          </PressableScale>
-        </View>
+      {calculator ? (
+        <CalculatorSheet
+          visible={calcOpen}
+          initial={value}
+          onCancel={() => {
+            setCalcOpen(false);
+            // 확정과 같은 이유 — 취소해도 칸은 콤마 붙은 금액으로 돌아와야 한다
+            setEditing(false);
+          }}
+          onConfirm={(next, expr) => {
+            setCalcOpen(false);
+            // 열 때 포커스를 놓았으니 보통은 이미 false 다. 그래도 확정한 금액이 칸에 안 보이는 건
+            // 그 자체로 고장이라 여기서 한 번 더 끈다 — Modal 은 별도의 네이티브 창이라 이벤트 순서를 믿지 않는다
+            setEditing(false);
+            // 0 은 칸을 빈칸으로 그린다(위 text). 빈 칸 아래에 `5 - 5` 만 남으면 무엇의 근거인지 안 보인다
+            setConfirmed(next === 0 ? null : { value: next, expression: expr });
+            onChange(next);
+          }}
+        />
       ) : null}
     </View>
   );
@@ -198,28 +197,20 @@ const useStyles = makeStyles((t) => ({
   unit: { ...t.font.title, color: t.colors.inkSoft, paddingBottom: t.space.md },
   unitMd: { ...t.font.bodyLg, color: t.colors.inkSoft, paddingBottom: t.space.md },
 
-  plusSlot: { paddingBottom: t.space.xs },
-  plus: {
-    width: 44,
-    height: 44,
+  calcSlot: { paddingBottom: t.space.xs },
+  calc: {
+    height: t.size.touch,
+    paddingHorizontal: t.space.md,
     borderRadius: t.radius.md,
     backgroundColor: t.colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  plusOff: { opacity: t.opacity.disabled },
-  plusLabel: { ...t.font.title, fontWeight: t.weight.heavy, color: t.colors.primary },
-
-  sumRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: t.space.sm,
-    marginTop: t.space.sm,
+  calcLabel: { ...t.font.small, fontWeight: t.weight.bold, color: t.colors.primary },
+  expression: {
+    ...t.font.hint,
+    color: t.colors.inkFaint,
+    textAlign: 'right',
+    marginTop: t.space.xs,
   },
-  sumText: { ...t.font.hint, color: t.colors.inkFaint, flex: 1 },
-  sumTotal: { fontWeight: t.weight.bold, color: t.colors.inkSoft },
-  undoSlot: {},
-  undo: { paddingHorizontal: t.space.sm, paddingVertical: t.space.xs },
-  undoLabel: { ...t.font.caption, fontWeight: t.weight.semibold, color: t.colors.primary },
 }));

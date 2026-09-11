@@ -1,0 +1,452 @@
+import { describe, it, expect } from 'vitest';
+import {
+  type CalcState,
+  MAX_AMOUNT,
+  evaluate,
+  confirmedExpression,
+  dividesByZero,
+  formatExpression,
+  hasOperation,
+  initialState,
+  isCapped,
+  isNegative,
+  isRounded,
+  isSettled,
+  notice,
+  pressKey,
+  result,
+} from './calc';
+
+/** 키를 순서대로 누른 뒤의 상태 */
+function press(keys: string[], from: CalcState = { tokens: [], draft: '' }): CalcState {
+  return keys.reduce(pressKey, from);
+}
+
+describe('★ F-ENT-09 계산 순서', () => {
+  it('× ÷ 를 먼저 계산한다 — 종이에 쓴 것과 같아야 한다', () => {
+    // 왼→오 순차라면 41,000 이 된다. 수식이 눈에 보이므로 보이는 대로 계산돼야 한다
+    expect(evaluate([12000, '+', 8500, '×', 2])).toBe(29000);
+    expect(evaluate([2, '×', 3, '+', 4, '×', 5])).toBe(26);
+  });
+
+  it('같은 순위는 왼쪽부터', () => {
+    expect(evaluate([100, '-', 30, '-', 20])).toBe(50);
+    expect(evaluate([100, '÷', 5, '×', 3])).toBe(60);
+  });
+
+  it('연산자로 끝나면 그 자리는 없는 셈 친다 — 덜 친 상태에서도 결과가 보여야 한다', () => {
+    expect(evaluate([210000, '÷'])).toBe(210000);
+    expect(evaluate(['+'])).toBeNull();
+    expect(evaluate([])).toBeNull();
+  });
+});
+
+describe('★ F-ENT-09 정수로 만드는 자리는 마지막 한 번뿐이다 (하드룰 5)', () => {
+  it('나눗셈은 반올림한다', () => {
+    expect(evaluate([10000, '÷', 3])).toBe(3333);
+    // 내림이 아니라 반올림이다 — 1666.67 은 1,667 원이 된다
+    expect(evaluate([10000, '÷', 6])).toBe(1667);
+    expect(evaluate([10000, '÷', 4])).toBe(2500);
+    expect(evaluate([210000, '÷', 2])).toBe(105000);
+  });
+
+  it('중간값이 소수여도 마지막에 한 번만 반올림한다 — 매 단계 반올림하면 오차가 쌓인다', () => {
+    // 10000/3 = 3333.33… 을 세 번 더하면 정확히 10000 이다. 단계마다 반올림하면 9999 가 된다
+    expect(evaluate([10000, '÷', 3, '+', 10000, '÷', 3, '+', 10000, '÷', 3])).toBe(10000);
+  });
+
+  it('0 으로 나누면 그 자리를 무시한다 — 사람을 탓하지 않는다', () => {
+    expect(evaluate([5000, '÷', 0])).toBe(5000);
+    expect(evaluate([5000, '÷', 0, '+', 1000])).toBe(6000);
+  });
+
+  it('10억을 넘으면 10억에서 멈춘다', () => {
+    expect(evaluate([MAX_AMOUNT, '×', 5])).toBe(MAX_AMOUNT);
+  });
+
+  it('반올림이 실제로 일어났을 때만 그렇다고 말한다', () => {
+    expect(isRounded({ tokens: [10000, '÷', 3], draft: '' })).toBe(true);
+    expect(isRounded({ tokens: [10000, '÷', 4], draft: '' })).toBe(false);
+    expect(isRounded({ tokens: [], draft: '' })).toBe(false);
+  });
+
+  it('★ 부동소수 잔차는 반올림이 아니다 — 29 ÷ 7 × 7 은 29 다', () => {
+    // 29 / 7 * 7 은 JS 에서 29.000000000000004 다. 정수 판정으로 재면 헛짚는다
+    expect(isRounded({ tokens: [29, '÷', 7, '×', 7], draft: '' })).toBe(false);
+    expect(isRounded({ tokens: [15, '÷', 11, '×', 11], draft: '' })).toBe(false);
+    expect(evaluate([29, '÷', 7, '×', 7])).toBe(29);
+    // 진짜 소수는 여전히 잡는다
+    expect(isRounded({ tokens: [29, '÷', 7], draft: '' })).toBe(true);
+  });
+});
+
+describe('F-ENT-09 자판', () => {
+  it('칸에 있던 금액을 싣고 연다 — 지우고 시작할 필요가 없다', () => {
+    expect(initialState(180000)).toEqual({ tokens: [], draft: '180000', fresh: true });
+    expect(initialState(null)).toEqual({ tokens: [], draft: '' });
+    expect(initialState(0)).toEqual({ tokens: [], draft: '' });
+  });
+
+  it('숫자와 00 을 이어 친다', () => {
+    expect(press(['2', '1', '0', '00']).draft).toBe('21000');
+  });
+
+  it('앞자리 0 은 남기지 않는다', () => {
+    expect(press(['0', '0', '5']).draft).toBe('5');
+  });
+
+  it('10억을 넘기는 숫자는 아예 안 들어간다 — 수식과 결과가 달라지면 안 된다', () => {
+    const billion = press('1000000000'.split(''));
+    expect(billion.draft).toBe('1000000000');
+    expect(press(['0'], billion).draft).toBe('1000000000');
+    // 손으로 치는 칸도 같은 자리에서 막는다 (amount-input 이 MAX_AMOUNT 를 여기서 가져간다)
+    expect(press(['9', '9', '9', '9', '9', '9', '9', '9', '9']).draft).toBe('999999999');
+  });
+
+  it('연산자를 누르면 지금 숫자가 확정되고 칸이 빈다', () => {
+    expect(press(['1', '2', '0', '+'])).toEqual({ tokens: [120, '+'], draft: '' });
+  });
+
+  it('연산자를 잇달아 누르면 마지막 것이 바뀐다 — 지우러 갈 필요가 없다', () => {
+    expect(press(['1', '2', '0', '+', '×'])).toEqual({ tokens: [120, '×'], draft: '' });
+  });
+
+  it('아무것도 없을 때 누른 연산자는 무시한다', () => {
+    expect(press(['+'])).toEqual({ tokens: [], draft: '' });
+  });
+
+  it('← 는 치던 숫자를 한 글자씩 지운다', () => {
+    expect(press(['1', '2', '3', '←']).draft).toBe('12');
+  });
+
+  it('★ ← 로 연산자를 지우면 그 앞의 숫자가 다시 치던 숫자가 된다 — 다음 ← 에 통째로 날아가면 안 된다', () => {
+    // 10 + 5 에서 ← 셋 — 5 · + · 그리고 10 의 한 글자. 10 이 한 번에 사라지면 C 를 누른 것과 같다
+    expect(press(['1', '0', '+', '5', '←'])).toEqual({ tokens: [10, '+'], draft: '' });
+    expect(press(['1', '0', '+', '5', '←', '←'])).toEqual({ tokens: [], draft: '10' });
+    expect(press(['1', '0', '+', '5', '←', '←', '←'])).toEqual({ tokens: [], draft: '1' });
+    // 화면에 보이는 수식은 그대로다 — 10 이 tokens 에 있든 draft 에 있든 '10' 이다
+    expect(formatExpression(press(['1', '0', '+', '←']))).toBe('10');
+    // 앞뒤로 연산이 이어져 있어도 직전 숫자만 돌아온다
+    expect(press(['1', '+', '2', '0', '+', '←'])).toEqual({ tokens: [1, '+'], draft: '20' });
+  });
+
+  it('C 는 전부 지운다', () => {
+    expect(press(['1', '2', '+', '3', 'C'])).toEqual({ tokens: [], draft: '' });
+  });
+
+  it('= 는 지금까지를 하나로 접는다 — 결과는 draft 로 되돌아온다', () => {
+    const folded = press(['1', '0', '+', '5', '=']);
+    expect(folded.tokens).toEqual([]);
+    expect(folded.draft).toBe('15');
+    // 접은 뒤에 이어서 계산할 수 있다
+    expect(result(press(['1', '0', '+', '5', '=', '×', '2']))).toBe(30);
+  });
+
+  it('★ = 뒤의 ← 는 한 글자만 지운다 — 접힌 결과가 통째로 날아가면 C 를 누른 것과 같다', () => {
+    expect(press(['1', '0', '+', '5', '=', '←']).draft).toBe('1');
+    expect(result(press(['2', '1', '0', '0', '0', '0', '÷', '2', '=', '←']))).toBe(10500);
+  });
+
+  it('★ = 뒤에 숫자를 치면 결과에 이어 붙지 않고 갈아탄다 — 100 + 50 = 뒤 7 은 1,507 이 아니다', () => {
+    expect(press(['1', '0', '0', '+', '5', '0', '=', '7'])).toEqual({ tokens: [], draft: '7' });
+    // 연산자를 먼저 누르면 결과를 이어 쓰겠다는 뜻이다 — 실려 온 금액과 같은 규칙
+    expect(result(press(['1', '0', '0', '+', '5', '0', '=', '×', '2']))).toBe(300);
+    // 갈아탄 뒤에는 다시 이어 붙는다
+    expect(press(['1', '0', '0', '+', '5', '0', '=', '7', '8']).draft).toBe('78');
+  });
+});
+
+describe('F-ENT-09 수식 한 줄', () => {
+  it('친 그대로 보여준다 — 숫자에만 콤마를 붙인다', () => {
+    expect(formatExpression(press(['2', '1', '0', '0', '0', '0', '÷', '2']))).toBe('210,000 ÷ 2');
+  });
+
+  it('연산자까지만 쳤으면 연산자까지 보여준다', () => {
+    expect(formatExpression(press(['2', '1', '0', '0', '0', '0', '÷']))).toBe('210,000 ÷');
+  });
+
+  it('아무것도 안 쳤으면 빈 줄이다', () => {
+    expect(formatExpression({ tokens: [], draft: '' })).toBe('');
+  });
+});
+
+describe('F-ENT-09 결과 줄은 연산이 있을 때만 그린다', () => {
+  it('숫자 하나뿐이면 결과를 두 번 적는 셈이라 안 그린다', () => {
+    expect(hasOperation(press(['1', '2', '0']))).toBe(false);
+    expect(hasOperation(initialState(180000))).toBe(false);
+    expect(hasOperation({ tokens: [], draft: '' })).toBe(false);
+    // 연산자까지만 쳤으면 아직 숫자 하나다
+    expect(hasOperation(press(['1', '2', '0', '÷']))).toBe(false);
+  });
+
+  it('연산이 들어가면 그린다 — = 뒤에도 접기 전 수식을 보고 판단한다', () => {
+    expect(hasOperation(press(['1', '2', '0', '÷', '2']))).toBe(true);
+    expect(hasOperation(press(['1', '2', '0', '÷', '2', '=']))).toBe(true);
+    // ÷ 0 은 계산에서 빠지지만 친 것은 친 것이다 — 결과 줄과 안내가 같이 보여야 한다
+    expect(hasOperation(press(['1', '0', '0', '÷', '0']))).toBe(true);
+  });
+});
+
+describe('★ F-ENT-09 화면이 읽기만 하는 함수는 상태를 건드리지 않는다', () => {
+  /**
+   * 시트는 매 렌더마다 이 함수들을 부른다. 키를 누르는 사이사이에 렌더가 끼는 것이 실제 순서다.
+   * 한 번은 hasOperation 이 React 가 들고 있는 tokens 를 pop 해서, 연산자를 누른 직후 렌더에
+   * 그 연산자가 사라졌다 — 100 + 5 가 NaN 이 되고 [이 금액 쓰기] 가 안 눌렸다.
+   */
+  function render(state: CalcState): void {
+    result(state);
+    formatExpression(state);
+    hasOperation(state);
+    confirmedExpression(state);
+    notice(state);
+    isSettled(state);
+  }
+
+  function pressWithRenders(keys: string[]): CalcState {
+    return keys.reduce<CalcState>(
+      (state, key) => {
+        // React 상태는 얼어 있다고 봐야 한다 — 건드리면 여기서 바로 터진다
+        const pressed = pressKey(state, key);
+        // folded 도 같은 별칭 경로다 (= 뒤에는 sourceState 가 folded 를 tokens 자리에 놓는다)
+        const next = Object.freeze({
+          ...pressed,
+          tokens: Object.freeze([...pressed.tokens]),
+          folded: pressed.folded && Object.freeze([...pressed.folded]),
+        });
+        render(next);
+        return next;
+      },
+      Object.freeze({ tokens: Object.freeze([]), draft: '' }),
+    );
+  }
+
+  it('키 사이에 렌더가 끼어도 100 + 5 는 105 다', () => {
+    const state = pressWithRenders(['1', '0', '0', '+', '5']);
+    expect(state.tokens).toEqual([100, '+']);
+    expect(result(state)).toBe(105);
+    expect(formatExpression(state)).toBe('100 + 5');
+  });
+
+  it('연산자를 누른 직후의 렌더가 그 연산자를 지우지 않는다', () => {
+    const state = pressWithRenders(['1', '0', '0', '+']);
+    expect(state.tokens).toEqual([100, '+']);
+    expect(result(pressKey(state, '5'))).toBe(105);
+    // = 뒤 접기 전 수식(folded)도 같은 별칭이라 같이 지켜져야 한다
+    const folded = pressWithRenders(['1', '0', '+', '5', '=']);
+    expect(confirmedExpression(folded)).toBe('10 + 5');
+  });
+});
+
+describe('★ F-ENT-09 = 를 눌러야 결과가 주인공이 된다', () => {
+  it('치는 동안에는 확정 전이다 — 수식이 주인공', () => {
+    expect(isSettled(press(['2', '1', '0', '0', '0', '0', '÷', '2']))).toBe(false);
+    expect(isSettled(initialState(180000))).toBe(false);
+  });
+
+  it('= 를 누르면 확정된다', () => {
+    expect(isSettled(press(['2', '1', '0', '0', '0', '0', '÷', '2', '=']))).toBe(true);
+  });
+
+  it('다음 키를 누르면 다시 치는 중이다', () => {
+    expect(isSettled(press(['1', '0', '+', '5', '=', '+']))).toBe(false);
+  });
+});
+
+describe('F-ENT-09 칸 아래에 남길 수식', () => {
+  it('연산자가 들어간 것만 남긴다', () => {
+    expect(confirmedExpression(press(['1', '2', '0']))).toBe('');
+    expect(confirmedExpression(press(['1', '2', '0', '÷', '2']))).toBe('120 ÷ 2');
+  });
+
+  it('★ = 로 접어도 수식은 남는다 — 자판에 = 가 있으면 사람은 누르고 나서 확정한다', () => {
+    expect(confirmedExpression(press(['1', '0', '+', '5', '=']))).toBe('10 + 5');
+    expect(confirmedExpression(press(['2', '1', '0', '0', '0', '0', '÷', '2', '=']))).toBe(
+      '210,000 ÷ 2',
+    );
+  });
+
+  it('= 뒤에 다른 키를 누르면 그 수식은 버린다 — 더는 지금 금액을 설명하지 않는다', () => {
+    expect(confirmedExpression(press(['1', '0', '+', '5', '=', '7']))).toBe('');
+    expect(confirmedExpression(press(['1', '0', '+', '5', '=', '←']))).toBe('');
+  });
+
+  it('열자마자 확정해도 남기지 않는다', () => {
+    expect(confirmedExpression(initialState(180000))).toBe('');
+  });
+
+  it('덜 친 연산자는 떼고 남긴다 — 120 ÷ 로 확정하면 금액은 120 이다', () => {
+    const half = press(['1', '2', '0', '÷']);
+    expect(formatExpression(half)).toBe('120 ÷');
+    expect(confirmedExpression(half)).toBe('');
+  });
+});
+
+describe('★ F-ENT-09 상한에 걸리면 조용히 접지 않는다', () => {
+  it('곱셈 결과가 10억을 넘으면 접힌 사실을 알 수 있어야 한다', () => {
+    const over = { tokens: [500_000_000, '×' as const, 3], draft: '' };
+    expect(isCapped(over)).toBe(true);
+    expect(evaluate([500_000_000, '×', 3])).toBe(MAX_AMOUNT);
+    expect(isCapped(press(['1', '0', '0']))).toBe(false);
+  });
+
+  it('★ 상한에 걸린 계산은 수식을 남기지 않는다 — 500,000,000 × 3 은 10억을 설명하지 못한다', () => {
+    const over = press(['5', '0', '0', '0', '0', '0', '0', '0', '0', '×', '3']);
+    expect(result(over)).toBe(MAX_AMOUNT);
+    // 치는 동안 화면에는 친 그대로 보인다. 안내 줄이 같이 있으므로 맞다
+    expect(formatExpression(over)).toBe('500,000,000 × 3');
+    expect(confirmedExpression(over)).toBe('');
+    expect(confirmedExpression(pressKey(over, '='))).toBe('');
+  });
+});
+
+describe('★ F-ENT-09 칸 아래에 남는 수식은 칸의 금액을 설명해야 한다', () => {
+  it('÷ 0 은 계산에서 빠졌으니 수식에서도 빠진다', () => {
+    const skipped = press(['1', '0', '0', '÷', '0']);
+    expect(result(skipped)).toBe(100);
+    expect(formatExpression(skipped)).toBe('100 ÷ 0');
+    // 100 을 확정하면서 아래에 '100 ÷ 0' 이 남으면 몇 달 뒤 읽는 사람은 어느 쪽을 믿어야 하는지 모른다
+    expect(confirmedExpression(skipped)).toBe('');
+    expect(confirmedExpression(press(['1', '0', '0', '÷', '0', '+', '5']))).toBe('100 + 5');
+    expect(confirmedExpression(press(['1', '0', '0', '÷', '0', '+', '5', '=']))).toBe('100 + 5');
+  });
+
+  it('÷ 0 이 들어 있으면 건너뛰었다고 말할 수 있어야 한다 — = 뒤에도', () => {
+    expect(dividesByZero(press(['1', '0', '0', '÷', '0']))).toBe(true);
+    expect(dividesByZero(press(['1', '0', '0', '÷', '0', '=']))).toBe(true);
+    expect(dividesByZero(press(['1', '0', '0', '÷', '2']))).toBe(false);
+    // 아직 0 을 안 쳤으면 나누기 중이다
+    expect(dividesByZero(press(['1', '0', '0', '÷']))).toBe(false);
+    // 0 을 나누는 것은 된다 — 0 ÷ 5 는 0 이다
+    expect(dividesByZero(press(['0', '÷', '5']))).toBe(false);
+    expect(result(press(['0', '÷', '5']))).toBe(0);
+  });
+});
+
+describe('★ F-ENT-09 안내는 한 번에 하나만 — 시트 높이가 출렁이면 자판이 손 밑에서 움직인다', () => {
+  it('아무 일도 없으면 안내가 없다', () => {
+    expect(notice(press(['2', '1', '0', '0', '0', '0', '÷', '2']))).toBeNull();
+    expect(notice({ tokens: [], draft: '' })).toBeNull();
+  });
+
+  it('하나만 걸리면 그것을 말한다', () => {
+    expect(notice(press(['1', '0', '0', '0', '0', '÷', '3']))).toBe('rounded');
+    expect(notice(press(['1', '0', '0', '÷', '0']))).toBe('dividesByZero');
+    expect(notice({ tokens: [500_000_000, '×', 3], draft: '' })).toBe('capped');
+    expect(notice(press(['1', '-', '5']))).toBe('negative');
+  });
+
+  it('둘이 겹치면 급한 것 하나만 — 음수 > 상한 > ÷ 0 > 반올림', () => {
+    // 1 ÷ 3 - 100 은 반올림이면서 음수다. 확정이 막히는 쪽이 먼저다
+    const roundedNegative = press(['1', '÷', '3', '-', '1', '0', '0']);
+    expect(isRounded(roundedNegative)).toBe(true);
+    expect(isNegative(roundedNegative)).toBe(true);
+    expect(notice(roundedNegative)).toBe('negative');
+
+    // 10억 ÷ 3 × 4 는 반올림이면서 상한이다. 접힌 값은 정확히 10억이라 반올림 이야기는 무의미하다
+    const roundedCapped = press('1000000000'.split('').concat(['÷', '3', '×', '4']));
+    expect(isRounded(roundedCapped)).toBe(true);
+    expect(isCapped(roundedCapped)).toBe(true);
+    expect(notice(roundedCapped)).toBe('capped');
+
+    // 10 ÷ 0 ÷ 3 은 ÷ 0 을 건너뛴 뒤 반올림한다. 결과가 친 것과 달라지는 쪽이 먼저다
+    expect(notice(press(['1', '0', '÷', '0', '÷', '3']))).toBe('dividesByZero');
+  });
+});
+
+describe('★ F-ENT-09 = 를 눌러도 안내가 사라지지 않는다', () => {
+  it('반올림한 사실은 = 뒤에도 말한다 — 1원 아래를 버린 금액인데 화면에 흔적이 없으면 안 된다', () => {
+    const divided = press(['1', '0', '0', '0', '0', '÷', '3']);
+    expect(isRounded(divided)).toBe(true);
+    const folded = pressKey(divided, '=');
+    expect(result(folded)).toBe(3333);
+    expect(isRounded(folded)).toBe(true);
+    expect(confirmedExpression(folded)).toBe('10,000 ÷ 3');
+  });
+
+  it('상한에 걸린 사실도 = 뒤에 남는다', () => {
+    const over = press(['5', '0', '0', '0', '0', '0', '0', '0', '0', '×', '3']);
+    expect(isCapped(over)).toBe(true);
+    expect(isCapped(pressKey(over, '='))).toBe(true);
+  });
+
+  it('접은 값은 이미 반올림된 정수다 — 보이는 3,333 과 다음 계산이 쓰는 값이 같다', () => {
+    expect(result(press(['1', '0', '0', '0', '0', '÷', '3', '=', '×', '3']))).toBe(9999);
+  });
+});
+
+describe('★ F-ENT-09 음수는 칸에 넣을 수 없다', () => {
+  it('결과가 음수면 확정을 막는다', () => {
+    expect(isNegative(press(['1', '0', '0', '-', '5', '0', '0']))).toBe(true);
+    expect(isNegative(press(['5', '0', '0', '-', '1', '0', '0']))).toBe(false);
+    // 아무것도 안 친 상태는 음수가 아니다 — 막을 이유가 없다
+    expect(isNegative({ tokens: [], draft: '' })).toBe(false);
+  });
+
+  it('★ = 로 접힌 음수를 ← 로 지워도 NaN 이 새어 나가지 않는다', () => {
+    // '=' 가 결과를 draft 로 되돌리므로 음수일 때 draft 에 '-' 가 들어간다.
+    // 거기서 ← 를 눌러 '-' 하나만 남으면 Number('-') 는 NaN 이다.
+    const minus = press(['1', '-', '5', '=']);
+    expect(minus.draft).toBe('-4');
+
+    const rubbed = press(['←', '←'], minus);
+    expect(rubbed.draft).toBe('');
+    expect(result(rubbed)).toBeNull();
+
+    // 지우다 '-' 하나만 남는 순간이 문제였다 — 값이 없는 것으로 봐야 한다
+    const dashOnly = { tokens: [], draft: '-' };
+    expect(result(dashOnly)).toBeNull();
+    expect(isNegative(dashOnly)).toBe(false);
+    expect(formatExpression(dashOnly)).toBe('');
+  });
+
+  it('★ - 하나만 남은 채 연산자를 눌러도 NaN 이 수식 줄에 들어가지 않는다', () => {
+    // 계산 쪽만 막았을 때는 연산자 분기가 Number('-') 를 그대로 tokens 에 넣어 'NaN +' 가 보였다
+    // ← 는 이제 '-' 를 남기지 않는다 (아래 케이스). 손으로 만든 상태로 가드 자체를 본다
+    const dashOnly: CalcState = { tokens: [], draft: '-' };
+
+    expect(press(['+'], dashOnly)).toEqual({ tokens: [], draft: '' });
+    expect(formatExpression(press(['+', '5'], dashOnly))).toBe('5');
+
+    // 앞에 토큰이 있으면 값 없는 draft 는 버리고 연산자만 잇는다
+    const afterTokens: CalcState = { tokens: [100, '+'], draft: '-' };
+    expect(press(['×'], afterTokens)).toEqual({ tokens: [100, '×'], draft: '' });
+  });
+});
+
+describe('★ F-ENT-09 ← 로 - 하나만 남으면 그 자리에서 비운다', () => {
+  it('화면은 0 인데 다음 숫자가 음수가 되면 안 된다 — 보이는 것과 상태가 갈라진다', () => {
+    // 100 - 500 = 는 -400. ← 셋이면 '-' 만 남던 자리다
+    const rubbed = press(['1', '0', '0', '-', '5', '0', '0', '=', '←', '←', '←']);
+    expect(rubbed.draft).toBe('');
+    expect(formatExpression(rubbed)).toBe('');
+    expect(press(['5'], rubbed).draft).toBe('5');
+    expect(result(press(['5'], rubbed))).toBe(5);
+  });
+
+  it('음수 결과의 자릿수는 그대로 한 글자씩 지워진다', () => {
+    const minus = press(['1', '0', '0', '-', '5', '0', '0', '=']);
+    expect(press(['←'], minus).draft).toBe('-40');
+    expect(press(['←', '←'], minus).draft).toBe('-4');
+  });
+});
+
+describe('★ F-ENT-09 관리비를 형과 반씩 낸다', () => {
+  it('열 때 실렸던 금액을 C 로 비우고 210000 ÷ 2 = 105,000원', () => {
+    const state = press(['C', '2', '1', '0', '0', '0', '0', '÷', '2'], initialState(180000));
+    expect(result(state)).toBe(105000);
+    expect(formatExpression(state)).toBe('210,000 ÷ 2');
+    expect(isRounded(state)).toBe(false);
+  });
+
+  it('실려 온 금액은 첫 숫자를 치면 갈아탄다 — 옆 금액 칸이 포커스에 전체 선택하는 것과 같은 규칙', () => {
+    expect(press(['2'], initialState(180000)).draft).toBe('2');
+    expect(press(['2', '1'], initialState(180000)).draft).toBe('21');
+  });
+
+  it('연산자를 먼저 누르면 실려 온 값을 쓰겠다는 뜻이라 그대로 둔다', () => {
+    expect(press(['+', '2', '0'], initialState(180000))).toEqual({
+      tokens: [180000, '+'],
+      draft: '20',
+    });
+  });
+});

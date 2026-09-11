@@ -227,6 +227,17 @@ export const weight = {
 } as const;
 
 /**
+ * 크기. 손가락이 닿는 것들.
+ */
+export const size = {
+  /** 터치 최소 크기. iOS 44 · Material 48 중 작은 쪽 — 이보다 작은 버튼은 잘못 눌린다 */
+  touch: 44,
+  /** 아래 시트의 손잡이 알약 */
+  grabberWidth: 40,
+  grabberHeight: 4,
+} as const;
+
+/**
  * 움직임.
  * 누르면 살짝 들어가고, 상태가 바뀌면 부드럽게 넘어간다. 뚝뚝 끊기지 않게.
  */
@@ -293,6 +304,7 @@ export type Theme = {
   space: typeof space;
   border: typeof border;
   radius: typeof radius;
+  size: typeof size;
   font: typeof font;
   weight: typeof weight;
   opacity: typeof opacity;
@@ -307,6 +319,7 @@ export function buildTheme(scheme: ColorScheme): Theme {
     space,
     border,
     radius,
+    size,
     font,
     weight,
     opacity,
