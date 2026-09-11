@@ -210,6 +210,27 @@ export function isNegative(state: CalcState): boolean {
   return value !== null && value < 0;
 }
 
+export type Notice = 'negative' | 'capped' | 'dividesByZero' | 'rounded';
+
+/**
+ * 시트에 띄울 안내 — **한 번에 하나만.**
+ *
+ * 넷은 서로 배타적이지 않다 (`1 ÷ 3 - 100` 은 반올림이면서 음수다). 둘을 다 그리면 시트가
+ * 한 줄만큼 커져 자판이 손 밑에서 움직인다 — 안내 자리를 미리 잡아둔 이유가 무너진다.
+ * 그래서 가장 급한 것 하나만 말한다:
+ *  1. 음수 — 확정 자체가 막힌다. 고치기 전엔 나머지는 의미가 없다
+ *  2. 상한 — 결과가 친 것과 다르다. 접힌 값은 정확히 10억이라 반올림 이야기는 무의미하다
+ *  3. ÷ 0 — 결과가 친 것과 다르다
+ *  4. 반올림 — 결과는 맞되 1원 아래를 버렸다
+ */
+export function notice(state: CalcState): Notice | null {
+  if (isNegative(state)) return 'negative';
+  if (isCapped(state)) return 'capped';
+  if (dividesByZero(state)) return 'dividesByZero';
+  if (isRounded(state)) return 'rounded';
+  return null;
+}
+
 /**
  * 키 하나를 눌렀을 때의 다음 상태.
  *

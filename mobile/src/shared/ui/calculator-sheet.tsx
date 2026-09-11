@@ -7,15 +7,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import {
   type CalcState,
+  type Notice,
   confirmedExpression,
-  dividesByZero,
   formatExpression,
   hasOperation,
   initialState,
-  isCapped,
   isNegative,
-  isRounded,
   isSettled,
+  notice,
   pressKey,
   result,
 } from '@/shared/lib/calc';
@@ -133,9 +132,8 @@ export function CalculatorSheet({
   const settled = isSettled(state);
   /** 거드는 줄을 그리나 — 숫자 하나뿐이면 결과를 두 번 적는 셈이라 한 줄로 끝낸다 */
   const showsResult = hasOperation(state);
-  const rounded = isRounded(state);
-  const capped = isCapped(state);
-  const skippedZero = dividesByZero(state);
+  /** 한 번에 하나만 — 둘을 그리면 시트가 한 줄만큼 커져 자판이 손 밑에서 움직인다 (calc.notice) */
+  const shown = notice(state);
   const negative = isNegative(state);
   // 시스템 내비게이션 위에 딱 붙는다. 시트 바닥이 그보다 더 떠 있으면 버튼이 허공에 뜬 것처럼 보인다
   const bottom = Math.max(insets.bottom, space.md);
@@ -179,13 +177,10 @@ export function CalculatorSheet({
                     {showsResult ? <Text style={styles.sub}>= {formatWon(value ?? 0)}</Text> : null}
                   </>
                 )}
-                {rounded ? <Text style={styles.hint}>1원 아래는 반올림했어요.</Text> : null}
-                {capped ? <Text style={styles.hint}>금액은 10억까지만 적을 수 있어요.</Text> : null}
-                {skippedZero ? (
-                  <Text style={styles.hint}>0으로는 나눌 수 없어서 그 자리는 건너뛰었어요.</Text>
-                ) : null}
-                {negative ? (
-                  <Text style={styles.negative}>금액은 0원보다 작을 수 없어요.</Text>
+                {shown ? (
+                  <Text style={shown === 'negative' ? styles.negative : styles.hint}>
+                    {NOTICES[shown]}
+                  </Text>
                 ) : null}
               </View>
 
@@ -239,6 +234,14 @@ const KEYPAD = [
   ['0', '00'],
 ];
 
+/** 안내 문장. 어느 것을 띄울지는 calc.notice 가 정한다 — 여기는 문장만 안다 */
+const NOTICES: Record<Notice, string> = {
+  negative: '금액은 0원보다 작을 수 없어요.',
+  capped: '금액은 10억까지만 적을 수 있어요.',
+  dividesByZero: '0으로는 나눌 수 없어서 그 자리는 건너뛰었어요.',
+  rounded: '1원 아래는 반올림했어요.',
+};
+
 /** 숫자가 아닌 키는 눈으로 갈린다 */
 const TINTED = ['C', '←', '÷', '×', '-', '+', '='];
 
@@ -274,8 +277,9 @@ const useStyles = makeStyles((t) => ({
   body: { paddingHorizontal: t.space.lg, gap: t.space.lg },
 
   /*
-    수식 한 줄 + 결과 한 줄 + 안내 한 줄(반올림·상한·음수) 자리를 미리 잡아둔다.
+    수식 한 줄 + 결과 한 줄 + 안내 한 줄 자리를 미리 잡아둔다.
     안내는 있다 없다 하는데, 그때마다 시트 높이가 출렁이면 자판이 손 밑에서 움직인다.
+    그래서 안내는 언제나 한 줄이다 — 여럿이 걸려도 하나만 고르는 것은 calc.notice 의 몫이다.
   */
   display: {
     gap: t.space.xxs,

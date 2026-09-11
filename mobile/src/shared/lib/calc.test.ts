@@ -12,6 +12,7 @@ import {
   isNegative,
   isRounded,
   isSettled,
+  notice,
   pressKey,
   result,
 } from './calc';
@@ -268,6 +269,37 @@ describe('★ F-ENT-09 칸 아래에 남는 수식은 칸의 금액을 설명해
     // 0 을 나누는 것은 된다 — 0 ÷ 5 는 0 이다
     expect(dividesByZero(press(['0', '÷', '5']))).toBe(false);
     expect(result(press(['0', '÷', '5']))).toBe(0);
+  });
+});
+
+describe('★ F-ENT-09 안내는 한 번에 하나만 — 시트 높이가 출렁이면 자판이 손 밑에서 움직인다', () => {
+  it('아무 일도 없으면 안내가 없다', () => {
+    expect(notice(press(['2', '1', '0', '0', '0', '0', '÷', '2']))).toBeNull();
+    expect(notice({ tokens: [], draft: '' })).toBeNull();
+  });
+
+  it('하나만 걸리면 그것을 말한다', () => {
+    expect(notice(press(['1', '0', '0', '0', '0', '÷', '3']))).toBe('rounded');
+    expect(notice(press(['1', '0', '0', '÷', '0']))).toBe('dividesByZero');
+    expect(notice({ tokens: [500_000_000, '×', 3], draft: '' })).toBe('capped');
+    expect(notice(press(['1', '-', '5']))).toBe('negative');
+  });
+
+  it('둘이 겹치면 급한 것 하나만 — 음수 > 상한 > ÷ 0 > 반올림', () => {
+    // 1 ÷ 3 - 100 은 반올림이면서 음수다. 확정이 막히는 쪽이 먼저다
+    const roundedNegative = press(['1', '÷', '3', '-', '1', '0', '0']);
+    expect(isRounded(roundedNegative)).toBe(true);
+    expect(isNegative(roundedNegative)).toBe(true);
+    expect(notice(roundedNegative)).toBe('negative');
+
+    // 10억 ÷ 3 × 4 는 반올림이면서 상한이다. 접힌 값은 정확히 10억이라 반올림 이야기는 무의미하다
+    const roundedCapped = press('1000000000'.split('').concat(['÷', '3', '×', '4']));
+    expect(isRounded(roundedCapped)).toBe(true);
+    expect(isCapped(roundedCapped)).toBe(true);
+    expect(notice(roundedCapped)).toBe('capped');
+
+    // 10 ÷ 0 ÷ 3 은 ÷ 0 을 건너뛴 뒤 반올림한다. 결과가 친 것과 달라지는 쪽이 먼저다
+    expect(notice(press(['1', '0', '÷', '0', '÷', '3']))).toBe('dividesByZero');
   });
 });
 
