@@ -60,8 +60,16 @@ export function AmountInput({
 
   const [calcOpen, setCalcOpen] = useState(false);
 
-  /** 계산기로 만든 금액이면 무엇을 해서 그렇게 됐는지 한 줄 남긴다. 손으로 고치면 지운다 */
-  const [expression, setExpression] = useState('');
+  /**
+   * 계산기로 확정한 금액과 그 수식. 칸의 값이 **이 금액일 때만** 수식을 보여준다.
+   *
+   * 수식은 그 금액의 근거라, 값이 달라지면 근거가 아니다. 손으로 고치는 것만이 아니라
+   * 바깥이 갈아끼우는 길도 있다 — [이번 달은 안 냈어요] 가 0 을 넣고, 다른 줄로 넘어가면 null 이 된다.
+   * 이펙트로 조건을 열거해 지우면 하나씩 빠진다 (null 만 보다가 0 을 놓쳤다). 값과 짝지어 두고
+   * 렌더에서 비교하면 어느 길로 바뀌어도 같이 사라진다.
+   */
+  const [confirmed, setConfirmed] = useState<{ value: number; expression: string } | null>(null);
+  const expression = confirmed !== null && confirmed.value === value ? confirmed.expression : '';
 
   const inputRef = useRef<TextInput>(null);
 
@@ -79,11 +87,6 @@ export function AmountInput({
     });
     return () => subscription.remove();
   }, []);
-
-  // 바깥에서 값을 비우면(다른 줄로 넘어갔다는 뜻) 수식도 같이 버린다
-  useEffect(() => {
-    if (value === null) setExpression('');
-  }, [value]);
 
   const text = editing ? draft : value === null || value === 0 ? '' : formatAmount(value);
 
@@ -104,8 +107,8 @@ export function AmountInput({
           onChangeText={(next) => {
             // 첫 글자를 치는 순간 커서를 놓아준다. 계속 쥐고 있으면 매 글자가 선택된다
             setSelection(undefined);
-            // 손으로 고치면 아까 수식은 더 이상 이 금액의 근거가 아니다
-            setExpression('');
+            // 손으로 고치면 아까 수식은 더 이상 이 금액의 근거가 아니다 — 같은 숫자를 다시 쳐도 마찬가지다
+            setConfirmed(null);
 
             // 자릿수를 먼저 자른다. 상한을 넘겨 잘린 값이 화면에 남으면
             // 사용자가 친 것과 보이는 게 어긋난다.
@@ -168,7 +171,7 @@ export function AmountInput({
             // 그 자체로 고장이라 여기서 한 번 더 끈다 — Modal 은 별도의 네이티브 창이라 이벤트 순서를 믿지 않는다
             setEditing(false);
             // 0 은 칸을 빈칸으로 그린다(위 text). 빈 칸 아래에 `5 - 5` 만 남으면 무엇의 근거인지 안 보인다
-            setExpression(next === 0 ? '' : expr);
+            setConfirmed(next === 0 ? null : { value: next, expression: expr });
             onChange(next);
           }}
         />
