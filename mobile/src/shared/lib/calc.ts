@@ -254,7 +254,12 @@ export function pressKey(input: CalcState, key: string): CalcState {
 
   if (key === '←') {
     // 치던 숫자가 있으면 그 한 글자만 지운다
-    if (state.draft !== '') return { tokens: state.tokens, draft: state.draft.slice(0, -1) };
+    if (state.draft !== '') {
+      const next = state.draft.slice(0, -1);
+      // '-' 하나만 남으면 값이 없는 것이다. 남겨두면 화면은 0 인데 다음 숫자가 그 뒤에 붙어 음수가 된다 —
+      // 보이는 것과 상태가 갈라진다. 여기서 비운다 (draftValue 의 가드는 손으로 만든 상태를 위한 안전망으로 남는다)
+      return { tokens: state.tokens, draft: next === '-' ? '' : next };
+    }
 
     const tokens = [...state.tokens];
     const last = tokens.pop();

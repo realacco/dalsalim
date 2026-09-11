@@ -401,8 +401,8 @@ describe('★ F-ENT-09 음수는 칸에 넣을 수 없다', () => {
 
   it('★ - 하나만 남은 채 연산자를 눌러도 NaN 이 수식 줄에 들어가지 않는다', () => {
     // 계산 쪽만 막았을 때는 연산자 분기가 Number('-') 를 그대로 tokens 에 넣어 'NaN +' 가 보였다
-    const dashOnly = press(['1', '-', '5', '=', '←']);
-    expect(dashOnly.draft).toBe('-');
+    // ← 는 이제 '-' 를 남기지 않는다 (아래 케이스). 손으로 만든 상태로 가드 자체를 본다
+    const dashOnly: CalcState = { tokens: [], draft: '-' };
 
     expect(press(['+'], dashOnly)).toEqual({ tokens: [], draft: '' });
     expect(formatExpression(press(['+', '5'], dashOnly))).toBe('5');
@@ -410,6 +410,23 @@ describe('★ F-ENT-09 음수는 칸에 넣을 수 없다', () => {
     // 앞에 토큰이 있으면 값 없는 draft 는 버리고 연산자만 잇는다
     const afterTokens: CalcState = { tokens: [100, '+'], draft: '-' };
     expect(press(['×'], afterTokens)).toEqual({ tokens: [100, '×'], draft: '' });
+  });
+});
+
+describe('★ F-ENT-09 ← 로 - 하나만 남으면 그 자리에서 비운다', () => {
+  it('화면은 0 인데 다음 숫자가 음수가 되면 안 된다 — 보이는 것과 상태가 갈라진다', () => {
+    // 100 - 500 = 는 -400. ← 셋이면 '-' 만 남던 자리다
+    const rubbed = press(['1', '0', '0', '-', '5', '0', '0', '=', '←', '←', '←']);
+    expect(rubbed.draft).toBe('');
+    expect(formatExpression(rubbed)).toBe('');
+    expect(press(['5'], rubbed).draft).toBe('5');
+    expect(result(press(['5'], rubbed))).toBe(5);
+  });
+
+  it('음수 결과의 자릿수는 그대로 한 글자씩 지워진다', () => {
+    const minus = press(['1', '0', '0', '-', '5', '0', '0', '=']);
+    expect(press(['←'], minus).draft).toBe('-40');
+    expect(press(['←', '←'], minus).draft).toBe('-4');
   });
 });
 
