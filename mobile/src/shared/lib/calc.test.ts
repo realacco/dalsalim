@@ -207,7 +207,12 @@ describe('★ F-ENT-09 화면이 읽기만 하는 함수는 상태를 건드리�
       (state, key) => {
         // React 상태는 얼어 있다고 봐야 한다 — 건드리면 여기서 바로 터진다
         const pressed = pressKey(state, key);
-        const next = Object.freeze({ ...pressed, tokens: Object.freeze([...pressed.tokens]) });
+        // folded 도 같은 별칭 경로다 (= 뒤에는 sourceState 가 folded 를 tokens 자리에 놓는다)
+        const next = Object.freeze({
+          ...pressed,
+          tokens: Object.freeze([...pressed.tokens]),
+          folded: pressed.folded && Object.freeze([...pressed.folded]),
+        });
         render(next);
         return next;
       },
