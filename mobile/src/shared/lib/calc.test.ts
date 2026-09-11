@@ -187,6 +187,51 @@ describe('F-ENT-09 결과 줄은 연산이 있을 때만 그린다', () => {
   });
 });
 
+describe('★ F-ENT-09 화면이 읽기만 하는 함수는 상태를 건드리지 않는다', () => {
+  /**
+   * 시트는 매 렌더마다 이 함수들을 부른다. 키를 누르는 사이사이에 렌더가 끼는 것이 실제 순서다.
+   * 한 번은 hasOperation 이 React 가 들고 있는 tokens 를 pop 해서, 연산자를 누른 직후 렌더에
+   * 그 연산자가 사라졌다 — 100 + 5 가 NaN 이 되고 [이 금액 쓰기] 가 안 눌렸다.
+   */
+  function render(state: CalcState): void {
+    result(state);
+    formatExpression(state);
+    hasOperation(state);
+    confirmedExpression(state);
+    notice(state);
+    isSettled(state);
+  }
+
+  function pressWithRenders(keys: string[]): CalcState {
+    return keys.reduce<CalcState>(
+      (state, key) => {
+        // React 상태는 얼어 있다고 봐야 한다 — 건드리면 여기서 바로 터진다
+        const pressed = pressKey(state, key);
+        const next = Object.freeze({ ...pressed, tokens: Object.freeze([...pressed.tokens]) });
+        render(next);
+        return next;
+      },
+      Object.freeze({ tokens: Object.freeze([]), draft: '' }),
+    );
+  }
+
+  it('키 사이에 렌더가 끼어도 100 + 5 는 105 다', () => {
+    const state = pressWithRenders(['1', '0', '0', '+', '5']);
+    expect(state.tokens).toEqual([100, '+']);
+    expect(result(state)).toBe(105);
+    expect(formatExpression(state)).toBe('100 + 5');
+  });
+
+  it('연산자를 누른 직후의 렌더가 그 연산자를 지우지 않는다', () => {
+    const state = pressWithRenders(['1', '0', '0', '+']);
+    expect(state.tokens).toEqual([100, '+']);
+    expect(result(pressKey(state, '5'))).toBe(105);
+    // = 뒤 접기 전 수식(folded)도 같은 별칭이라 같이 지켜져야 한다
+    const folded = pressWithRenders(['1', '0', '+', '5', '=']);
+    expect(confirmedExpression(folded)).toBe('10 + 5');
+  });
+});
+
 describe('★ F-ENT-09 = 를 눌러야 결과가 주인공이 된다', () => {
   it('치는 동안에는 확정 전이다 — 수식이 주인공', () => {
     expect(isSettled(press(['2', '1', '0', '0', '0', '0', '÷', '2']))).toBe(false);

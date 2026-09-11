@@ -11,9 +11,15 @@ import { formatAmount } from './format';
 export type Operator = '+' | '-' | '×' | '÷';
 export type Token = number | Operator;
 
-/** 확정된 토큰들과, 지금 치고 있는 숫자. 숫자를 문자열로 들고 있어야 앞자리 0 을 다룰 수 있다 */
+/**
+ * 확정된 토큰들과, 지금 치고 있는 숫자. 숫자를 문자열로 들고 있어야 앞자리 0 을 다룰 수 있다.
+ *
+ * ★ 배열은 `readonly` 다. 이 상태는 React 가 들고 있고, 시트는 매 렌더마다 아래의 읽기 함수들을
+ *   부른다. 한 번은 읽기 함수가 `pop()` 으로 연산자를 지워서 `100 + 5` 가 NaN 이 됐다 —
+ *   순수 함수 규칙이 주석으로만 있으면 그렇게 깨진다. 타입이 막게 둔다.
+ */
 export type CalcState = {
-  tokens: Token[];
+  tokens: readonly Token[];
   draft: string;
   /**
    * draft 가 "이어 붙일 것"이 아니라 "갈아탈 것"인가.
@@ -38,7 +44,7 @@ export type CalcState = {
    * 가장 흔한 손버릇에서 수식 한 줄과 "반올림했어요" 가 조용히 사라지는 셈이었다.
    * 그래서 접기 전 원본을 한 벌 들고 간다. 다음 키를 누르면 버린다.
    */
-  folded?: Token[];
+  folded?: readonly Token[];
 };
 
 export const MAX_AMOUNT = 1_000_000_000;
@@ -72,10 +78,13 @@ function draftValue(state: CalcState): number | null {
   return Number.isFinite(typed) ? typed : null;
 }
 
-/** 확정된 것 + 지금 치는 숫자. 계산은 언제나 이걸로 한다 — 상태를 두 벌 두지 않기 위해서다 */
+/**
+ * 확정된 것 + 지금 치는 숫자. 계산은 언제나 이걸로 한다 — 상태를 두 벌 두지 않기 위해서다.
+ * 언제나 **새 배열**이다. 상태의 배열을 그대로 돌려주면 받은 쪽이 손대는 순간 React 상태가 바뀐다.
+ */
 function allTokens(state: CalcState): Token[] {
   const typed = draftValue(state);
-  return typed === null ? state.tokens : [...state.tokens, typed];
+  return typed === null ? [...state.tokens] : [...state.tokens, typed];
 }
 
 /**
@@ -87,7 +96,7 @@ function allTokens(state: CalcState): Token[] {
  * 칸의 금액과 수식이 갈라지지 않는다 (`100 ÷ 0` 으로 100 을 확정했는데 수식만 `100 ÷ 0` 이면
  * 몇 달 뒤 읽는 사람은 무엇을 믿어야 하는지 모른다).
  */
-function effectiveTokens(tokens: Token[]): Token[] {
+function effectiveTokens(tokens: readonly Token[]): Token[] {
   const items: Token[] = [];
   for (let i = 0; i < tokens.length; i += 1) {
     const item = tokens[i];
@@ -108,7 +117,7 @@ function effectiveTokens(tokens: Token[]): Token[] {
  * 여기서는 **반올림하지 않는다.** 나눗셈이 섞이면 중간값이 소수일 수 있고,
  * 매 단계 반올림하면 오차가 쌓인다. 정수로 만드는 것은 마지막에 딱 한 번이다.
  */
-function evaluateExact(tokens: Token[]): number | null {
+function evaluateExact(tokens: readonly Token[]): number | null {
   const items = effectiveTokens(tokens);
   if (items.length === 0) return null;
 
@@ -134,7 +143,7 @@ function evaluateExact(tokens: Token[]): number | null {
 }
 
 /** 화면에 보여주고 칸에 넣을 값 — 원 단위 정수 (하드룰 5). 소수는 여기서 한 번만 반올림한다 */
-export function evaluate(tokens: Token[]): number | null {
+export function evaluate(tokens: readonly Token[]): number | null {
   const exact = evaluateExact(tokens);
   if (exact === null || !Number.isFinite(exact)) return null;
   return Math.min(Math.round(exact), MAX_AMOUNT);
@@ -172,8 +181,9 @@ export function hasOperation(state: CalcState): boolean {
   const tokens = allTokens(sourceState(state));
   // 덜 친 연산자(`120 ÷`)는 아직 숫자 하나다. `÷ 0` 은 계산에서 빠지지만 친 것은 친 것이라 남긴다 —
   // 결과 줄과 "건너뛰었어요" 안내가 같이 보여야 무슨 일이 났는지 읽힌다
-  if (tokens.length > 0 && isOperator(tokens[tokens.length - 1])) tokens.pop();
-  return tokens.some(isOperator);
+  const last = tokens[tokens.length - 1];
+  const settled = last !== undefined && isOperator(last) ? tokens.slice(0, -1) : tokens;
+  return settled.some(isOperator);
 }
 
 /**
@@ -324,6 +334,6 @@ export function formatExpression(state: CalcState): string {
   return joinTokens(allTokens(sourceState(state)));
 }
 
-function joinTokens(tokens: Token[]): string {
+function joinTokens(tokens: readonly Token[]): string {
   return tokens.map((token) => (isOperator(token) ? token : formatAmount(token))).join(' ');
 }
