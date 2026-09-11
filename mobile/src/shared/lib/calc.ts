@@ -79,6 +79,29 @@ function allTokens(state: CalcState): Token[] {
 }
 
 /**
+ * 실제로 계산에 들어가는 토큰. 둘을 걷어낸다.
+ *  - 덜 친 연산자로 끝나면 그 자리는 없는 셈 친다 — 치는 중에도 결과가 보여야 한다
+ *  - `÷ 0` 은 계산하지 않고 그 자리를 무시한다 — 사람을 탓하지 않는다
+ *
+ * 걷어내는 자리를 여기 한 곳에 둔다. 계산과 "칸 아래에 남길 수식"이 같은 토큰을 봐야
+ * 칸의 금액과 수식이 갈라지지 않는다 (`100 ÷ 0` 으로 100 을 확정했는데 수식만 `100 ÷ 0` 이면
+ * 몇 달 뒤 읽는 사람은 무엇을 믿어야 하는지 모른다).
+ */
+function effectiveTokens(tokens: Token[]): Token[] {
+  const items: Token[] = [];
+  for (let i = 0; i < tokens.length; i += 1) {
+    const item = tokens[i];
+    if (item === '÷' && tokens[i + 1] === 0) {
+      i += 1;
+      continue;
+    }
+    items.push(item);
+  }
+  if (items.length > 0 && isOperator(items[items.length - 1])) items.pop();
+  return items;
+}
+
+/**
  * 표준 우선순위(× ÷ 가 먼저)로 계산한다. 종이에 쓴 것과 같아야 하기 때문이다 —
  * 수식이 화면에 그대로 보이므로, 보이는 것과 다르게 계산하면 틀렸을 때 사람이 못 찾는다.
  *
@@ -86,9 +109,7 @@ function allTokens(state: CalcState): Token[] {
  * 매 단계 반올림하면 오차가 쌓인다. 정수로 만드는 것은 마지막에 딱 한 번이다.
  */
 function evaluateExact(tokens: Token[]): number | null {
-  const items = [...tokens];
-  // 연산자로 끝나면 아직 덜 친 것이다. 그 자리는 없는 셈 친다
-  if (items.length > 0 && isOperator(items[items.length - 1])) items.pop();
+  const items = effectiveTokens(tokens);
   if (items.length === 0) return null;
 
   const folded: Token[] = [];
@@ -98,8 +119,7 @@ function evaluateExact(tokens: Token[]): number | null {
       const left = folded.pop() as number;
       const right = items[i + 1] as number;
       i += 1;
-      // 0 으로 나누는 것은 계산하지 않고 그 자리를 무시한다. 사람을 탓하지 않는다
-      folded.push(item === '×' ? left * right : right === 0 ? left : left / right);
+      folded.push(item === '×' ? left * right : left / right);
     } else {
       folded.push(item);
     }
@@ -136,6 +156,24 @@ function sourceState(state: CalcState): CalcState {
 export function isCapped(state: CalcState): boolean {
   const exact = evaluateExact(allTokens(sourceState(state)));
   return exact !== null && Math.round(exact) > MAX_AMOUNT;
+}
+
+/** `÷ 0` 이 들어 있나 — 그 자리를 건너뛰었다고 한 줄 알려주기 위해 묻는다 */
+export function dividesByZero(state: CalcState): boolean {
+  const tokens = allTokens(sourceState(state));
+  return tokens.some((token, i) => token === '÷' && tokens[i + 1] === 0);
+}
+
+/**
+ * 연산이 하나라도 들어갔나 — 숫자 하나뿐이면 결과 줄을 안 그린다.
+ * `105,000` 아래에 `= 105,000` 을 다시 적는 것은 아무것도 설명하지 않는다.
+ */
+export function hasOperation(state: CalcState): boolean {
+  const tokens = allTokens(sourceState(state));
+  // 덜 친 연산자(`120 ÷`)는 아직 숫자 하나다. `÷ 0` 은 계산에서 빠지지만 친 것은 친 것이라 남긴다 —
+  // 결과 줄과 "건너뛰었어요" 안내가 같이 보여야 무슨 일이 났는지 읽힌다
+  if (tokens.length > 0 && isOperator(tokens[tokens.length - 1])) tokens.pop();
+  return tokens.some(isOperator);
 }
 
 /**
@@ -235,25 +273,27 @@ export function pressKey(input: CalcState, key: string): CalcState {
 /**
  * 칸 아래에 남길 수식. 남길 것이 없으면 빈 문자열이다.
  *
- * 둘을 걸러낸다.
- *  - 덜 친 연산자로 끝나면 떼고 남긴다 — `120 ÷` 로 확정하면 금액은 120 이라 수식과 안 맞는다
+ * ★ 남기는 것은 "친 것"이 아니라 **"계산된 것"** 이다 — 칸의 금액과 다른 수식이 남으면
+ *   몇 달 뒤 그 줄을 읽는 사람이 어느 쪽을 믿어야 하는지 모른다.
+ *  - 덜 친 연산자와 `÷ 0` 은 계산에서 빠졌으니 수식에서도 뺀다 (`effectiveTokens` 한 곳)
+ *  - 상한에 걸려 접혔으면 아무 수식도 그 금액을 설명하지 못한다 — 빈 줄이다
  *  - 그러고 나서 연산자가 하나도 없으면 빈 줄이다 — `105,000` 아래에 `105,000` 을 다시 적는 것은
  *    "무엇을 해서 이 금액이 됐는지"가 아니다. `=` 로 접었거나 열자마자 확정한 경우다
  *
- * 지금 치는 중의 표시(`formatExpression`)는 덜 친 연산자를 그대로 보여준다. 그건 맞다.
+ * 지금 치는 중의 표시(`formatExpression`)는 친 그대로 보여준다. 그건 맞다 — 시트에는 안내 줄이 같이 있다.
  */
 export function confirmedExpression(state: CalcState): string {
-  const from = sourceState(state);
-  const tokens = [...from.tokens];
-  if (from.draft === '' && tokens.length > 0 && isOperator(tokens[tokens.length - 1])) tokens.pop();
+  if (isCapped(state)) return '';
+  const tokens = effectiveTokens(allTokens(sourceState(state)));
   if (!tokens.some(isOperator)) return '';
-  return formatExpression({ tokens, draft: from.draft });
+  return joinTokens(tokens);
 }
 
 /** `210,000 ÷ 2` — 지금까지 친 수식을 그대로 보여주는 한 줄. `=` 뒤에는 접기 전 수식이다 */
 export function formatExpression(state: CalcState): string {
-  const parts = allTokens(sourceState(state)).map((token) =>
-    isOperator(token) ? token : formatAmount(token),
-  );
-  return parts.join(' ');
+  return joinTokens(allTokens(sourceState(state)));
+}
+
+function joinTokens(tokens: Token[]): string {
+  return tokens.map((token) => (isOperator(token) ? token : formatAmount(token))).join(' ');
 }

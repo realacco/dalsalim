@@ -8,7 +8,9 @@ import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import {
   type CalcState,
   confirmedExpression,
+  dividesByZero,
   formatExpression,
+  hasOperation,
   initialState,
   isCapped,
   isNegative,
@@ -129,10 +131,11 @@ export function CalculatorSheet({
    * 사람이 아는 계산기가 그 순서라, 반대로 두면 지금 무엇을 치고 있는지가 안 보인다.
    */
   const settled = isSettled(state);
-  /** 보여줄 수식이 있나 — 숫자 하나뿐이면 결과를 두 번 적는 셈이라 한 줄로 끝낸다 */
-  const detail = confirmedExpression(state);
+  /** 거드는 줄을 그리나 — 숫자 하나뿐이면 결과를 두 번 적는 셈이라 한 줄로 끝낸다 */
+  const showsResult = hasOperation(state);
   const rounded = isRounded(state);
   const capped = isCapped(state);
+  const skippedZero = dividesByZero(state);
   const negative = isNegative(state);
   // 시스템 내비게이션 위에 딱 붙는다. 시트 바닥이 그보다 더 떠 있으면 버튼이 허공에 뜬 것처럼 보인다
   const bottom = Math.max(insets.bottom, space.md);
@@ -161,9 +164,9 @@ export function CalculatorSheet({
               >
                 {settled ? (
                   <>
-                    {detail ? (
+                    {showsResult ? (
                       <Text style={styles.sub} numberOfLines={2}>
-                        {detail}
+                        {expression}
                       </Text>
                     ) : null}
                     <Text style={styles.main}>{formatWon(value ?? 0)}</Text>
@@ -173,12 +176,13 @@ export function CalculatorSheet({
                     <Text style={styles.main} numberOfLines={2}>
                       {expression || '0'}
                     </Text>
-                    {detail ? <Text style={styles.sub}>= {formatWon(value ?? 0)}</Text> : null}
+                    {showsResult ? <Text style={styles.sub}>= {formatWon(value ?? 0)}</Text> : null}
                   </>
                 )}
-                {rounded ? <Text style={styles.rounded}>1원 아래는 반올림했어요.</Text> : null}
-                {capped ? (
-                  <Text style={styles.rounded}>금액은 10억까지만 적을 수 있어요.</Text>
+                {rounded ? <Text style={styles.hint}>1원 아래는 반올림했어요.</Text> : null}
+                {capped ? <Text style={styles.hint}>금액은 10억까지만 적을 수 있어요.</Text> : null}
+                {skippedZero ? (
+                  <Text style={styles.hint}>0으로는 나눌 수 없어서 그 자리는 건너뛰었어요.</Text>
                 ) : null}
                 {negative ? (
                   <Text style={styles.negative}>금액은 0원보다 작을 수 없어요.</Text>
@@ -213,7 +217,8 @@ export function CalculatorSheet({
                 <Button
                   label="이 금액 쓰기"
                   disabled={value === null || negative}
-                  onPress={() => onConfirm(value ?? 0, detail)}
+                  // 남기는 수식은 친 것이 아니라 계산된 것이다 — 칸의 금액과 갈라지면 안 된다
+                  onPress={() => onConfirm(value ?? 0, confirmedExpression(state))}
                   style={styles.confirm}
                 />
               </View>
@@ -286,7 +291,7 @@ const useStyles = makeStyles((t) => ({
   },
   /** 거들 — 주인공의 반대쪽이 여기 온다 */
   sub: { ...t.font.small, color: t.colors.inkFaint, textAlign: 'right' },
-  rounded: { ...t.font.hint, color: t.colors.inkFaint, textAlign: 'right' },
+  hint: { ...t.font.hint, color: t.colors.inkFaint, textAlign: 'right' },
   negative: { ...t.font.hint, color: t.colors.danger, textAlign: 'right' },
 
   row: { flexDirection: 'row', gap: t.space.sm },

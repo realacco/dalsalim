@@ -4,7 +4,9 @@ import {
   MAX_AMOUNT,
   evaluate,
   confirmedExpression,
+  dividesByZero,
   formatExpression,
+  hasOperation,
   initialState,
   isCapped,
   isNegative,
@@ -158,6 +160,23 @@ describe('F-ENT-09 수식 한 줄', () => {
   });
 });
 
+describe('F-ENT-09 결과 줄은 연산이 있을 때만 그린다', () => {
+  it('숫자 하나뿐이면 결과를 두 번 적는 셈이라 안 그린다', () => {
+    expect(hasOperation(press(['1', '2', '0']))).toBe(false);
+    expect(hasOperation(initialState(180000))).toBe(false);
+    expect(hasOperation({ tokens: [], draft: '' })).toBe(false);
+    // 연산자까지만 쳤으면 아직 숫자 하나다
+    expect(hasOperation(press(['1', '2', '0', '÷']))).toBe(false);
+  });
+
+  it('연산이 들어가면 그린다 — = 뒤에도 접기 전 수식을 보고 판단한다', () => {
+    expect(hasOperation(press(['1', '2', '0', '÷', '2']))).toBe(true);
+    expect(hasOperation(press(['1', '2', '0', '÷', '2', '=']))).toBe(true);
+    // ÷ 0 은 계산에서 빠지지만 친 것은 친 것이다 — 결과 줄과 안내가 같이 보여야 한다
+    expect(hasOperation(press(['1', '0', '0', '÷', '0']))).toBe(true);
+  });
+});
+
 describe('★ F-ENT-09 = 를 눌러야 결과가 주인공이 된다', () => {
   it('치는 동안에는 확정 전이다 — 수식이 주인공', () => {
     expect(isSettled(press(['2', '1', '0', '0', '0', '0', '÷', '2']))).toBe(false);
@@ -208,6 +227,38 @@ describe('★ F-ENT-09 상한에 걸리면 조용히 접지 않는다', () => {
     expect(isCapped(over)).toBe(true);
     expect(evaluate([500_000_000, '×', 3])).toBe(MAX_AMOUNT);
     expect(isCapped(press(['1', '0', '0']))).toBe(false);
+  });
+
+  it('★ 상한에 걸린 계산은 수식을 남기지 않는다 — 500,000,000 × 3 은 10억을 설명하지 못한다', () => {
+    const over = press(['5', '0', '0', '0', '0', '0', '0', '0', '0', '×', '3']);
+    expect(result(over)).toBe(MAX_AMOUNT);
+    // 치는 동안 화면에는 친 그대로 보인다. 안내 줄이 같이 있으므로 맞다
+    expect(formatExpression(over)).toBe('500,000,000 × 3');
+    expect(confirmedExpression(over)).toBe('');
+    expect(confirmedExpression(pressKey(over, '='))).toBe('');
+  });
+});
+
+describe('★ F-ENT-09 칸 아래에 남는 수식은 칸의 금액을 설명해야 한다', () => {
+  it('÷ 0 은 계산에서 빠졌으니 수식에서도 빠진다', () => {
+    const skipped = press(['1', '0', '0', '÷', '0']);
+    expect(result(skipped)).toBe(100);
+    expect(formatExpression(skipped)).toBe('100 ÷ 0');
+    // 100 을 확정하면서 아래에 '100 ÷ 0' 이 남으면 몇 달 뒤 읽는 사람은 어느 쪽을 믿어야 하는지 모른다
+    expect(confirmedExpression(skipped)).toBe('');
+    expect(confirmedExpression(press(['1', '0', '0', '÷', '0', '+', '5']))).toBe('100 + 5');
+    expect(confirmedExpression(press(['1', '0', '0', '÷', '0', '+', '5', '=']))).toBe('100 + 5');
+  });
+
+  it('÷ 0 이 들어 있으면 건너뛰었다고 말할 수 있어야 한다 — = 뒤에도', () => {
+    expect(dividesByZero(press(['1', '0', '0', '÷', '0']))).toBe(true);
+    expect(dividesByZero(press(['1', '0', '0', '÷', '0', '=']))).toBe(true);
+    expect(dividesByZero(press(['1', '0', '0', '÷', '2']))).toBe(false);
+    // 아직 0 을 안 쳤으면 나누기 중이다
+    expect(dividesByZero(press(['1', '0', '0', '÷']))).toBe(false);
+    // 0 을 나누는 것은 된다 — 0 ÷ 5 는 0 이다
+    expect(dividesByZero(press(['0', '÷', '5']))).toBe(false);
+    expect(result(press(['0', '÷', '5']))).toBe(0);
   });
 });
 
