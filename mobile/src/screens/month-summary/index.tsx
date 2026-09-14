@@ -1,4 +1,4 @@
-// 기능: F-BOOK-02 F-ENT-11
+// 기능: F-BOOK-02 F-ENT-11 F-ENT-12
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -65,6 +65,12 @@ export default function SummaryScreen() {
               <Text style={styles.heroValue}>{formatWon(summary.data.totals.surplus)}</Text>
               <Divider />
               <Row label="수입" value={formatWon(summary.data.totals.income)} />
+              {summary.data.totals.extraIncomeTotal > 0 ? (
+                <Row
+                  label={MESSAGES.extraIncomeRow}
+                  value={formatWon(summary.data.totals.extraIncomeTotal)}
+                />
+              ) : null}
               <Row label="고정비" value={`− ${formatWon(summary.data.totals.fixedTotal)}`} />
               <Row label="추가 지출" value={`− ${formatWon(summary.data.totals.extraTotal)}`} />
               {summary.data.totals.settlementTotal > 0 ? (
@@ -193,6 +199,20 @@ export default function SummaryScreen() {
                     </View>
                   );
                 })}
+              </Card>
+            ) : null}
+
+            {summary.data.extraIncomes.length > 0 ? (
+              <Card style={{ gap: space.md }}>
+                <Text style={styles.cardTitle}>이번 달 기타 수입</Text>
+                <Divider />
+                {summary.data.extraIncomes.map((item, order) => (
+                  <Row
+                    key={`${item.name}-${order}`}
+                    label={`${item.name} · ${item.displayName}`}
+                    value={formatWon(item.amount)}
+                  />
+                ))}
               </Card>
             ) : null}
 

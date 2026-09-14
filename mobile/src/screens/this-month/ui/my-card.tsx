@@ -47,6 +47,9 @@ export function MyCard({
         </View>
 
         <Row label="수입" value={formatWon(summary.income)} />
+        {summary.extraIncomeTotal > 0 ? (
+          <Row label={MESSAGES.extraIncomeRow} value={formatWon(summary.extraIncomeTotal)} />
+        ) : null}
         <Row label="고정비" value={`− ${formatWon(summary.fixedTotal)}`} />
         <Row label="추가 지출" value={`− ${formatWon(summary.extraTotal)}`} />
         {summary.settlementTotal > 0 ? (

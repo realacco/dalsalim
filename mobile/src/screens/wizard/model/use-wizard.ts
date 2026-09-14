@@ -6,6 +6,7 @@ import { type Entry, type EntryLine, entryKeys, fetchEntry, patchEntry } from '@
 export type Step =
   | { kind: 'settlement'; line: EntryLine }
   | { kind: 'line'; line: EntryLine }
+  | { kind: 'extraIncome' }
   | { kind: 'extras' }
   | { kind: 'note' }
   | { kind: 'review' };
@@ -14,7 +15,7 @@ export type Step =
  * 위저드의 흐름을 담는다 — 어떤 스텝들이 있고, 지금 몇 번째이며, 어떻게 넘어가는가.
  *
  * 스텝 목록은 서버가 내려준 줄에서 그대로 나온다. 지난달 결산 m줄 + 수입 1줄 + 고정비 n줄이 각각
- * 한 스텝이고, 뒤에 추가지출·특이사항·확인이 붙는다. 그래서 고정비를 늘리면
+ * 한 스텝이고, 수입 뒤에 기타 수입, 고정비 뒤에 추가지출·특이사항·확인이 붙는다. 그래서 고정비를 늘리면
  * 스텝도 따라 늘어난다 — 별도 설정이 없다. 결산 줄은 서버가 만들 때만 생기므로 여기서 세지 않는다.
  */
 export function useWizard(entryId: string | undefined) {
@@ -39,6 +40,8 @@ export function useWizard(entryId: string | undefined) {
     return [
       ...settlements.map((line) => ({ kind: 'settlement', line }) as Step),
       ...income.map((line) => ({ kind: 'line', line }) as Step),
+      // 월급 말고 더 들어온 돈 — 수입 이야기를 끝내고 지출로 넘어간다 (F-ENT-12)
+      { kind: 'extraIncome' },
       ...fixed.map((line) => ({ kind: 'line', line }) as Step),
       { kind: 'extras' },
       { kind: 'note' },

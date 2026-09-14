@@ -24,4 +24,6 @@ export const MESSAGES = {
   retry: '다시 시도',
   /** 요약 줄 라벨 — 확인 화면 · 홈 카드 · 월 요약(총계·사람별)이 같은 숫자를 같은 이름으로 불러야 산수가 맞아 보인다 (F-ENT-11) */
   settlementRow: '지난달 더 쓴 것',
+  /** 수입 줄 아래에 붙는 내역 — 확인 화면 · 홈 카드 · 월 요약이 같은 이름을 쓴다 (F-ENT-12) */
+  extraIncomeRow: '그중 기타 수입',
 } as const;

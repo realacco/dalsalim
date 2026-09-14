@@ -1,4 +1,4 @@
-// 기능: F-ENT-01 F-ENT-02 F-ENT-03 F-ENT-04 F-ENT-05 F-ENT-06 F-ENT-07 F-ENT-09 F-ENT-11
+// 기능: F-ENT-01 F-ENT-02 F-ENT-03 F-ENT-04 F-ENT-05 F-ENT-06 F-ENT-07 F-ENT-09 F-ENT-11 F-ENT-12
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -126,6 +126,10 @@ export default function WizardScreen() {
               move(index + 1);
             }}
           />
+        ) : null}
+
+        {step?.kind === 'extraIncome' ? (
+          <ExtrasStep entry={entry} variant="income" onNext={() => move(index + 1)} />
         ) : null}
 
         {step?.kind === 'extras' ? (

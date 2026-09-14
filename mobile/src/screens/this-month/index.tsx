@@ -1,4 +1,4 @@
-// 기능: F-BOOK-01 F-ENT-01 F-ENT-08 F-ENT-10 F-ENT-11
+// 기능: F-BOOK-01 F-ENT-01 F-ENT-08 F-ENT-10 F-ENT-11 F-ENT-12
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
