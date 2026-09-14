@@ -406,7 +406,8 @@ async function main() {
   );
   check(
     'F-BOOK-02 합계가 맞는다',
-    s.totals.surplus === s.totals.income - s.totals.fixedTotal - s.totals.extraTotal,
+    s.totals.surplus ===
+      s.totals.income - s.totals.fixedTotal - s.totals.extraTotal - s.totals.settlementTotal,
     s.totals,
   );
   check(
@@ -459,7 +460,9 @@ async function main() {
   check(
     'F-BOOK-03 추이 합계도 제출된 기록만 센다',
     trend.body.months?.every(
-      (m) => m.surplus === m.income - m.fixedTotal - m.extraTotal && m.submittedCount > 0,
+      (m) =>
+        m.surplus === m.income - m.fixedTotal - m.extraTotal - m.settlementTotal &&
+        m.submittedCount > 0,
     ),
     trend.body.months,
   );
@@ -914,6 +917,104 @@ async function main() {
     if (id) await call('DELETE', `/fixed-expenses/${id}`, { token: dad.token });
   }
 
+  console.log('\n[결산 스위치]');
+  // F-FIX-07 — 다음 달에 실제 쓴 금액을 되물을지. 안 보내면 등록 때는 분류가 정하고 수정 때는 안 건드린다.
+  //   여기서 만드는 항목은 이 절 끝에서 지운다 — 스모크는 몇 번이고 다시 돌 수 있어야 한다.
+  const settleGroup = (
+    await call('GET', `/families/${dad.familyId}/fixed-expenses`, { token: dad.token })
+  ).body.groups?.[0];
+  const settleBase = { membershipId: settleGroup?.membershipId, defaultAmount: 300_000 };
+
+  const living = await call('POST', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+    body: { ...settleBase, name: '생활비', category: '생활비' },
+  });
+  check(
+    '★ F-FIX-07 생활비 분류로 등록하면 스위치가 켜진 채 저장된다',
+    living.status === 200 && living.body.fixedExpense?.settles === true,
+    living.body,
+  );
+
+  const telecom = await call('POST', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+    body: { ...settleBase, name: '통신비', category: '통신' },
+  });
+  check(
+    'F-FIX-07 다른 분류는 꺼진 채 저장된다',
+    telecom.status === 200 && telecom.body.fixedExpense?.settles === false,
+    telecom.body,
+  );
+
+  const livingOff = await call('POST', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+    body: { ...settleBase, name: '식비 정산', category: '생활비', settles: false },
+  });
+  check(
+    'F-FIX-07 보낸 값이 있으면 분류보다 앞선다 — 생활비라도 끌 수 있다',
+    livingOff.status === 200 && livingOff.body.fixedExpense?.settles === false,
+    livingOff.body,
+  );
+
+  const allowance = await call('POST', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+    body: { ...settleBase, name: '용돈', category: '기타', settles: true },
+  });
+  check(
+    'F-FIX-07 기타에 든 용돈도 직접 켤 수 있다',
+    allowance.status === 200 && allowance.body.fixedExpense?.settles === true,
+    allowance.body,
+  );
+
+  const settleListed = await call('GET', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+  });
+  const listedLiving = (settleListed.body.groups ?? [])
+    .flatMap((g) => g.items ?? [])
+    .find((i) => i.id === living.body.fixedExpense?.id);
+  check('F-FIX-01 목록에도 스위치가 실려 온다', listedLiving?.settles === true, listedLiving);
+
+  const settleRenamed = await call('PATCH', `/fixed-expenses/${living.body.fixedExpense?.id}`, {
+    token: dad.token,
+    body: { name: '생활비 이체' },
+  });
+  check(
+    '★ F-FIX-07 스위치를 안 보내면 이름만 고쳐도 스위치는 그대로다 — 안 건드림과 끔은 다르다',
+    settleRenamed.body.fixedExpense?.settles === true &&
+      settleRenamed.body.fixedExpense?.name === '생활비 이체',
+    settleRenamed.body,
+  );
+
+  const recategorized = await call('PATCH', `/fixed-expenses/${telecom.body.fixedExpense?.id}`, {
+    token: dad.token,
+    body: { category: '생활비' },
+  });
+  check(
+    'F-FIX-07 저장한 뒤에는 분류와 스위치가 독립이다 — 분류를 생활비로 바꿔도 스위치는 안 켜진다',
+    recategorized.body.fixedExpense?.settles === false,
+    recategorized.body,
+  );
+
+  const turnedOff = await call('PATCH', `/fixed-expenses/${living.body.fixedExpense?.id}`, {
+    token: dad.token,
+    body: { settles: false },
+  });
+  check(
+    'F-FIX-07 스위치만 보내면 스위치만 바뀐다',
+    turnedOff.body.fixedExpense?.settles === false,
+    turnedOff.body,
+  );
+
+  const notBool = await call('POST', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+    body: { ...settleBase, name: '이상한값', category: '기타', settles: 'yes' },
+  });
+  check('F-FIX-07 불리언이 아니면 VALIDATION', notBool.body.code === 'VALIDATION', notBool.body);
+
+  for (const item of [living, telecom, livingOff, allowance]) {
+    const id = item.body.fixedExpense?.id;
+    if (id) await call('DELETE', `/fixed-expenses/${id}`, { token: dad.token });
+  }
+
   console.log('\n[고정비 삭제]');
   // ★ 하드룰 6 — 이 기능이 존재하는 이유가 곧 하드룰 6 이다.
   //   실제 삭제는 과거 장부의 합계를 바꾼다. 지운 뒤에도 지난달이 그대로여야 한다.
@@ -1097,6 +1198,323 @@ async function main() {
       restartedIncome?.plannedSource === 'LAST_MONTH' &&
       restartedIncome?.plannedAmount === dadLastMonthIncome,
     { id: restarted.body.entry?.id, status: restarted.body.entry?.status, line: restartedIncome },
+  );
+
+  console.log('\n[지난달 결산]');
+  // ★ F-ENT-11 — 지난달에 옮겨둔 돈(결산 스위치가 켜진 고정비)을 실제로 얼마나 썼는지 이번 달 첫 스텝에서 묻는다.
+  //   결산 줄은 사유를 안 받고(하드룰 2 의 "차이" 는 계획 대비 변화다), 옮긴 것보다 더 쓴 만큼만 남은 돈에서 뺀다.
+  //   여기서 만드는 항목과 줄은 이 절 끝에서 원래대로 돌려놓는다 — 스모크는 몇 번이고 다시 돌 수 있어야 한다.
+  const settleGroups = (
+    await call('GET', `/families/${dad.familyId}/fixed-expenses`, { token: dad.token })
+  ).body.groups;
+  const settleMembershipId = settleGroups?.[0]?.membershipId;
+
+  // 지난 실행이 중간에 죽었으면 '결산 …' 항목이 남아 다음 실행을 통째로 흔든다 — 먼저 치운다
+  const leftovers = (settleGroups ?? [])
+    .flatMap((g) => g.items ?? [])
+    .filter((item) => item.name.startsWith('결산 '));
+  for (const item of leftovers) {
+    await call('PATCH', `/fixed-expenses/${item.id}`, {
+      token: dad.token,
+      body: { settles: false },
+    });
+    await call('DELETE', `/fixed-expenses/${item.id}`, { token: dad.token });
+  }
+
+  async function addItem(name, category, defaultAmount, settles) {
+    const created = await call('POST', `/families/${dad.familyId}/fixed-expenses`, {
+      token: dad.token,
+      body: { membershipId: settleMembershipId, name, category, defaultAmount, settles },
+    });
+    return created.body.fixedExpense;
+  }
+  const s1 = await addItem('결산 생활비', '생활비', 300_000, true); // 지난달 30만 → 결산 대상
+  const s2 = await addItem('결산 용돈', '기타', 200_000, true); // 지난달 0원 → 물을 게 없다
+  const s3 = await addItem('결산 통신', '통신', 55_000, false); // 스위치 꺼짐 → 안 묻는다
+  const s4 = await addItem('결산 나중', '생활비', 100_000, true); // 지난달에 아직 안 적음 → 안 묻는다
+
+  // 지난달 기록을 되열어 새 항목의 줄을 채운다. 줄은 초안일 때만 맞춰지므로 되열고 나서 다시 연다. s4 는 일부러 비워 둔다
+  const lastSettleEntryId = (
+    await call('POST', `/families/${dad.familyId}/books/${lastMonth}/my-entry`, {
+      token: dad.token,
+    })
+  ).body.entry.id;
+  await call('POST', `/entries/${lastSettleEntryId}/reopen`, { token: dad.token });
+  const lastSynced = (
+    await call('POST', `/families/${dad.familyId}/books/${lastMonth}/my-entry`, {
+      token: dad.token,
+    })
+  ).body.entry;
+  const lastLineOf = (item) => lastSynced.lines.find((l) => l.fixedExpenseId === item?.id);
+  await call('PATCH', `/entries/${lastSettleEntryId}/lines/${lastLineOf(s1)?.id}`, {
+    token: dad.token,
+    body: { actualAmount: 300_000 },
+  });
+  await call('PATCH', `/entries/${lastSettleEntryId}/lines/${lastLineOf(s2)?.id}`, {
+    token: dad.token,
+    body: { actualAmount: 0, changeReason: '이번 달은 안 옮겼다' },
+  });
+  await call('PATCH', `/entries/${lastSettleEntryId}/lines/${lastLineOf(s3)?.id}`, {
+    token: dad.token,
+    body: { actualAmount: 55_000 },
+  });
+
+  // 이번 달 초안을 지우고 새로 열어야 결산 줄이 붙는다 — 결산 줄은 기록을 처음 만들 때만 붙는다
+  const openSettleEntry = async () => {
+    const current = await call('POST', `/families/${dad.familyId}/books/${thisMonth}/my-entry`, {
+      token: dad.token,
+    });
+    const id = current.body.entry.id;
+    if (current.body.entry.status !== 'DRAFT') {
+      await call('POST', `/entries/${id}/reopen`, { token: dad.token });
+    }
+    await call('DELETE', `/entries/${id}`, { token: dad.token });
+    const fresh = await call('POST', `/families/${dad.familyId}/books/${thisMonth}/my-entry`, {
+      token: dad.token,
+    });
+    return fresh.body.entry;
+  };
+
+  const settleEntry = await openSettleEntry();
+  const settlementLines = settleEntry.lines.filter((l) => l.kind === 'SETTLEMENT');
+  const settlement = settlementLines[0];
+  check(
+    '★ F-ENT-11 스위치가 켜진 항목의 지난달 금액마다 결산 줄이 하나 생긴다',
+    settlementLines.length === 1 && settlement?.fixedExpenseId === s1.id,
+    settlementLines,
+  );
+  check(
+    '★ F-ENT-11 결산 줄의 이름·분류는 지난달 줄의 것이고 기본값은 지난달에 옮긴 금액이다 (하드룰 4)',
+    settlement?.name === '결산 생활비' &&
+      settlement?.category === '생활비' &&
+      settlement?.plannedAmount === 300_000 &&
+      settlement?.plannedSource === 'LAST_MONTH' &&
+      settlement?.actualAmount === null,
+    settlement,
+  );
+  check(
+    'F-ENT-11 결산 줄이 수입보다 앞에 온다 — 지난달 이야기를 먼저 끝낸다',
+    settleEntry.lines[0]?.kind === 'SETTLEMENT' && settleEntry.lines[1]?.kind === 'INCOME',
+    settleEntry.lines.map((l) => l.kind),
+  );
+  check(
+    '★ F-ENT-11 0원을 옮긴 항목 · 스위치가 꺼진 항목 · 지난달에 안 적은 항목은 묻지 않는다',
+    !settlementLines.some((l) => [s2.id, s3.id, s4.id].includes(l.fixedExpenseId)),
+    settlementLines,
+  );
+  check(
+    'F-ENT-11 결산 줄이 있어도 이번 달 고정비 줄은 그대로 있다 — 둘은 다른 질문이다',
+    settleEntry.lines.some((l) => l.kind === 'FIXED' && l.fixedExpenseId === s1.id),
+    settleEntry.lines.filter((l) => l.fixedExpenseId === s1.id).map((l) => l.kind),
+  );
+
+  // 지난달의 빈 줄을 이제 채우고 다시 제출한다 — 아래 하드룰 6 비교의 기준점
+  await call('PATCH', `/entries/${lastSettleEntryId}/lines/${lastLineOf(s4)?.id}`, {
+    token: dad.token,
+    body: { actualAmount: 100_000 },
+  });
+  await call('POST', `/entries/${lastSettleEntryId}/submit`, { token: dad.token });
+  const lastSummaryPath = `/families/${dad.familyId}/books/${lastMonth}/summary`;
+  const lastBeforeSettle = (await call('GET', lastSummaryPath, { token: dad.token })).body;
+
+  const homeWithSettle = await call('GET', `/families/${dad.familyId}/books/${thisMonth}`, {
+    token: dad.token,
+  });
+  const lineSteps = settleEntry.lines.filter(
+    (l) => l.kind === 'FIXED' || l.kind === 'SETTLEMENT',
+  ).length;
+  check(
+    'F-ENT-11 결산 줄도 진행 표시의 한 스텝이다',
+    homeWithSettle.body.members?.find((m) => m.isMe)?.progress?.total === lineSteps + 4,
+    { progress: homeWithSettle.body.members?.find((m) => m.isMe)?.progress, lineSteps },
+  );
+
+  const overspent = await call('PATCH', `/entries/${settleEntry.id}/lines/${settlement?.id}`, {
+    token: dad.token,
+    body: { actualAmount: 350_000 },
+  });
+  check(
+    '★ F-ENT-11 결산 줄은 금액이 달라도 사유 없이 저장된다 — 정정이지 변화가 아니다',
+    overspent.status === 200 && overspent.body.line?.changeReason === null,
+    overspent.body,
+  );
+  const reasonIgnored = await call('PATCH', `/entries/${settleEntry.id}/lines/${settlement?.id}`, {
+    token: dad.token,
+    body: { actualAmount: 350_000, changeReason: '외식이 많았다' },
+  });
+  check(
+    'F-ENT-11 결산 줄에 사유를 보내도 저장하지 않는다 — "이번 달 달라진 것" 에 섞이면 안 된다',
+    reasonIgnored.status === 200 && reasonIgnored.body.line?.changeReason === null,
+    reasonIgnored.body,
+  );
+
+  const settleFilled = (await call('GET', `/entries/${settleEntry.id}`, { token: dad.token })).body
+    .entry;
+  await fillAndSubmit(dad.token, settleFilled, 3_000_000);
+  const thisSummaryPath = `/families/${dad.familyId}/books/${thisMonth}/summary`;
+  const overSummary = (await call('GET', thisSummaryPath, { token: dad.token })).body;
+  const dadOver = overSummary.perMember?.find((m) => m.displayName === OWNER);
+  check(
+    '★ F-ENT-11 옮긴 것보다 더 쓴 만큼만 남은 돈에서 빠진다 (30만 옮기고 35만 씀 → 5만)',
+    dadOver?.settlementTotal === 50_000 &&
+      dadOver?.surplus === dadOver?.income - dadOver?.fixedTotal - dadOver?.extraTotal - 50_000 &&
+      overSummary.totals?.settlementTotal === 50_000,
+    { dad: dadOver, totals: overSummary.totals },
+  );
+  check(
+    '★ F-ENT-11 결산 금액은 고정비에도 추가 지출에도 섞이지 않는다 — 지난달에 이미 나간 돈이다',
+    dadOver?.fixedTotal ===
+      settleFilled.lines
+        .filter((l) => l.kind === 'FIXED')
+        .reduce((sum, l) => sum + (l.actualAmount ?? l.plannedAmount ?? 0), 0) &&
+      dadOver?.extraTotal ===
+        settleFilled.lines
+          .filter((l) => l.kind === 'EXTRA')
+          .reduce((sum, l) => sum + (l.actualAmount ?? 0), 0),
+    dadOver,
+  );
+  check(
+    'F-ENT-11 요약에 "지난달 결산" 이 따로 실린다',
+    overSummary.settlements?.length === 1 &&
+      overSummary.settlements[0].displayName === OWNER &&
+      overSummary.settlements[0].name === '결산 생활비' &&
+      overSummary.settlements[0].planned === 300_000 &&
+      overSummary.settlements[0].actual === 350_000 &&
+      overSummary.settlements[0].delta === 50_000,
+    overSummary.settlements,
+  );
+  check(
+    '★ F-ENT-11 결산 줄은 "이번 달 달라진 것" 에 들어가지 않는다 — 사유가 없는 줄이다',
+    !overSummary.changes?.some((c) => c.kind === 'SETTLEMENT'),
+    overSummary.changes,
+  );
+  const livingByCategory = overSummary.byCategory?.find((c) => c.category === '생활비')?.amount;
+  const livingFixedThisMonth = overSummary.perMember
+    ? settleFilled.lines
+        .filter((l) => l.kind === 'FIXED' && l.category === '생활비')
+        .reduce((sum, l) => sum + (l.actualAmount ?? l.plannedAmount ?? 0), 0)
+    : null;
+  check(
+    '★ F-ENT-11 분류별 지출에 결산 금액이 두 번 들어가지 않는다',
+    livingByCategory === livingFixedThisMonth,
+    { byCategory: livingByCategory, fixedOnly: livingFixedThisMonth },
+  );
+  const trendWithSettle = await call('GET', `/families/${dad.familyId}/trend?months=2`, {
+    token: dad.token,
+  });
+  const thisPoint = trendWithSettle.body.months?.find((m) => m.yearMonth === thisMonth);
+  check(
+    'F-ENT-11 추이도 같은 규칙으로 센다',
+    thisPoint?.settlementTotal === overSummary.totals?.settlementTotal &&
+      thisPoint?.surplus === overSummary.totals?.surplus,
+    { trend: thisPoint, totals: overSummary.totals },
+  );
+
+  // 덜 쓴 달 — 남은 돈이 늘지는 않는다. 안 쓴 돈은 옮겨둔 통장에 그대로 있다
+  await call('POST', `/entries/${settleEntry.id}/reopen`, { token: dad.token });
+  await call('PATCH', `/entries/${settleEntry.id}/lines/${settlement?.id}`, {
+    token: dad.token,
+    body: { actualAmount: 250_000 },
+  });
+  await call('POST', `/entries/${settleEntry.id}/submit`, { token: dad.token });
+  const underSummary = (await call('GET', thisSummaryPath, { token: dad.token })).body;
+  const dadUnder = underSummary.perMember?.find((m) => m.displayName === OWNER);
+  check(
+    '★ F-ENT-11 덜 썼다고 남은 돈이 늘지는 않는다 (30만 옮기고 25만 씀 → 0)',
+    dadUnder?.settlementTotal === 0 &&
+      dadUnder?.surplus === dadUnder?.income - dadUnder?.fixedTotal - dadUnder?.extraTotal &&
+      underSummary.settlements?.[0]?.delta === -50_000,
+    { dad: dadUnder, settlements: underSummary.settlements },
+  );
+
+  const lastAfterSettle = (await call('GET', lastSummaryPath, { token: dad.token })).body;
+  check(
+    '★ F-ENT-11 결산을 적어도 지난달 장부는 그대로다 — 정정은 이번 달에 적힌다 (하드룰 6)',
+    JSON.stringify(lastAfterSettle.totals) === JSON.stringify(lastBeforeSettle.totals) &&
+      JSON.stringify(lastAfterSettle.byCategory) === JSON.stringify(lastBeforeSettle.byCategory),
+    { before: lastBeforeSettle.totals, after: lastAfterSettle.totals },
+  );
+
+  // 안 적으면 제출이 막힌다 — 건너뛰기는 없다. 기본값 그대로 [다음] 을 누르는 것이 곧 확정이다
+  await call('POST', `/entries/${settleEntry.id}/reopen`, { token: dad.token });
+  const settleAgain = await openSettleEntry();
+  const settlementAgain = settleAgain.lines.find((l) => l.kind === 'SETTLEMENT');
+  // 결산 줄 하나만 비워 두고 나머지는 전부 채운다
+  for (const line of settleAgain.lines) {
+    if (line.id === settlementAgain?.id || line.actualAmount !== null) continue;
+    await call('PATCH', `/entries/${settleAgain.id}/lines/${line.id}`, {
+      token: dad.token,
+      body: { actualAmount: line.kind === 'INCOME' ? 3_000_000 : (line.plannedAmount ?? 0) },
+    });
+  }
+  const blocked = await call('POST', `/entries/${settleAgain.id}/submit`, { token: dad.token });
+  check(
+    '★ F-ENT-11 결산 줄을 안 적으면 제출이 막힌다 — 건너뛰기는 없다',
+    blocked.status === 400 && blocked.body.code === 'INCOMPLETE',
+    blocked.body,
+  );
+  await call('PATCH', `/entries/${settleAgain.id}/lines/${settlementAgain?.id}`, {
+    token: dad.token,
+    body: { actualAmount: settlementAgain?.plannedAmount },
+  });
+  const confirmed = await call('POST', `/entries/${settleAgain.id}/submit`, { token: dad.token });
+  check(
+    'F-ENT-11 기본값 그대로 확정하면 통과하고 더 쓴 것은 0 이다',
+    confirmed.status === 200 &&
+      (await call('GET', `/entries/${settleAgain.id}`, { token: dad.token })).body.entry.summary
+        .settlementTotal === 0,
+    confirmed.body,
+  );
+
+  // 항목을 지워도 지난달에 옮긴 돈은 묻는다 — 얼마나 썼는지는 항목을 지웠다고 없어지는 사실이 아니다
+  await call('DELETE', `/fixed-expenses/${s1.id}`, { token: dad.token });
+  // 이미 적는 중인 기록에는 안 끼어든다 — 스위치를 나중에 켜도 다음 달부터 묻는다
+  await call('PATCH', `/fixed-expenses/${s3.id}`, { token: dad.token, body: { settles: true } });
+  await call('POST', `/entries/${settleAgain.id}/reopen`, { token: dad.token });
+  const syncedAgain = await call('POST', `/families/${dad.familyId}/books/${thisMonth}/my-entry`, {
+    token: dad.token,
+  });
+  const settlementCountBefore = settleAgain.lines.filter((l) => l.kind === 'SETTLEMENT').length;
+  const settlementsAfterSync = syncedAgain.body.entry?.lines.filter((l) => l.kind === 'SETTLEMENT');
+  check(
+    'F-ENT-11 적는 중인 기록에는 결산 줄이 새로 끼어들지 않는다 — 다음 달부터 묻는다',
+    settlementsAfterSync?.length === settlementCountBefore &&
+      !settlementsAfterSync.some((l) => l.fixedExpenseId === s3.id),
+    settlementsAfterSync,
+  );
+  const afterDelete = await openSettleEntry();
+  const settlementsAfterDelete = afterDelete.lines.filter((l) => l.kind === 'SETTLEMENT');
+  check(
+    '★ F-ENT-11 항목을 지워도 지난달에 옮긴 돈은 묻는다 · 지난달을 채운 항목은 이제 묻는다 (하드룰 6)',
+    settlementsAfterDelete.some((l) => l.fixedExpenseId === s1.id && l.name === '결산 생활비') &&
+      settlementsAfterDelete.some((l) => l.fixedExpenseId === s4.id) &&
+      settlementsAfterDelete.some((l) => l.fixedExpenseId === s3.id) &&
+      !afterDelete.lines.some((l) => l.kind === 'FIXED' && l.fixedExpenseId === s1.id),
+    settlementsAfterDelete,
+  );
+
+  // 정리 — 지난달 줄을 0 으로 돌리고 항목을 지운 뒤 이번 달 초안을 새로 연다.
+  // 지난달 금액이 0 이면 다음 실행에서 결산 줄이 안 생기므로 처음과 같은 상태로 돌아간다
+  await call('POST', `/entries/${lastSettleEntryId}/reopen`, { token: dad.token });
+  for (const item of [s1, s3, s4]) {
+    await call('PATCH', `/entries/${lastSettleEntryId}/lines/${lastLineOf(item)?.id}`, {
+      token: dad.token,
+      body: { actualAmount: 0, changeReason: '결산 스모크 정리' },
+    });
+  }
+  await call('POST', `/entries/${lastSettleEntryId}/submit`, { token: dad.token });
+  for (const item of [s1, s2, s3, s4]) {
+    await call('PATCH', `/fixed-expenses/${item.id}`, {
+      token: dad.token,
+      body: { settles: false },
+    });
+    await call('DELETE', `/fixed-expenses/${item.id}`, { token: dad.token });
+  }
+  const settleCleaned = await openSettleEntry();
+  check(
+    'F-ENT-11 정리 — 다음 실행을 위해 결산 줄 없는 초안으로 돌아간다',
+    settleCleaned.status === 'DRAFT' && !settleCleaned.lines.some((l) => l.kind === 'SETTLEMENT'),
+    settleCleaned.lines?.map((l) => l.kind),
   );
 
   console.log('\n[레이트리밋]');

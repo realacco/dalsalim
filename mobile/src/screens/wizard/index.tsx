@@ -1,4 +1,4 @@
-// 기능: F-ENT-01 F-ENT-02 F-ENT-03 F-ENT-04 F-ENT-05 F-ENT-06 F-ENT-07 F-ENT-09
+// 기능: F-ENT-01 F-ENT-02 F-ENT-03 F-ENT-04 F-ENT-05 F-ENT-06 F-ENT-07 F-ENT-09 F-ENT-11
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -19,6 +19,7 @@ import { ExtrasStep } from './ui/steps/extras-step';
 import { LineStep } from './ui/steps/line-step';
 import { NoteStep } from './ui/steps/note-step';
 import { ReviewStep } from './ui/steps/review-step';
+import { SettlementStep } from './ui/steps/settlement-step';
 
 /**
  * 스텝 입력 위저드 — 이 앱의 심장.
@@ -97,6 +98,21 @@ export default function WizardScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
+        {step?.kind === 'settlement' ? (
+          <SettlementStep
+            key={step.line.id}
+            entryId={entry.id}
+            yearMonth={entry.yearMonth}
+            line={step.line}
+            error={error}
+            setError={setError}
+            onSaved={() => {
+              void queryClient.invalidateQueries({ queryKey: entryKeys.detail(entry.id) });
+              move(index + 1);
+            }}
+          />
+        ) : null}
+
         {step?.kind === 'line' ? (
           <LineStep
             key={step.line.id}

@@ -3,16 +3,20 @@ import { afterEach, describe, it, expect, vi } from 'vitest';
 import {
   CATEGORIES as SERVER_CATEGORIES,
   currentYearMonth as serverCurrentYearMonth,
+  defaultSettles as serverDefaultSettles,
   needsReason as serverNeedsReason,
+  settlementOverspend as serverSettlementOverspend,
   shiftYearMonth as serverShiftYearMonth,
 } from '../../server/src/lib/shared.js';
 
 import { needsReason as appNeedsReason } from '../../mobile/src/entities/entry/model/reason';
+import { settlementDelta as appSettlementDelta } from '../../mobile/src/entities/entry/model/settlement';
+import { defaultSettles as appDefaultSettles } from '../../mobile/src/entities/fixed-expense/model/settles';
 import {
   currentYearMonth as appCurrentYearMonth,
   shiftYearMonth as appShiftYearMonth,
 } from '../../mobile/src/shared/lib/format';
-import { CATEGORIES as APP_CATEGORIES } from '../../mobile/src/shared/model/types';
+import { CATEGORIES as APP_CATEGORIES, type LineKind } from '../../mobile/src/shared/model/types';
 
 /**
  * ★ 서버와 앱에 **각각** 있는 같은 규칙이 진짜 같은지 본다.
@@ -25,17 +29,23 @@ import { CATEGORIES as APP_CATEGORIES } from '../../mobile/src/shared/model/type
  */
 
 const AMOUNTS: (number | null)[] = [null, 0, 1, 120000, 135000, -5000];
+const KINDS: LineKind[] = ['SETTLEMENT', 'INCOME', 'FIXED', 'EXTRA'];
 
 describe('needsReason — 서버와 앱이 같은 답을 낸다 (하드룰 2·3)', () => {
-  it('가능한 조합 36가지에서 결과가 하나도 갈리지 않는다', () => {
+  it('종류 4 × 금액 조합 36 = 144가지에서 결과가 하나도 갈리지 않는다', () => {
     const mismatched: string[] = [];
 
-    for (const planned of AMOUNTS) {
-      for (const actual of AMOUNTS) {
-        const server = serverNeedsReason(planned, actual);
-        const app = appNeedsReason(planned, actual);
-        if (server !== app) {
-          mismatched.push(`(기본값 ${planned}, 금액 ${actual}) 서버 ${server} · 앱 ${app}`);
+    for (const kind of KINDS) {
+      for (const plannedAmount of AMOUNTS) {
+        for (const actualAmount of AMOUNTS) {
+          const line = { kind, plannedAmount, actualAmount };
+          const server = serverNeedsReason(line);
+          const app = appNeedsReason(line);
+          if (server !== app) {
+            mismatched.push(
+              `(${kind} 기본값 ${plannedAmount}, 금액 ${actualAmount}) 서버 ${server} · 앱 ${app}`,
+            );
+          }
         }
       }
     }
@@ -45,11 +55,17 @@ describe('needsReason — 서버와 앱이 같은 답을 낸다 (하드룰 2·3)
 
   it('두 구현 모두 하드룰 그대로 판정한다', () => {
     for (const judge of [serverNeedsReason, appNeedsReason]) {
-      expect(judge(120000, 120000)).toBe(false);
-      expect(judge(120000, 135000)).toBe(true);
-      expect(judge(120000, 0)).toBe(true);
-      expect(judge(null, 135000)).toBe(false);
-      expect(judge(120000, null)).toBe(false);
+      const fixed = (plannedAmount: number | null, actualAmount: number | null) =>
+        judge({ kind: 'FIXED', plannedAmount, actualAmount });
+      expect(fixed(120000, 120000)).toBe(false);
+      expect(fixed(120000, 135000)).toBe(true);
+      expect(fixed(120000, 0)).toBe(true);
+      expect(fixed(null, 135000)).toBe(false);
+      expect(fixed(120000, null)).toBe(false);
+      // 결산 줄은 양쪽 다 안 묻는다 — 한쪽만 물으면 "저장은 되는데 [다음] 이 안 눌린다" 가 된다
+      expect(judge({ kind: 'SETTLEMENT', plannedAmount: 500000, actualAmount: 350000 })).toBe(
+        false,
+      );
     }
   });
 });
@@ -93,5 +109,65 @@ describe('currentYearMonth — 서버와 앱이 같은 "이번 달"을 본다', 
       expect(appCurrentYearMonth()).toBe(serverCurrentYearMonth());
       vi.useRealTimers();
     }
+  });
+});
+
+describe('defaultSettles — 결산 스위치 기본값이 서버와 앱에서 같다', () => {
+  it('아홉 분류 모두에서 결과가 갈리지 않는다', () => {
+    const mismatched = [...SERVER_CATEGORIES].filter(
+      (category) => serverDefaultSettles(category) !== appDefaultSettles(category),
+    );
+    expect(mismatched).toEqual([]);
+  });
+
+  it('두 구현 모두 생활비만 켠다 — 등록 시트가 켠 것과 서버가 저장한 것이 같아야 한다', () => {
+    for (const judge of [serverDefaultSettles, appDefaultSettles]) {
+      expect(judge('생활비')).toBe(true);
+      expect(judge('통신')).toBe(false);
+      expect(judge('기타')).toBe(false);
+    }
+  });
+});
+
+describe('결산 차액 — 서버가 남은 돈에서 빼는 금액과 앱이 화면에 말하는 금액이 같다', () => {
+  // 같은 함수가 아니라 같은 규칙이다. 서버 settlementOverspend 는 "더 쓴 만큼만 뺀다" 의 합계 쪽,
+  // 앱 settlementDelta 는 "N원 더 썼어요 · 남은 돈에서 빠져요" 의 화면 쪽. 한쪽만 바뀌면
+  // 힌트가 말한 금액과 요약이 실제로 뺀 금액이 조용히 갈린다.
+  const PLANNED = [1, 300000, 500000];
+  // null(아직 안 적음)이 제일 위험한 칸이다 — 한쪽이 "옮긴 만큼 다 썼다" 로 읽으면 남은 돈이 조용히 틀어진다
+  const ACTUAL: (number | null)[] = [null, 0, 1, 250000, 300000, 350000, 500000, 620000];
+
+  it('더 쓴 경우에만 서버가 빼고, 빼는 금액이 앱이 말하는 금액과 같다 — 안 적은 줄은 양쪽 다 0', () => {
+    const mismatched: string[] = [];
+
+    for (const plannedAmount of PLANNED) {
+      for (const actualAmount of ACTUAL) {
+        const server = serverSettlementOverspend({
+          kind: 'SETTLEMENT',
+          plannedAmount,
+          actualAmount,
+        });
+        const app = appSettlementDelta(plannedAmount, actualAmount);
+        const appOver = app.kind === 'over' ? app.amount : 0;
+        if (server !== appOver) {
+          mismatched.push(
+            `(옮긴 ${plannedAmount}, 실제 ${actualAmount}) 서버 ${server} · 앱 ${appOver}`,
+          );
+        }
+      }
+    }
+
+    expect(mismatched).toEqual([]);
+  });
+
+  it('덜 쓴 것은 양쪽 다 남은 돈에 더하지 않는다', () => {
+    expect(
+      serverSettlementOverspend({
+        kind: 'SETTLEMENT',
+        plannedAmount: 300000,
+        actualAmount: 250000,
+      }),
+    ).toBe(0);
+    expect(appSettlementDelta(300000, 250000)).toEqual({ kind: 'under', amount: 50000 });
   });
 });

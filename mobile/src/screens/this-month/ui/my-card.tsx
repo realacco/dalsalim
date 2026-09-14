@@ -5,6 +5,7 @@ import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Button, Card, Divider, Row } from '@/shared/ui';
 import { confirm } from '@/shared/lib/confirm';
 import { formatWon } from '@/shared/lib/format';
+import { MESSAGES } from '@/shared/config/messages';
 
 type Mine = BookView['members'][number];
 
@@ -48,6 +49,9 @@ export function MyCard({
         <Row label="수입" value={formatWon(summary.income)} />
         <Row label="고정비" value={`− ${formatWon(summary.fixedTotal)}`} />
         <Row label="추가 지출" value={`− ${formatWon(summary.extraTotal)}`} />
+        {summary.settlementTotal > 0 ? (
+          <Row label={MESSAGES.settlementRow} value={`− ${formatWon(summary.settlementTotal)}`} />
+        ) : null}
         <Divider />
         <Row
           label="남은 돈"

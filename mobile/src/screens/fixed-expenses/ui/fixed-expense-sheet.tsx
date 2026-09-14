@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CATEGORIES } from '@/shared/model/types';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
-import { AmountInput, Button, Chip, ErrorText, Field, Input, Notice } from '@/shared/ui';
+import { AmountInput, Button, Chip, ErrorText, Field, Input, Notice, Toggle } from '@/shared/ui';
 import { confirm } from '@/shared/lib/confirm';
 
 import { type Draft, sanitizeDay } from '../model/draft';
@@ -258,6 +258,17 @@ export function FixedExpenseSheet({
                   keyboardType="number-pad"
                 />
               </Field>
+
+              {/*
+                결산 스위치 (F-FIX-07). 분류를 생활비로 고르면 켜지고, 사람이 건드리기 전까지만 따라간다 —
+                그 규칙은 model/draft 의 patchDraft 에 있다. "목표" "예산" 이라는 말을 쓰지 않는다 (하드룰 9).
+              */}
+              <Toggle
+                label="다음 달에 실제로 쓴 금액을 물어요"
+                hint="생활비처럼 옮겨두고 쓰는 돈에 켜두세요. 통신비처럼 그냥 빠져나가는 돈은 꺼두면 돼요."
+                value={draft?.settles ?? false}
+                onValueChange={(settles) => onChange({ settles })}
+              />
 
               <ErrorText>{error}</ErrorText>
 

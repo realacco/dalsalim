@@ -33,6 +33,9 @@
    - 손으로 적는 길을 **절대 없애지 않는다.** 수집은 원래 새는 것이라 보조여야 한다.
 2. **차이에만 이유를 묻는다.** 기본값과 금액이 같으면 아무것도 묻지 않는다.
    다를 때만 사유를 **필수로** 받고, 되돌리면 사유도 같이 지운다.
+   - **예외 하나 — 지난달 결산 줄(`SETTLEMENT`)은 금액이 달라도 묻지 않는다** (`F-ENT-11`).
+     여기서 "차이"는 계획 대비 변화인데, 옮겨둔 돈을 실제로 얼마나 썼는지는 변화가 아니라 정정이고
+     매달 다른 게 정상이라 사유를 받으면 "그냥 그렇게 썼어요"만 쌓인다. 면제도 `needsReason()` 안에서 판정한다.
 3. **사유 강제의 최종 판정은 서버다.** `lib/shared.ts`의 `needsReason()` 한 곳에서만 판단하고,
    줄 저장(`PATCH /entries/:id/lines/:lineId`)과 제출(`POST /entries/:id/submit`) **양쪽에서** 막는다.
    앱 쪽 검사는 UX용이지 방어선이 아니다.
@@ -198,7 +201,7 @@ mobile/src/   app → screens → widgets → features → entities → shared
   지출 자체는 잘못이 아니므로 지출에 경고색을 쓰지 않는다.
 - 공용 컴포넌트는 `src/shared/ui/`
   (`Card` `Button` `Input` `AmountInput` `Field` `Row` `Divider` `Chip` `ProgressBar` `Notice`
-  `PressableScale` `Muted` `ErrorText` `SectionTitle` `Loading` `QueryError` `ConfirmHost` `BuildInfo`).
+  `PressableScale` `Muted` `ErrorText` `SectionTitle` `Loading` `QueryError` `ConfirmHost` `BuildInfo` `Toggle`).
   화면에서 같은 모양을 다시 만들기 전에 여기부터 본다.
 - **`shared/config`의 토큰과 `shared/ui` 공용 컴포넌트의 수정·삭제는 사용자에게 먼저 허락받는다.**
   모든 화면에 파급된다. 신규 추가는 허락 없이 가능하되 추가 후 보고한다.

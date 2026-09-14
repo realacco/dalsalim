@@ -22,4 +22,6 @@ export const MESSAGES = {
   network: '서버에 닿지 못했어요.',
   unknown: '알 수 없는 문제가 생겼어요.',
   retry: '다시 시도',
+  /** 요약 줄 라벨 — 확인 화면 · 홈 카드 · 월 요약(총계·사람별)이 같은 숫자를 같은 이름으로 불러야 산수가 맞아 보인다 (F-ENT-11) */
+  settlementRow: '지난달 더 쓴 것',
 } as const;

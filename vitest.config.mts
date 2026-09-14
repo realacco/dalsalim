@@ -37,6 +37,8 @@ export default defineConfig({
         },
       },
       {
+        // 앱 쪽 사본을 서버 사본과 나란히 임포트한다. 앱 파일이 `@/` 별칭을 쓰므로 여기도 같은 별칭이 필요하다
+        resolve: { alias: { '@': path.resolve(here, 'mobile/src') } },
         test: {
           name: 'contract',
           root: here,

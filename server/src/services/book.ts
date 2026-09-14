@@ -1,4 +1,4 @@
-// 기능: F-BOOK-01 F-BOOK-02 F-BOOK-03 F-BOOK-04
+// 기능: F-BOOK-01 F-BOOK-02 F-BOOK-03 F-BOOK-04 F-ENT-11
 import { prisma } from '../lib/db.js';
 import { fail } from '../lib/http.js';
 import {
@@ -52,7 +52,13 @@ export async function buildBookView(familyId: string, bookId: string, myMembersh
       isMe: m.id === myMembershipId,
       entryId: entry?.id ?? null,
       status: entry?.status ?? 'NONE',
-      progress: entry ? bookProgress(entry.cursor, m.fixedExpenses.length) : null,
+      // 스텝 수는 항목 수가 아니라 줄 수로 센다 — 결산 줄은 항목에 없고 지난달 기록에서 온다 (F-ENT-11)
+      progress: entry
+        ? bookProgress(
+            entry.cursor,
+            entry.lines.filter((l) => l.kind === 'FIXED' || l.kind === 'SETTLEMENT').length,
+          )
+        : null,
       /** 고정비가 0개면 이 앱의 템플릿이 비어 있다는 뜻이다. 홈이 그걸 먼저 안내한다. */
       fixedExpenseCount: m.fixedExpenses.length,
       summary: entry?.status === 'SUBMITTED' ? entrySummary(entry.lines) : null,
@@ -78,8 +84,11 @@ export async function syncFixedLines(
 
   if (entry.status !== 'DRAFT') return;
 
+  // 결산 줄도 fixedExpenseId 를 들고 있지만 이번 달 고정비 줄은 아니다 — FIXED 만 "있는 것" 으로 센다
   const existingIds = new Set(
-    entry.lines.filter((l) => l.fixedExpenseId).map((l) => l.fixedExpenseId as string),
+    entry.lines
+      .filter((l) => l.kind === 'FIXED' && l.fixedExpenseId)
+      .map((l) => l.fixedExpenseId as string),
   );
 
   const missing = await prisma.fixedExpense.findMany({
@@ -128,6 +137,15 @@ export async function syncFixedLines(
  * ★ 프리필 우선순위 (기획서 7.4): 지난달에 내가 실제로 적은 금액 → 없으면 고정비에 등록한 기본 금액.
  *   EntryLine 의 name·category 는 FixedExpense 에서 **복사**한다 (하드룰 4) — 항목 이름을 바꿔도
  *   과거 기록이 흔들리면 안 된다. fixedExpenseId 는 참조로 남긴다.
+ *
+ * ★ 결산 줄 (F-ENT-11): 지난달 고정비 줄 가운데 항목의 결산 스위치가 켜진 것마다 한 줄씩,
+ *   "그 돈을 실제로 얼마나 썼나" 를 묻는다. 이름·분류는 **지난달 줄**에서 복사한다 — 항목이 아니라
+ *   지난달 기록의 정정이므로, 그 사이 항목 이름이 바뀌었거나 항목이 지워졌어도 지난달 그 이름으로 묻는다.
+ *   기록을 처음 만들 때만 붙인다 (정의서: "스위치는 이번 달 기록을 만드는 시점에 읽는다").
+ *   syncFixedLines 가 붙이지 않는 이유는 적는 중인 기록의 맨 앞에 스텝이 끼어들면 cursor 가 밀려
+ *   "다음에 열었더니 다른 질문이 나온다" 가 되기 때문이다. 스위치를 나중에 켠 경우뿐 아니라
+ *   이번 달을 먼저 열어두고 지난달을 나중에 마무리한 경우도 같다 — 그때는 이번 달 초안을 지우고
+ *   다시 열면 묻고(F-ENT-10), 아니면 다음 달부터 묻는다.
  */
 export async function openMyEntry(familyId: string, yearMonth: string, membershipId: string) {
   const book = await getOrCreateBook(familyId, yearMonth);
@@ -144,7 +162,15 @@ export async function openMyEntry(familyId: string, yearMonth: string, membershi
   const previous = shiftYearMonth(yearMonth, -1);
   const lastMonthLines = await prisma.entryLine.findMany({
     where: { entry: { membershipId, book: { familyId, yearMonth: previous } } },
+    orderBy: { sortOrder: 'asc' },
+    // 결산은 지금 스위치가 켜져 있는지로 정한다. 지운 항목(active=false)도 스위치가 켜져 있었으면 묻는다 —
+    // 옮겨둔 돈을 얼마나 썼는지는 항목을 지웠다고 없어지는 사실이 아니다
+    include: { fixedExpense: { select: { settles: true } } },
   });
+  // 제출 여부는 보지 않는다 — 프리필과 같은 정책이다. 그래서 지난달이 아직 초안인 채로 이번 달을 열면
+  // 결산 줄의 "옮긴 금액"은 그 시점의 값으로 굳고, 지난달 초안을 나중에 고쳐도 따라가지 않는다.
+  // 의도한 것이다: 결산 줄도 만드는 시점의 스냅샷이고(하드룰 4), 지난달을 고치고 나서 이번 달 초안을
+  // 지우고 다시 열면(F-ENT-10) 새 금액으로 묻는다.
 
   const lastIncome = lastMonthLines.find((l) => l.kind === 'INCOME')?.actualAmount ?? null;
   const lastByFixedId = new Map(
@@ -153,6 +179,15 @@ export async function openMyEntry(familyId: string, yearMonth: string, membershi
       // 제출 여부는 보지 않는다 — 지난달에 적다 만 초안의 금액도 근거가 된다.
       .filter((l) => l.kind === 'FIXED' && l.fixedExpenseId && l.actualAmount !== null)
       .map((l) => [l.fixedExpenseId as string, l.actualAmount as number]),
+  );
+
+  // 0 원을 옮겨둔 달은 물을 게 없다 — "0 원 중에 얼마나 썼나요" 는 질문이 아니다
+  const settlementSources = lastMonthLines.filter(
+    (l) =>
+      l.kind === 'FIXED' &&
+      l.fixedExpense?.settles === true &&
+      l.actualAmount !== null &&
+      l.actualAmount > 0,
   );
 
   const fixedExpenses = await prisma.fixedExpense.findMany({
@@ -166,6 +201,17 @@ export async function openMyEntry(familyId: string, yearMonth: string, membershi
       membershipId,
       lines: {
         create: [
+          // 결산 줄은 수입(0)보다 앞에 온다 — 지난달 이야기를 먼저 끝내고 이번 달로 넘어간다.
+          // 음수를 뒤에서부터 매겨서(-n … -1) 개수가 몇이든 0 과 겹치지 않는다
+          ...settlementSources.map((l, index) => ({
+            kind: 'SETTLEMENT',
+            fixedExpenseId: l.fixedExpenseId,
+            name: l.name,
+            category: l.category,
+            plannedAmount: l.actualAmount,
+            plannedSource: 'LAST_MONTH',
+            sortOrder: index - settlementSources.length,
+          })),
           {
             kind: 'INCOME',
             name: '월급',
@@ -284,11 +330,12 @@ export async function buildMonthSummary(familyId: string, yearMonth: string) {
   const income = perMember.reduce((sum, m) => sum + m.income, 0);
   const fixedTotal = perMember.reduce((sum, m) => sum + m.fixedTotal, 0);
   const extraTotal = perMember.reduce((sum, m) => sum + m.extraTotal, 0);
+  const settlementTotal = perMember.reduce((sum, m) => sum + m.settlementTotal, 0);
 
-  // 카테고리별 합계 (수입 제외)
+  // 카테고리별 합계 (수입 제외). 결산 줄도 뺀다 — 그 돈은 지난달 고정비로 이미 이 표에 들어갔다 (F-ENT-11)
   const byCategory = new Map<string, number>();
   for (const line of allLines) {
-    if (line.kind === 'INCOME') continue;
+    if (line.kind === 'INCOME' || line.kind === 'SETTLEMENT') continue;
     byCategory.set(line.category, (byCategory.get(line.category) ?? 0) + (line.actualAmount ?? 0));
   }
 
@@ -306,7 +353,13 @@ export async function buildMonthSummary(familyId: string, yearMonth: string) {
         .filter((m) => !m.submitted)
         .map((m) => ({ membershipId: m.membershipId, displayName: m.displayName })),
     },
-    totals: { income, fixedTotal, extraTotal, surplus: income - fixedTotal - extraTotal },
+    totals: {
+      income,
+      fixedTotal,
+      extraTotal,
+      settlementTotal,
+      surplus: income - fixedTotal - extraTotal - settlementTotal,
+    },
     perMember,
     // "이번 달 달라진 것" — 이 앱이 다른 가계부와 갈라지는 지점
     changes: allLines
@@ -331,6 +384,18 @@ export async function buildMonthSummary(familyId: string, yearMonth: string) {
     byCategory: [...byCategory.entries()]
       .map(([category, amount]) => ({ category, amount }))
       .sort((a, b) => b.amount - a.amount),
+    // "지난달 결산" — 옮겨둔 돈을 실제로 얼마나 썼나. 사유가 없는 줄이라 changes 에는 안 들어간다 (F-ENT-11)
+    settlements: allLines
+      .filter((l) => l.kind === 'SETTLEMENT')
+      .map((l) => ({
+        displayName: l.displayName,
+        name: l.name,
+        planned: l.plannedAmount ?? 0,
+        actual: l.actualAmount ?? 0,
+        // 더 쓴 만큼은 따로 안 싣는다 — max(0, delta) 로 나오고 합계는 totals.settlementTotal 에 있다
+        delta: (l.actualAmount ?? 0) - (l.plannedAmount ?? 0),
+      }))
+      .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)),
     notes: perMember
       .filter((m) => m.note)
       .map((m) => ({ displayName: m.displayName, note: m.note as string })),
@@ -368,15 +433,16 @@ export async function buildTrend(familyId: string, months: number) {
             income: acc.income + s.income,
             fixedTotal: acc.fixedTotal + s.fixedTotal,
             extraTotal: acc.extraTotal + s.extraTotal,
+            settlementTotal: acc.settlementTotal + s.settlementTotal,
           };
         },
-        { income: 0, fixedTotal: 0, extraTotal: 0 },
+        { income: 0, fixedTotal: 0, extraTotal: 0, settlementTotal: 0 },
       );
 
       return {
         yearMonth: book.yearMonth,
         ...totals,
-        surplus: totals.income - totals.fixedTotal - totals.extraTotal,
+        surplus: totals.income - totals.fixedTotal - totals.extraTotal - totals.settlementTotal,
         submittedCount: book.entries.length,
         memberCount,
       };
