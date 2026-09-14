@@ -61,6 +61,11 @@ describe('F-ENT-04 needsReason — 사유 강제 (하드룰 2·3)', () => {
     expect(judge(500000, 500000, 'SETTLEMENT')).toBe(false);
   });
 
+  it('★ F-ENT-12 기타 수입 줄은 기본값이 없어 사유를 안 묻는다 — 추가 지출과 같은 자리다', () => {
+    expect(judge(null, 500000, 'EXTRA_INCOME')).toBe(false);
+    expect(judge(null, 0, 'EXTRA_INCOME')).toBe(false);
+  });
+
   it('수입 줄은 고정비 줄과 같은 규칙이다', () => {
     expect(judge(3000000, 3200000, 'INCOME')).toBe(true);
     expect(judge(3000000, 3000000, 'INCOME')).toBe(false);

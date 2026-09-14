@@ -17,12 +17,6 @@ import { MESSAGES } from '@/shared/config/messages';
 import { errorMessage } from '@/shared/lib/errors';
 import { useStepStyles } from '../styles';
 
-/**
- * 그 달에만 있는 줄을 목록으로 적는 스텝 — 두 얼굴이 있다.
- *   expense  스텝 n+1 추가 지출. 고정비에 없는, 그 달에만 있었던 지출
- *   income   스텝 1.5 기타 수입. 월급 말고 그 달만 들어온 돈 (F-ENT-12)
- * 둘 다 사유를 묻지 않는다 — 이름이 곧 사유다. 다른 점은 분류 칩이 있느냐뿐이라 화면 하나로 둔다.
- */
 const VARIANTS = {
   expense: {
     kind: 'EXTRA' as const,
@@ -40,6 +34,12 @@ const VARIANTS = {
   },
 };
 
+/**
+ * 그 달에만 있는 줄을 목록으로 적는 스텝 — 두 얼굴이 있다.
+ *   expense  스텝 n+1 추가 지출. 고정비에 없는, 그 달에만 있었던 지출
+ *   income   스텝 1.5 기타 수입. 월급 말고 그 달만 들어온 돈 (F-ENT-12)
+ * 둘 다 사유를 묻지 않는다 — 이름이 곧 사유다. 다른 점은 분류 칩이 있느냐뿐이라 화면 하나로 둔다.
+ */
 export function ExtrasStep({
   entry,
   variant = 'expense',

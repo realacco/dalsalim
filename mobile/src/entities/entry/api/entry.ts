@@ -41,7 +41,10 @@ export function addExtraLine(
   entryId: string,
   input: { name: string; category: string; actualAmount: number },
 ) {
-  return api<{ line: EntryLine }>(`/entries/${entryId}/lines`, { method: 'POST', body: input });
+  return api<{ line: EntryLine }>(`/entries/${entryId}/lines`, {
+    method: 'POST',
+    body: { kind: 'EXTRA', ...input },
+  });
 }
 
 /** 기타 수입 — 추가 지출의 수입판. 분류가 없고, 사유도 없다 (F-ENT-12) */

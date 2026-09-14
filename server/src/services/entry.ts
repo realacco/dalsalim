@@ -72,6 +72,9 @@ export function updateEntryMeta(entryId: string, data: { note?: string | null; c
   return prisma.memberEntry.update({ where: { id: entryId }, data });
 }
 
+/** 그 달에만 있는 줄 — 추가 지출과 기타 수입. 둘 다 기본값이 없어 사유를 묻지 않고, 그 달 안에서 실제로 지운다 */
+const AD_HOC_KINDS = new Set(['EXTRA', 'EXTRA_INCOME']);
+
 async function findLine(entryId: string, lineId: string) {
   const line = await prisma.entryLine.findUnique({ where: { id: lineId } });
   if (!line || line.entryId !== entryId) throw fail('LINE_NOT_FOUND');
@@ -107,17 +110,14 @@ export async function updateLine(
   });
 }
 
-/** 그 달에만 있는 줄 — 추가 지출과 기타 수입. 둘 다 기본값이 없어 사유를 묻지 않고, 그 달 안에서 실제로 지운다 */
-const AD_HOC_KINDS = new Set(['EXTRA', 'EXTRA_INCOME']);
+export type ExtraLineInput = { name: string; actualAmount: number } & (
+  { kind: 'EXTRA'; category: string } | { kind: 'EXTRA_INCOME' }
+);
 
 /**
  * 추가 지출 · 기타 수입 항목 — 비교 대상이 없으므로 사유도 묻지 않는다. 이름이 곧 사유다.
  * 기타 수입(F-ENT-12)은 분류 목록을 쓰지 않는다 — 수입 줄과 같은 내부 분류값이 들어간다.
  */
-export type ExtraLineInput = { name: string; actualAmount: number } & (
-  { kind: 'EXTRA'; category: string } | { kind: 'EXTRA_INCOME' }
-);
-
 export async function addExtraLine(entryId: string, body: ExtraLineInput) {
   // 기타 수입은 수입(0)과 고정비(100번대) 사이, 추가 지출은 1000번대 — 위저드 순서 그대로다
   const base = body.kind === 'EXTRA_INCOME' ? 50 : 1000;
