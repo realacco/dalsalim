@@ -128,7 +128,7 @@ describe('currentYearMonth — 서버와 앱이 같은 "이번 달"을 본다', 
 });
 
 describe('defaultSettles — 결산 스위치 기본값이 서버와 앱에서 같다', () => {
-  it('아홉 분류 모두에서 결과가 갈리지 않는다', () => {
+  it('모든 분류에서 결과가 갈리지 않는다', () => {
     const mismatched = [...SERVER_CATEGORIES].filter(
       (category) => serverDefaultSettles(category) !== appDefaultSettles(category),
     );
@@ -139,6 +139,7 @@ describe('defaultSettles — 결산 스위치 기본값이 서버와 앱에서 �
     for (const judge of [serverDefaultSettles, appDefaultSettles]) {
       expect(judge('생활비')).toBe(true);
       expect(judge('통신')).toBe(false);
+      expect(judge('저축')).toBe(false);
       expect(judge('기타')).toBe(false);
     }
   });

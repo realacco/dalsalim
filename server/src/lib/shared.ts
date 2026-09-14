@@ -1,4 +1,4 @@
-// 기능: F-FIX-05 F-FIX-07 F-ENT-03 F-ENT-04 F-ENT-11 F-ENT-12 F-FAM-03 F-FAM-06 F-BOOK-01 F-FIX-06
+// 기능: F-FIX-05 F-FIX-07 F-FIX-08 F-ENT-03 F-ENT-04 F-ENT-11 F-ENT-12 F-FAM-03 F-FAM-06 F-BOOK-01 F-FIX-06
 /** 앱과 서버가 공유하는 상수·타입. 앱 쪽 mobile/src/shared/model/types.ts 와 짝을 이룬다. */
 
 export const CATEGORIES = [
@@ -9,6 +9,9 @@ export const CATEGORIES = [
   '구독',
   '교육',
   '대출·상환',
+  // 저축·투자 — 월급에서 빠지지만 소비가 아닌 돈. 남은 돈 식은 안 바뀐다 (F-FIX-08)
+  '저축',
+  '투자',
   '생활비',
   '기타',
 ] as const;
