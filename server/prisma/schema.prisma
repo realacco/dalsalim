@@ -140,7 +140,7 @@ model MemberEntry {
 model EntryLine {
   id             String  @id @default(cuid())
   entryId        String
-  kind           String // SETTLEMENT | INCOME | FIXED | EXTRA (F-ENT-11 결산 줄은 지난달 줄의 정정 — 합계에서 다르게 센다)
+  kind           String // SETTLEMENT | INCOME | EXTRA_INCOME | FIXED | EXTRA (F-ENT-11 결산 줄은 지난달 줄의 정정 — 합계에서 다르게 센다 · F-ENT-12 기타 수입은 월급에 더해지는 그 달만의 돈)
   fixedExpenseId String? // FIXED 와 SETTLEMENT 일 때. 장기 추이의 근거가 되므로 보존한다 — 고정비 줄인지는 kind 로 가른다
   name           String
   category       String

@@ -63,24 +63,28 @@ export async function entryRoutes(app: FastifyInstance) {
     return { line: await updateLine(params.id, params.lineId, body) };
   });
 
+  const lineName = z.string().trim().min(1, '항목 이름을 적어주세요.').max(30);
+  const extraLineBody = z.preprocess(
+    // kind 를 안 보내면 추가 지출이다 — 기타 수입이 생기기 전 앱은 kind 자체를 모른다
+    (raw) => (raw && typeof raw === 'object' && !('kind' in raw) ? { kind: 'EXTRA', ...raw } : raw),
+    z.discriminatedUnion('kind', [
+      z.object({
+        kind: z.literal('EXTRA'),
+        name: lineName,
+        category,
+        actualAmount: amount,
+      }),
+      z.object({ kind: z.literal('EXTRA_INCOME'), name: lineName, actualAmount: amount }),
+    ]),
+  );
+
   /** 추가 지출 · 기타 수입 항목 — 이름부터 받는다. 기타 수입은 분류가 없다 (F-ENT-12) */
   app.post('/entries/:id/lines', async (request) => {
     const user = await requireUser(request);
     const { id } = entryParams.parse(request.params);
     assertDraft(await requireOwnEntry(user.id, id));
 
-    const body = z
-      .object({
-        kind: z.enum(['EXTRA', 'EXTRA_INCOME']).default('EXTRA'),
-        name: z.string().trim().min(1, '항목 이름을 적어주세요.').max(30),
-        category: category.optional(),
-        actualAmount: amount,
-      })
-      .refine((b) => b.kind === 'EXTRA_INCOME' || b.category !== undefined, {
-        message: '분류를 골라주세요.',
-        path: ['category'],
-      })
-      .parse(request.body);
+    const body = extraLineBody.parse(request.body);
 
     return { line: await addExtraLine(id, body) };
   });

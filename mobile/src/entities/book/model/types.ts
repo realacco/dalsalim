@@ -58,7 +58,6 @@ export type MonthSummary = {
 export type TrendPoint = {
   yearMonth: string;
   income: number;
-  extraIncomeTotal: number;
   fixedTotal: number;
   extraTotal: number;
   settlementTotal: number;

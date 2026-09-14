@@ -1226,6 +1226,27 @@ async function main() {
     noCategoryExpense.status === 400 && noCategoryExpense.body.code === 'VALIDATION',
     noCategoryExpense.body,
   );
+  // 가운데 줄을 지우고 다시 적어도 번호가 겹치지 않는다 — 개수가 아니라 마지막 번호 다음이다
+  const refund = await call('POST', `/entries/${incomeEntry.id}/lines`, {
+    token: dad.token,
+    body: { kind: 'EXTRA_INCOME', name: '환급금', actualAmount: 30_000 },
+  });
+  await call('DELETE', `/entries/${incomeEntry.id}/lines/${bonus.body.line?.id}`, {
+    token: dad.token,
+  });
+  const bonusAgain = await call('POST', `/entries/${incomeEntry.id}/lines`, {
+    token: dad.token,
+    body: { kind: 'EXTRA_INCOME', name: '추석 상여금', actualAmount: 500_000 },
+  });
+  check(
+    'F-ENT-12 줄을 지우고 다시 적어도 순서 번호가 겹치지 않는다',
+    bonusAgain.body.line?.sortOrder > refund.body.line?.sortOrder,
+    { refund: refund.body.line?.sortOrder, again: bonusAgain.body.line?.sortOrder },
+  );
+  await call('DELETE', `/entries/${incomeEntry.id}/lines/${refund.body.line?.id}`, {
+    token: dad.token,
+  });
+  bonus.body.line = bonusAgain.body.line;
   const withBonus = (await call('GET', `/entries/${incomeEntry.id}`, { token: dad.token })).body
     .entry;
   const kinds = withBonus.lines.map((l) => l.kind);

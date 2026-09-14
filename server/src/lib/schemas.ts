@@ -8,7 +8,7 @@ import { CATEGORIES } from './shared.js';
  */
 export const displayName = z.string().trim().min(1, '이름을 입력해주세요.').max(20);
 export const amount = z.number().int().min(0).max(1_000_000_000);
-export const category = z.enum(CATEGORIES);
+export const category = z.enum(CATEGORIES, { error: '분류를 골라주세요.' });
 export const dayOfMonth = z.number().int().min(1).max(31).nullable().optional();
 /**
  * 결산 스위치 (F-FIX-07). 안 보내면 등록 때는 분류로 기본값을 정하고, 수정 때는 안 건드린다 —

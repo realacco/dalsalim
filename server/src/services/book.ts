@@ -17,6 +17,7 @@ import {
  *   나중에 누가 파일 맨 위에서 상대 함수를 쓰는 순간 "함수가 아니다" 오류로 터진다.
  *   둘이 같이 쓰는 순수 계산(entrySummary)은 아래층인 lib/shared 에 있다.
  */
+
 /**
  * 월 장부는 필요할 때 만든다. 미래의 달은 만들지 않는다 —
  * 아직 오지 않은 달의 장부를 열어두면 "이 달은 아무도 안 적었다"는 잘못된 신호가 된다.
@@ -439,13 +440,12 @@ export async function buildTrend(familyId: string, months: number) {
           const s = entrySummary(entry.lines);
           return {
             income: acc.income + s.income,
-            extraIncomeTotal: acc.extraIncomeTotal + s.extraIncomeTotal,
             fixedTotal: acc.fixedTotal + s.fixedTotal,
             extraTotal: acc.extraTotal + s.extraTotal,
             settlementTotal: acc.settlementTotal + s.settlementTotal,
           };
         },
-        { income: 0, extraIncomeTotal: 0, fixedTotal: 0, extraTotal: 0, settlementTotal: 0 },
+        { income: 0, fixedTotal: 0, extraTotal: 0, settlementTotal: 0 },
       );
 
       return {

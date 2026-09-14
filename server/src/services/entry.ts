@@ -102,7 +102,7 @@ export async function updateLine(
       actualAmount: body.actualAmount,
       // 금액을 원래대로 되돌렸다면 사유도 같이 지운다 (하드룰 2)
       changeReason: reasonNeeded ? trimmedReason : null,
-      ...(body.name && line.kind === 'EXTRA' ? { name: body.name } : {}),
+      ...(body.name && AD_HOC_KINDS.has(line.kind) ? { name: body.name } : {}),
     },
   });
 }
@@ -114,24 +114,28 @@ const AD_HOC_KINDS = new Set(['EXTRA', 'EXTRA_INCOME']);
  * 추가 지출 · 기타 수입 항목 — 비교 대상이 없으므로 사유도 묻지 않는다. 이름이 곧 사유다.
  * 기타 수입(F-ENT-12)은 분류 목록을 쓰지 않는다 — 수입 줄과 같은 내부 분류값이 들어간다.
  */
-export async function addExtraLine(
-  entryId: string,
-  body: { kind: 'EXTRA' | 'EXTRA_INCOME'; name: string; category?: string; actualAmount: number },
-) {
-  const count = await prisma.entryLine.count({ where: { entryId, kind: body.kind } });
-  const isIncome = body.kind === 'EXTRA_INCOME';
-  if (!isIncome && !body.category) throw fail('VALIDATION');
+export type ExtraLineInput = { name: string; actualAmount: number } & (
+  { kind: 'EXTRA'; category: string } | { kind: 'EXTRA_INCOME' }
+);
+
+export async function addExtraLine(entryId: string, body: ExtraLineInput) {
+  // 기타 수입은 수입(0)과 고정비(100번대) 사이, 추가 지출은 1000번대 — 위저드 순서 그대로다
+  const base = body.kind === 'EXTRA_INCOME' ? 50 : 1000;
+  // 개수가 아니라 마지막 번호 다음이다 — 가운데 줄을 지우고 새로 적으면 개수로는 번호가 겹친다
+  const last = await prisma.entryLine.aggregate({
+    where: { entryId, kind: body.kind },
+    _max: { sortOrder: true },
+  });
 
   return prisma.entryLine.create({
     data: {
       entryId,
       kind: body.kind,
       name: body.name,
-      category: isIncome ? INCOME_CATEGORY : (body.category as string),
+      category: body.kind === 'EXTRA_INCOME' ? INCOME_CATEGORY : body.category,
       plannedAmount: null,
       actualAmount: body.actualAmount,
-      // 기타 수입은 수입(0)과 고정비(100번대) 사이, 추가 지출은 1000번대 — 위저드 순서 그대로다
-      sortOrder: (isIncome ? 50 : 1000) + count,
+      sortOrder: Math.max(base, (last._max.sortOrder ?? base - 1) + 1),
     },
   });
 }
