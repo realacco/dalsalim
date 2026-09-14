@@ -39,6 +39,8 @@ export type MonthSummary = {
   })[];
   /** "이번 달 달라진 것" — 이 앱이 다른 가계부와 갈라지는 지점 */
   changes: { displayName: string; name: string; kind: LineKind; delta: number; reason: string }[];
+  /** 기타 수입 — 월급 말고 그 달만 들어온 돈 (F-ENT-12). 사유가 없으므로 changes 와 따로 온다 */
+  extraIncomes: { displayName: string; name: string; amount: number }[];
   extras: { displayName: string; name: string; category: string; amount: number }[];
   byCategory: { category: string; amount: number }[];
   /** "지난달 결산" — 옮겨둔 돈을 실제로 얼마나 썼나. 사유가 없으므로 changes 와 따로 온다 (F-ENT-11) */
@@ -56,6 +58,7 @@ export type MonthSummary = {
 export type TrendPoint = {
   yearMonth: string;
   income: number;
+  extraIncomeTotal: number;
   fixedTotal: number;
   extraTotal: number;
   settlementTotal: number;

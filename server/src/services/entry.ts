@@ -1,10 +1,10 @@
 // 기능: F-ENT-01 F-ENT-02 F-ENT-03 F-ENT-04 F-ENT-05 F-ENT-06 F-ENT-07 F-ENT-08
-//       F-ENT-10 F-ENT-11
+//       F-ENT-10 F-ENT-11 F-ENT-12
 import type { MemberEntry, MonthlyBook } from '@prisma/client';
 
 import { prisma } from '../lib/db.js';
 import { fail } from '../lib/http.js';
-import { currentYearMonth, entrySummary, needsReason } from '../lib/shared.js';
+import { INCOME_CATEGORY, currentYearMonth, entrySummary, needsReason } from '../lib/shared.js';
 import { refreshBookStatus } from './book.js';
 
 /**
@@ -107,31 +107,39 @@ export async function updateLine(
   });
 }
 
-/** 추가 지출 항목 — 비교 대상이 없으므로 사유도 묻지 않는다. 이름이 곧 사유다. */
+/** 그 달에만 있는 줄 — 추가 지출과 기타 수입. 둘 다 기본값이 없어 사유를 묻지 않고, 그 달 안에서 실제로 지운다 */
+const AD_HOC_KINDS = new Set(['EXTRA', 'EXTRA_INCOME']);
+
+/**
+ * 추가 지출 · 기타 수입 항목 — 비교 대상이 없으므로 사유도 묻지 않는다. 이름이 곧 사유다.
+ * 기타 수입(F-ENT-12)은 분류 목록을 쓰지 않는다 — 수입 줄과 같은 내부 분류값이 들어간다.
+ */
 export async function addExtraLine(
   entryId: string,
-  body: { name: string; category: string; actualAmount: number },
+  body: { kind: 'EXTRA' | 'EXTRA_INCOME'; name: string; category?: string; actualAmount: number },
 ) {
-  const count = await prisma.entryLine.count({ where: { entryId, kind: 'EXTRA' } });
+  const count = await prisma.entryLine.count({ where: { entryId, kind: body.kind } });
+  const isIncome = body.kind === 'EXTRA_INCOME';
+  if (!isIncome && !body.category) throw fail('VALIDATION');
 
   return prisma.entryLine.create({
     data: {
       entryId,
-      kind: 'EXTRA',
+      kind: body.kind,
       name: body.name,
-      category: body.category,
+      category: isIncome ? INCOME_CATEGORY : (body.category as string),
       plannedAmount: null,
       actualAmount: body.actualAmount,
-      // 추가 지출은 1000번대 — 고정비(100번대) 뒤에 온다
-      sortOrder: 1000 + count,
+      // 기타 수입은 수입(0)과 고정비(100번대) 사이, 추가 지출은 1000번대 — 위저드 순서 그대로다
+      sortOrder: (isIncome ? 50 : 1000) + count,
     },
   });
 }
 
-/** 추가 지출만 지울 수 있다. 수입·고정비 줄은 템플릿이라 비울 수는 있어도 없앨 수는 없다. */
+/** 추가 지출·기타 수입만 지울 수 있다. 수입·고정비·결산 줄은 템플릿이라 비울 수는 있어도 없앨 수는 없다. */
 export async function deleteExtraLine(entryId: string, lineId: string) {
   const line = await findLine(entryId, lineId);
-  if (line.kind !== 'EXTRA') throw fail('NOT_DELETABLE');
+  if (!AD_HOC_KINDS.has(line.kind)) throw fail('NOT_DELETABLE');
   await prisma.entryLine.delete({ where: { id: lineId } });
 }
 
@@ -146,7 +154,8 @@ export async function submitEntry(entry: Pick<MemberEntry, 'id' | 'bookId'>) {
     orderBy: { sortOrder: 'asc' },
   });
 
-  const unfilled = lines.filter((l) => l.kind !== 'EXTRA' && l.actualAmount === null);
+  // 추가 지출·기타 수입은 만들 때 금액이 있으므로 제출 조건의 대상이 아니다
+  const unfilled = lines.filter((l) => !AD_HOC_KINDS.has(l.kind) && l.actualAmount === null);
   if (unfilled.length > 0) {
     throw fail('INCOMPLETE', unfilled.map((l) => l.name).join(', '));
   }

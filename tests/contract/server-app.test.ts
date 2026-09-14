@@ -29,10 +29,10 @@ import { CATEGORIES as APP_CATEGORIES, type LineKind } from '../../mobile/src/sh
  */
 
 const AMOUNTS: (number | null)[] = [null, 0, 1, 120000, 135000, -5000];
-const KINDS: LineKind[] = ['SETTLEMENT', 'INCOME', 'FIXED', 'EXTRA'];
+const KINDS: LineKind[] = ['SETTLEMENT', 'INCOME', 'EXTRA_INCOME', 'FIXED', 'EXTRA'];
 
 describe('needsReason — 서버와 앱이 같은 답을 낸다 (하드룰 2·3)', () => {
-  it('종류 4 × 금액 조합 36 = 144가지에서 결과가 하나도 갈리지 않는다', () => {
+  it('종류 5 × 금액 조합 36 = 180가지에서 결과가 하나도 갈리지 않는다', () => {
     const mismatched: string[] = [];
 
     for (const kind of KINDS) {

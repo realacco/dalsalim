@@ -1,4 +1,4 @@
-// 기능: F-ENT-02 F-ENT-03 F-ENT-04 F-ENT-05 F-ENT-06 F-ENT-07 F-ENT-08 F-ENT-10
+// 기능: F-ENT-02 F-ENT-03 F-ENT-04 F-ENT-05 F-ENT-06 F-ENT-07 F-ENT-08 F-ENT-10 F-ENT-12
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
@@ -63,7 +63,7 @@ export async function entryRoutes(app: FastifyInstance) {
     return { line: await updateLine(params.id, params.lineId, body) };
   });
 
-  /** 추가 지출 항목 — 이름부터 받는다 */
+  /** 추가 지출 · 기타 수입 항목 — 이름부터 받는다. 기타 수입은 분류가 없다 (F-ENT-12) */
   app.post('/entries/:id/lines', async (request) => {
     const user = await requireUser(request);
     const { id } = entryParams.parse(request.params);
@@ -71,9 +71,14 @@ export async function entryRoutes(app: FastifyInstance) {
 
     const body = z
       .object({
+        kind: z.enum(['EXTRA', 'EXTRA_INCOME']).default('EXTRA'),
         name: z.string().trim().min(1, '항목 이름을 적어주세요.').max(30),
-        category,
+        category: category.optional(),
         actualAmount: amount,
+      })
+      .refine((b) => b.kind === 'EXTRA_INCOME' || b.category !== undefined, {
+        message: '분류를 골라주세요.',
+        path: ['category'],
       })
       .parse(request.body);
 

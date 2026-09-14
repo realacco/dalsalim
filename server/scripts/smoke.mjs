@@ -1200,6 +1200,91 @@ async function main() {
     { id: restarted.body.entry?.id, status: restarted.body.entry?.status, line: restartedIncome },
   );
 
+  console.log('\n[기타 수입]');
+  // ★ F-ENT-12 — 월급 말고 그 달만 들어온 돈. 추가 지출의 수입판이라 기본값도 사유도 없고,
+  //   월급 줄은 월급만 남아 다음 달 기본값이 상여금으로 굳지 않는다.
+  const incomeEntry = restarted.body.entry;
+  const bonus = await call('POST', `/entries/${incomeEntry.id}/lines`, {
+    token: dad.token,
+    body: { kind: 'EXTRA_INCOME', name: '추석 상여금', actualAmount: 500_000 },
+  });
+  check(
+    '★ F-ENT-12 기타 수입은 분류 없이 이름과 금액으로 적는다',
+    bonus.status === 200 &&
+      bonus.body.line?.kind === 'EXTRA_INCOME' &&
+      bonus.body.line?.category === '수입' &&
+      bonus.body.line?.plannedAmount === null &&
+      bonus.body.line?.changeReason === null,
+    bonus.body,
+  );
+  const noCategoryExpense = await call('POST', `/entries/${incomeEntry.id}/lines`, {
+    token: dad.token,
+    body: { name: '분류 없는 지출', actualAmount: 1000 },
+  });
+  check(
+    'F-ENT-12 추가 지출은 여전히 분류가 필수다 — 기타 수입만 예외다',
+    noCategoryExpense.status === 400 && noCategoryExpense.body.code === 'VALIDATION',
+    noCategoryExpense.body,
+  );
+  const withBonus = (await call('GET', `/entries/${incomeEntry.id}`, { token: dad.token })).body
+    .entry;
+  const kinds = withBonus.lines.map((l) => l.kind);
+  check(
+    'F-ENT-12 기타 수입 줄은 수입 뒤, 고정비 앞에 온다 — 위저드 순서 그대로다',
+    kinds.indexOf('EXTRA_INCOME') > kinds.indexOf('INCOME') &&
+      kinds.indexOf('EXTRA_INCOME') < kinds.indexOf('FIXED'),
+    kinds,
+  );
+  const homeWithBonus = await call('GET', `/families/${dad.familyId}/books/${thisMonth}`, {
+    token: dad.token,
+  });
+  const bonusLineSteps = withBonus.lines.filter(
+    (l) => l.kind === 'FIXED' || l.kind === 'SETTLEMENT',
+  ).length;
+  check(
+    'F-ENT-12 기타 수입은 진행 표시에서 늘 한 스텝이다 (줄 스텝 + 5)',
+    homeWithBonus.body.members?.find((m) => m.isMe)?.progress?.total === bonusLineSteps + 5,
+    homeWithBonus.body.members?.find((m) => m.isMe)?.progress,
+  );
+
+  await fillAndSubmit(dad.token, withBonus, 3_000_000);
+  const bonusSummary = (
+    await call('GET', `/families/${dad.familyId}/books/${thisMonth}/summary`, { token: dad.token })
+  ).body;
+  const dadBonus = bonusSummary.perMember?.find((m) => m.displayName === OWNER);
+  const dadSalary = withBonus.lines.find((l) => l.kind === 'INCOME');
+  check(
+    '★ F-ENT-12 수입 = 월급 + 기타 수입이고 기타 수입은 따로도 보인다',
+    dadBonus?.extraIncomeTotal === 500_000 &&
+      dadBonus?.income === (dadSalary?.actualAmount ?? dadSalary?.plannedAmount ?? 0) + 500_000 &&
+      bonusSummary.totals?.extraIncomeTotal === 500_000,
+    { dad: dadBonus, totals: bonusSummary.totals },
+  );
+  check(
+    'F-ENT-12 요약에 기타 수입 블록이 따로 실리고, 분류별 지출과 달라진 것에는 안 섞인다',
+    bonusSummary.extraIncomes?.length === 1 &&
+      bonusSummary.extraIncomes[0].name === '추석 상여금' &&
+      bonusSummary.extraIncomes[0].displayName === OWNER &&
+      !bonusSummary.byCategory?.some((c) => c.category === '수입') &&
+      !bonusSummary.changes?.some((c) => c.kind === 'EXTRA_INCOME'),
+    { extraIncomes: bonusSummary.extraIncomes, byCategory: bonusSummary.byCategory },
+  );
+
+  // 되돌려 놓는다 — 다음 절이 이번 달 초안을 기대한다. 줄을 지워서 다음 실행에 상여금이 남지 않게 한다
+  await call('POST', `/entries/${incomeEntry.id}/reopen`, { token: dad.token });
+  const removedBonus = await call(
+    'DELETE',
+    `/entries/${incomeEntry.id}/lines/${bonus.body.line?.id}`,
+    {
+      token: dad.token,
+    },
+  );
+  check(
+    'F-ENT-12 기타 수입 줄은 그 달 안에서 실제로 지운다',
+    removedBonus.status === 200,
+    removedBonus.body,
+  );
+
   console.log('\n[지난달 결산]');
   // ★ F-ENT-11 — 지난달에 옮겨둔 돈(결산 스위치가 켜진 고정비)을 실제로 얼마나 썼는지 이번 달 첫 스텝에서 묻는다.
   //   결산 줄은 사유를 안 받고(하드룰 2 의 "차이" 는 계획 대비 변화다), 옮긴 것보다 더 쓴 만큼만 남은 돈에서 뺀다.
@@ -1325,7 +1410,7 @@ async function main() {
   ).length;
   check(
     'F-ENT-11 결산 줄도 진행 표시의 한 스텝이다',
-    homeWithSettle.body.members?.find((m) => m.isMe)?.progress?.total === lineSteps + 4,
+    homeWithSettle.body.members?.find((m) => m.isMe)?.progress?.total === lineSteps + 5,
     { progress: homeWithSettle.body.members?.find((m) => m.isMe)?.progress, lineSteps },
   );
 
