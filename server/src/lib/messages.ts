@@ -95,7 +95,7 @@ export const ERRORS = {
 
   // ── 전역 ─────────────────────────────────────────────────────────────
   VALIDATION: { status: 400, message: '입력값을 확인해주세요.' },
-  NOT_FOUND: { status: 404, message: '그런 주소는 없어요. 앱을 최신으로 올려주세요.' },
+  NOT_FOUND: { status: 404, message: '지금은 이 기능을 쓸 수 없어요. 잠시 후 다시 시도해주세요.' },
   RATE_LIMITED: { status: 429, message: '요청이 너무 잦아요. 잠시 후 다시 시도해주세요.' },
   INTERNAL: { status: 500, message: '서버에 문제가 생겼어요. 잠시 후 다시 시도해주세요.' },
 } satisfies Record<string, ErrorEntry>;

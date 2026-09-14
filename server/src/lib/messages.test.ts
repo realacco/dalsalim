@@ -58,7 +58,7 @@ describe('에러 코드 — 앱과 스모크가 분기하는 계약', () => {
   });
 
   it('상태코드는 HTTP 의미와 맞는다', () => {
-    const notFound = codes.filter((c) => c.endsWith('_NOT_FOUND'));
+    const notFound = codes.filter((c) => c.endsWith('NOT_FOUND'));
     for (const code of notFound) expect(statusFor(code)).toBe(404);
     for (const code of ['ALREADY_MEMBER', 'ALREADY_REQUESTED'] as const) {
       expect(statusFor(code)).toBe(409);
