@@ -34,7 +34,7 @@
 | [7.1 로그인](https://app.notion.com/p/3d3a433436ef81f080cde2b366b9db5a) | 버튼 하나. 개발용 로그인은 운영에서 라우트 자체가 없다 |
 | [7.2 가족 만들기 / 참여하기](https://app.notion.com/p/3d3a433436ef8134af9fdf74c877184c) | 한 화면에 두 갈래. 딥링크 대신 6자리 코드를 쓴다 |
 | [7.3 탭 1 — 이번 달](https://app.notion.com/p/3d3a433436ef814d88fefc920e9e490b) | 내 상태 카드 + 가족 진행 현황. ★ [요약 보기]는 항상 눌린다 |
-| [7.4 탭 2 — 고정비](https://app.notion.com/p/3d3a433436ef815cbda7d4febbcba0f6) | 사람별 목록 · 분류 고정 9개 · 삭제는 `active=false`. 연 고정비는 v0.2 |
+| [7.4 탭 2 — 고정비](https://app.notion.com/p/3d3a433436ef815cbda7d4febbcba0f6) | 사람별 목록 · 분류 고정 목록 · 삭제는 `active=false`. 연 고정비는 v0.2 |
 | [7.5 탭 3 — 추이](https://app.notion.com/p/3d3a433436ef810da13bde315654b819) | 최근 12개월 3개 라인. 두 번째 달부터 의미가 생긴다 |
 | [7.6 탭 4 — 가족](https://app.notion.com/p/3d3a433436ef81c9a757ddb0d3202798) | 구성원 목록 · 초대코드 · 나가기/내보내기/이양 · 로그아웃 |
 | [★ 7.7 스텝 입력 위저드](https://app.notion.com/p/3d3a433436ef8157bab5eb27918d4cf7) | 이 앱의 심장. 프리필 우선순위 3단계 · 다르면 사유 필수 |
