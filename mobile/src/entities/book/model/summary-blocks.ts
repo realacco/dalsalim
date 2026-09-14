@@ -2,7 +2,7 @@ import type { MonthSummary } from './types';
 
 /** MonthSummary 에서 배열인 키만 골라 빈 배열을 요구한다 — 목록 블록이 늘면 여기서 컴파일이 막힌다 */
 type ListBlocks = {
-  [K in keyof MonthSummary as MonthSummary[K] extends unknown[] ? K : never]: [];
+  [K in keyof MonthSummary as NonNullable<MonthSummary[K]> extends unknown[] ? K : never]: [];
 };
 
 const EMPTY_SUMMARY_BLOCKS: ListBlocks = {
