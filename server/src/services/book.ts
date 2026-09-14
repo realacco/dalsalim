@@ -314,7 +314,10 @@ export async function buildMonthSummary(familyId: string, yearMonth: string) {
 
   // ★ 집계의 축은 구성원 상태가 아니라 그 달의 제출본이다 (하드룰 6 · F-FAM-08).
   //   나간 사람의 제출본을 빼면 그 사람이 나가는 순간 지난달 합계가 줄어든다 — 실제 삭제와 같은 결과다.
-  //   사람별 = 그 달에 낸 사람(나간 사람 포함) + 현재 구성원 중 미제출자. 그래야 사람별 합이 총계다.
+  //   사람별 = 그 달에 제출본이 있는 사람 전부 + 현재 구성원 중 미제출자. 그래야 사람별 합이 총계다.
+  //   "제출본이 있는 사람"에는 나간 사람(LEFT)뿐 아니라 나갔다가 다시 신청해 대기 중인 사람(PENDING)도 든다.
+  //   하드룰 8 은 PENDING 을 정원에서 빼라고 하지만 그건 아직 한 줄도 안 낸 사람 얘기다 — 이 제출본은
+  //   ACTIVE 이던 달의 기록이라 빼면 하드룰 6 이 깨지고 제출 수가 정원을 넘는다. 여기서는 6 이 이긴다.
   const perMember = [
     ...submitted.map((entry) => ({
       sortOrder: entry.membership.sortOrder,
@@ -365,7 +368,8 @@ export async function buildMonthSummary(familyId: string, yearMonth: string) {
     /** 숫자가 몇 명 기준인지 — 앱이 "엄마가 아직 안 적었어요" 배너를 그리는 근거 */
     progress: {
       submittedCount: submitted.length,
-      // 정원 = 현재 구성원 + 그 달에 낸 나간 사람. "N명 기준"의 N 이 숫자에 들어간 사람 수와 같아야 한다
+      // 정원 = 현재 구성원 + 그 달에 제출본이 있는 비활성(LEFT·PENDING) 사람.
+      // "N명 기준"의 N 이 숫자에 들어간 사람 수와 같아야 한다
       memberCount: perMember.length,
       pendingMembers: perMember
         .filter((m) => !m.submitted)
@@ -470,7 +474,7 @@ export async function buildTrend(familyId: string, months: number) {
         ...totals,
         surplus: totals.income - totals.fixedTotal - totals.extraTotal - totals.settlementTotal,
         submittedCount: book.entries.length,
-        // 정원 = 현재 구성원 + 그 달에 낸 나간 사람 (요약의 memberCount 와 같은 규칙)
+        // 정원 = 현재 구성원 + 그 달에 제출본이 있는 비활성 사람 (요약의 memberCount 와 같은 규칙 — 위 주석)
         memberCount:
           activeIds.size + book.entries.filter((e) => !activeIds.has(e.membershipId)).length,
       };

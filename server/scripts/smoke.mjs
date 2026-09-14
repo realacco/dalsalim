@@ -540,8 +540,9 @@ async function main() {
   });
   check(
     '★ F-BOOK-02 나간 사람이 그 달에 낸 기록은 요약 합계에 그대로 남는다 (하드룰 6)',
-    JSON.stringify(pickTotals(afterKickSummary.body)) ===
-      JSON.stringify(pickTotals(beforeKickSummary)),
+    beforeKickSummary.totals !== undefined &&
+      JSON.stringify(pickTotals(afterKickSummary.body)) ===
+        JSON.stringify(pickTotals(beforeKickSummary)),
     { before: pickTotals(beforeKickSummary), after: pickTotals(afterKickSummary.body) },
   );
   const momRow = afterKickSummary.body.perMember?.find((m) => m.membershipId === momMembership.id);
@@ -562,9 +563,12 @@ async function main() {
   );
   check(
     '★ F-BOOK-03 추이의 그 달 점도 안 내려앉는다',
-    afterKickTrend?.income === beforeKickTrend?.income &&
-      afterKickTrend?.surplus === beforeKickTrend?.surplus &&
-      afterKickTrend?.submittedCount === beforeKickTrend?.submittedCount,
+    // 둘 다 없으면 undefined === undefined 로 조용히 통과한다 — 점이 실제로 잡혔는지부터 본다
+    beforeKickTrend !== undefined &&
+      afterKickTrend !== undefined &&
+      afterKickTrend.income === beforeKickTrend.income &&
+      afterKickTrend.surplus === beforeKickTrend.surplus &&
+      afterKickTrend.submittedCount === beforeKickTrend.submittedCount,
     { before: beforeKickTrend, after: afterKickTrend },
   );
 
@@ -587,6 +591,17 @@ async function main() {
     '★ F-FAM-04 대기 중인 사람은 장부 정원에 안 들어간다',
     stillOne.body.members.length === 1 && stillOne.body.book.status === 'COMPLETE',
     { members: stillOne.body.members.length, status: stillOne.body.book.status },
+  );
+  // 재참여 대기(PENDING) 중이라도 그 달에 낸 기록은 요약에 그대로다 — 하드룰 8 이 아니라 6 의 자리 (F-BOOK-02)
+  const pendingSummary = (await call('GET', summaryPathThisMonth, { token: dad.token })).body;
+  const pendingMomRow = pendingSummary.perMember?.find((m) => m.membershipId === momMembership.id);
+  check(
+    '★ F-BOOK-02 다시 신청해 대기 중인 사람도 그 달에 낸 기록은 요약에 남는다',
+    pendingMomRow?.submitted === true &&
+      pendingSummary.progress.memberCount === pendingSummary.perMember.length &&
+      !pendingSummary.progress.pendingMembers.some((m) => m.membershipId === momMembership.id) &&
+      pendingSummary.totals.income === beforeKickSummary.totals.income,
+    { progress: pendingSummary.progress, mom: pendingMomRow },
   );
 
   const momRequests = await call('GET', `/families/${dad.familyId}/join-requests`, {
