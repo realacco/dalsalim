@@ -10,6 +10,7 @@ import { useSession } from '@/entities/session';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Button, Card, Divider, Loading, Muted, Notice, QueryError, Row } from '@/shared/ui';
 import { formatAmount, formatWon, formatYearMonth } from '@/shared/lib/format';
+import { MESSAGES } from '@/shared/config/messages';
 
 export default function SummaryScreen() {
   const styles = useStyles();
@@ -68,7 +69,7 @@ export default function SummaryScreen() {
               <Row label="추가 지출" value={`− ${formatWon(summary.data.totals.extraTotal)}`} />
               {summary.data.totals.settlementTotal > 0 ? (
                 <Row
-                  label="지난달 더 쓴 것"
+                  label={MESSAGES.settlementRow}
                   value={`− ${formatWon(summary.data.totals.settlementTotal)}`}
                 />
               ) : null}
@@ -86,14 +87,14 @@ export default function SummaryScreen() {
                     key={`${change.displayName}-${change.name}-${order}`}
                     style={{ gap: space.xxs }}
                   >
-                    <View style={styles.changeHead}>
-                      <Text style={styles.changeName}>
+                    <View style={styles.deltaHead}>
+                      <Text style={styles.deltaName}>
                         {change.name}
-                        <Text style={styles.changeWho}> · {change.displayName}</Text>
+                        <Text style={styles.deltaWho}> · {change.displayName}</Text>
                       </Text>
                       <Text
                         style={[
-                          styles.changeDelta,
+                          styles.deltaAmount,
                           { color: change.delta > 0 ? colors.up : colors.down },
                         ]}
                       >
@@ -101,7 +102,7 @@ export default function SummaryScreen() {
                         {formatAmount(Math.abs(change.delta))}
                       </Text>
                     </View>
-                    <Text style={styles.changeReason}>{change.reason}</Text>
+                    <Text style={styles.deltaNote}>{change.reason}</Text>
                   </View>
                 ))}
               </Card>
@@ -121,22 +122,22 @@ export default function SummaryScreen() {
                     key={`${item.displayName}-${item.name}-${order}`}
                     style={{ gap: space.xxs }}
                   >
-                    <View style={styles.changeHead}>
-                      <Text style={styles.changeName}>
+                    <View style={styles.deltaHead}>
+                      <Text style={styles.deltaName}>
                         {item.name}
-                        <Text style={styles.changeWho}> · {item.displayName}</Text>
+                        <Text style={styles.deltaWho}> · {item.displayName}</Text>
                       </Text>
                       {/* 덜 쓴 것은 색을 입히지 않는다 — 남은 돈이 늘지 않으니 "좋은 일" 로 읽히면 안 된다 */}
                       <Text
                         style={[
-                          styles.changeDelta,
+                          styles.deltaAmount,
                           { color: item.delta > 0 ? colors.up : colors.inkFaint },
                         ]}
                       >
                         {formatSettlementDelta(item.delta)}
                       </Text>
                     </View>
-                    <Text style={styles.changeReason}>
+                    <Text style={styles.deltaNote}>
                       {formatWon(item.planned)} 옮기고 {formatWon(item.actual)} 썼어요
                     </Text>
                   </View>
@@ -161,7 +162,10 @@ export default function SummaryScreen() {
                   />
                   {/* 남은 돈이 이 줄까지 뺀 값이라, 없으면 수입 − 지출 ≠ 남은 돈으로 보인다 (F-ENT-11) */}
                   {member.settlementTotal > 0 ? (
-                    <Row label="지난달 더 쓴 것" value={`− ${formatWon(member.settlementTotal)}`} />
+                    <Row
+                      label={MESSAGES.settlementRow}
+                      value={`− ${formatWon(member.settlementTotal)}`}
+                    />
                   ) : null}
                   <Row
                     label="남은 돈"
@@ -253,15 +257,15 @@ const useStyles = makeStyles((t) => ({
 
   cardTitle: { ...t.font.bodyLg, fontWeight: t.weight.bold, color: t.colors.ink },
 
-  changeHead: { flexDirection: 'row', justifyContent: 'space-between', gap: t.space.md },
-  changeName: { ...t.font.body, color: t.colors.ink, fontWeight: t.weight.semibold, flexShrink: 1 },
-  changeWho: { ...t.font.small, color: t.colors.inkFaint, fontWeight: t.weight.regular },
-  changeDelta: {
+  deltaHead: { flexDirection: 'row', justifyContent: 'space-between', gap: t.space.md },
+  deltaName: { ...t.font.body, color: t.colors.ink, fontWeight: t.weight.semibold, flexShrink: 1 },
+  deltaWho: { ...t.font.small, color: t.colors.inkFaint, fontWeight: t.weight.regular },
+  deltaAmount: {
     ...t.font.body,
     fontWeight: t.weight.bold,
     fontVariant: ['tabular-nums' as const],
   },
-  changeReason: { ...t.font.small, color: t.colors.inkSoft },
+  deltaNote: { ...t.font.small, color: t.colors.inkSoft },
 
   memberName: {
     ...t.font.body,

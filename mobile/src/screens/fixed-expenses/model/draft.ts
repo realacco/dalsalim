@@ -21,16 +21,19 @@ export type Draft = {
   settlesTouched: boolean;
 };
 
+/** 새 항목의 기본 분류. 스위치 기본값도 여기서 나오므로 한 곳에만 적는다 */
+const DEFAULT_CATEGORY: Category = '주거';
+
 export function emptyDraft(membershipId: string): Draft {
   return {
     id: null,
     membershipId,
     name: '',
     description: '',
-    category: '주거',
+    category: DEFAULT_CATEGORY,
     defaultAmount: null,
     dayOfMonth: '',
-    settles: defaultSettles('주거'),
+    settles: defaultSettles(DEFAULT_CATEGORY),
     settlesTouched: false,
   };
 }
