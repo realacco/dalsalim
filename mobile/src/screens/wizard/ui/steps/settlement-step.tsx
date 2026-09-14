@@ -63,9 +63,12 @@ export function SettlementStep({
       </Text>
 
       <Text style={stepStyles.question}>
-        {/* 항목 이름 뒤에 조사를 붙이지 않는다 — 생활비·월세처럼 모음으로 끝나는 이름이 더 흔하다 */}
-        {lastMonth} {line.name}에{'\n'}
-        {formatWon(planned)}을 옮겼어요.{'\n'}실제로는 얼마나 썼나요?
+        {/*
+          항목 이름 뒤에는 받침에 따라 변하는 조사(으로/로 · 을/를)를 붙이지 않는다 — 생활비·월세처럼
+          모음으로 끝나는 이름이 더 흔하다. 첫 문장은 이름과 금액 길이가 변하므로 줄바꿈을 자동에
+          맡기고, 고정 문구인 질문 앞에서만 끊는다 (폭 360dp · 글자 확대에서 다섯 줄이 되지 않게).
+        */}
+        {lastMonth} {line.name}에 {formatWon(planned)}을 옮겼어요.{'\n'}실제로는 얼마나 썼나요?
       </Text>
 
       {/*

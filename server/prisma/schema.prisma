@@ -141,7 +141,7 @@ model EntryLine {
   id             String  @id @default(cuid())
   entryId        String
   kind           String // SETTLEMENT | INCOME | FIXED | EXTRA (F-ENT-11 결산 줄은 지난달 줄의 정정 — 합계에서 다르게 센다)
-  fixedExpenseId String? // FIXED 일 때만. 장기 추이의 근거가 되므로 보존한다
+  fixedExpenseId String? // FIXED 와 SETTLEMENT 일 때. 장기 추이의 근거가 되므로 보존한다 — 고정비 줄인지는 kind 로 가른다
   name           String
   category       String
   /// 기본값. 지난달 실제 금액 → 없으면 고정비 등록 금액. null 이면 첫 달이라 비교 대상이 없다.
