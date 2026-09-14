@@ -2,7 +2,12 @@
 //       F-ENT-10 F-ENT-11
 export type { Entry, EntryLine } from './model/types';
 export { needsReason } from './model/reason';
-export { type SettlementDelta, settledYearMonth, settlementDelta } from './model/settlement';
+export {
+  type SettlementDelta,
+  formatSettlementDelta,
+  settledYearMonth,
+  settlementDelta,
+} from './model/settlement';
 export {
   addExtraLine,
   deleteEntry,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { settledYearMonth, settlementDelta } from './settlement';
+import { formatSettlementDelta, settledYearMonth, settlementDelta } from './settlement';
 
 describe('F-ENT-11 settlementDelta — 옮긴 것과 얼마나 다른가', () => {
   it('아직 안 적었으면 empty', () => {
@@ -30,5 +30,16 @@ describe('F-ENT-11 settledYearMonth — 결산 줄이 가리키는 달', () => {
 
   it('1월이면 지난해 12월이다', () => {
     expect(settledYearMonth('2026-01')).toBe('2025-12');
+  });
+});
+
+describe('F-ENT-11 formatSettlementDelta — 요약 카드의 차액 표기', () => {
+  it('더 썼으면 + 부호, 덜 썼으면 − 부호', () => {
+    expect(formatSettlementDelta(50000)).toBe('+50,000');
+    expect(formatSettlementDelta(-50000)).toBe('−50,000');
+  });
+
+  it("0 은 '그대로' — 옮긴 만큼 썼다는 사실이 보여야 한다", () => {
+    expect(formatSettlementDelta(0)).toBe('그대로');
   });
 });

@@ -67,6 +67,10 @@ export function SettlementStep({
         {formatWon(planned)}을 옮겼어요.{'\n'}실제로는 얼마나 썼나요?
       </Text>
 
+      {/*
+        이름·분류는 지난달 스냅샷이지만 설명은 지금 항목의 것이다 — 설명은 "이게 무엇인지" 를 알려주는
+        힌트라 항상 최신이 맞다 (services/entry.ts 의 serializeEntry 참조). 고정비 스텝과 같은 규칙이다.
+      */}
       {line.description ? <Text style={styles.description}>{line.description}</Text> : null}
 
       <View style={{ gap: space.sm, marginTop: space.lg }}>

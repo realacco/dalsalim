@@ -5,10 +5,12 @@ import {
   currentYearMonth as serverCurrentYearMonth,
   defaultSettles as serverDefaultSettles,
   needsReason as serverNeedsReason,
+  settlementOverspend as serverSettlementOverspend,
   shiftYearMonth as serverShiftYearMonth,
 } from '../../server/src/lib/shared.js';
 
 import { needsReason as appNeedsReason } from '../../mobile/src/entities/entry/model/reason';
+import { settlementDelta as appSettlementDelta } from '../../mobile/src/entities/entry/model/settlement';
 import { defaultSettles as appDefaultSettles } from '../../mobile/src/entities/fixed-expense/model/settles';
 import {
   currentYearMonth as appCurrentYearMonth,
@@ -124,5 +126,47 @@ describe('defaultSettles — 결산 스위치 기본값이 서버와 앱에서 �
       expect(judge('통신')).toBe(false);
       expect(judge('기타')).toBe(false);
     }
+  });
+});
+
+describe('결산 차액 — 서버가 남은 돈에서 빼는 금액과 앱이 화면에 말하는 금액이 같다', () => {
+  // 같은 함수가 아니라 같은 규칙이다. 서버 settlementOverspend 는 "더 쓴 만큼만 뺀다" 의 합계 쪽,
+  // 앱 settlementDelta 는 "N원 더 썼어요 · 남은 돈에서 빠져요" 의 화면 쪽. 한쪽만 바뀌면
+  // 힌트가 말한 금액과 요약이 실제로 뺀 금액이 조용히 갈린다.
+  const PLANNED = [1, 300000, 500000];
+  const ACTUAL = [0, 1, 250000, 300000, 350000, 500000, 620000];
+
+  it('더 쓴 경우에만 서버가 빼고, 빼는 금액이 앱이 말하는 금액과 같다', () => {
+    const mismatched: string[] = [];
+
+    for (const plannedAmount of PLANNED) {
+      for (const actualAmount of ACTUAL) {
+        const server = serverSettlementOverspend({
+          kind: 'SETTLEMENT',
+          plannedAmount,
+          actualAmount,
+        });
+        const app = appSettlementDelta(plannedAmount, actualAmount);
+        const appOver = app.kind === 'over' ? app.amount : 0;
+        if (server !== appOver) {
+          mismatched.push(
+            `(옮긴 ${plannedAmount}, 실제 ${actualAmount}) 서버 ${server} · 앱 ${appOver}`,
+          );
+        }
+      }
+    }
+
+    expect(mismatched).toEqual([]);
+  });
+
+  it('덜 쓴 것은 양쪽 다 남은 돈에 더하지 않는다', () => {
+    expect(
+      serverSettlementOverspend({
+        kind: 'SETTLEMENT',
+        plannedAmount: 300000,
+        actualAmount: 250000,
+      }),
+    ).toBe(0);
+    expect(appSettlementDelta(300000, 250000)).toEqual({ kind: 'under', amount: 50000 });
   });
 });

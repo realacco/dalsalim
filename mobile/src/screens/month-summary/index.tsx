@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { bookKeys, fetchMonthSummary } from '@/entities/book';
+import { formatSettlementDelta } from '@/entities/entry';
 import { useSession } from '@/entities/session';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Button, Card, Divider, Loading, Muted, Notice, QueryError, Row } from '@/shared/ui';
@@ -132,8 +133,7 @@ export default function SummaryScreen() {
                           { color: item.delta > 0 ? colors.up : colors.inkFaint },
                         ]}
                       >
-                        {item.delta === 0 ? '그대로' : item.delta > 0 ? '+' : '−'}
-                        {item.delta === 0 ? '' : formatAmount(Math.abs(item.delta))}
+                        {formatSettlementDelta(item.delta)}
                       </Text>
                     </View>
                     <Text style={styles.changeReason}>
@@ -159,6 +159,10 @@ export default function SummaryScreen() {
                     label="지출"
                     value={`− ${formatWon(member.fixedTotal + member.extraTotal)}`}
                   />
+                  {/* 남은 돈이 이 줄까지 뺀 값이라, 없으면 수입 − 지출 ≠ 남은 돈으로 보인다 (F-ENT-11) */}
+                  {member.settlementTotal > 0 ? (
+                    <Row label="지난달 더 쓴 것" value={`− ${formatWon(member.settlementTotal)}`} />
+                  ) : null}
                   <Row
                     label="남은 돈"
                     value={formatWon(member.surplus)}
