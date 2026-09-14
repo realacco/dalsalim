@@ -354,6 +354,13 @@ async function main() {
 
   const health = await call('GET', '/health');
   check('서버 살아 있음', health.status === 200, health.body);
+  check('/health 에 배포 커밋 자리가 있다 — 로컬은 null', 'sha' in health.body, health.body);
+  const nowhere = await call('GET', '/nowhere');
+  check(
+    '없는 주소도 { code, message } 로 답한다',
+    nowhere.status === 404 && nowhere.body.code === 'NOT_FOUND',
+    nowhere.body,
+  );
 
   await bootstrap();
   await resetMonth([OWNER, MEMBER]);
