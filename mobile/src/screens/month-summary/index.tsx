@@ -1,4 +1,4 @@
-// 기능: F-BOOK-02
+// 기능: F-BOOK-02 F-ENT-11
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -65,6 +65,12 @@ export default function SummaryScreen() {
               <Row label="수입" value={formatWon(summary.data.totals.income)} />
               <Row label="고정비" value={`− ${formatWon(summary.data.totals.fixedTotal)}`} />
               <Row label="추가 지출" value={`− ${formatWon(summary.data.totals.extraTotal)}`} />
+              {summary.data.totals.settlementTotal > 0 ? (
+                <Row
+                  label="지난달 더 쓴 것"
+                  value={`− ${formatWon(summary.data.totals.settlementTotal)}`}
+                />
+              ) : null}
             </Card>
 
             {summary.data.changes.length > 0 ? (
@@ -95,6 +101,44 @@ export default function SummaryScreen() {
                       </Text>
                     </View>
                     <Text style={styles.changeReason}>{change.reason}</Text>
+                  </View>
+                ))}
+              </Card>
+            ) : null}
+
+            {summary.data.settlements.length > 0 ? (
+              <Card style={{ gap: space.md }}>
+                <View style={{ gap: space.xs }}>
+                  <Text style={styles.cardTitle}>지난달 결산</Text>
+                  <Muted>
+                    옮겨둔 돈을 실제로 얼마나 썼는지예요. 더 쓴 만큼만 남은 돈에서 빠져요.
+                  </Muted>
+                </View>
+                <Divider />
+                {summary.data.settlements.map((item, order) => (
+                  <View
+                    key={`${item.displayName}-${item.name}-${order}`}
+                    style={{ gap: space.xxs }}
+                  >
+                    <View style={styles.changeHead}>
+                      <Text style={styles.changeName}>
+                        {item.name}
+                        <Text style={styles.changeWho}> · {item.displayName}</Text>
+                      </Text>
+                      {/* 덜 쓴 것은 색을 입히지 않는다 — 남은 돈이 늘지 않으니 "좋은 일" 로 읽히면 안 된다 */}
+                      <Text
+                        style={[
+                          styles.changeDelta,
+                          { color: item.delta > 0 ? colors.up : colors.inkFaint },
+                        ]}
+                      >
+                        {item.delta === 0 ? '그대로' : item.delta > 0 ? '+' : '−'}
+                        {item.delta === 0 ? '' : formatAmount(Math.abs(item.delta))}
+                      </Text>
+                    </View>
+                    <Text style={styles.changeReason}>
+                      {formatWon(item.planned)} 옮기고 {formatWon(item.actual)} 썼어요
+                    </Text>
                   </View>
                 ))}
               </Card>

@@ -48,6 +48,9 @@ export function MyCard({
         <Row label="수입" value={formatWon(summary.income)} />
         <Row label="고정비" value={`− ${formatWon(summary.fixedTotal)}`} />
         <Row label="추가 지출" value={`− ${formatWon(summary.extraTotal)}`} />
+        {summary.settlementTotal > 0 ? (
+          <Row label="지난달 더 쓴 것" value={`− ${formatWon(summary.settlementTotal)}`} />
+        ) : null}
         <Divider />
         <Row
           label="남은 돈"

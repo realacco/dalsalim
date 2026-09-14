@@ -4,14 +4,18 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { type Entry, type EntryLine, entryKeys, fetchEntry, patchEntry } from '@/entities/entry';
 
 export type Step =
-  { kind: 'line'; line: EntryLine } | { kind: 'extras' } | { kind: 'note' } | { kind: 'review' };
+  | { kind: 'settlement'; line: EntryLine }
+  | { kind: 'line'; line: EntryLine }
+  | { kind: 'extras' }
+  | { kind: 'note' }
+  | { kind: 'review' };
 
 /**
  * 위저드의 흐름을 담는다 — 어떤 스텝들이 있고, 지금 몇 번째이며, 어떻게 넘어가는가.
  *
- * 스텝 목록은 서버가 내려준 줄에서 그대로 나온다. 수입 1줄 + 고정비 n줄이 각각
+ * 스텝 목록은 서버가 내려준 줄에서 그대로 나온다. 지난달 결산 m줄 + 수입 1줄 + 고정비 n줄이 각각
  * 한 스텝이고, 뒤에 추가지출·특이사항·확인이 붙는다. 그래서 고정비를 늘리면
- * 스텝도 따라 늘어난다 — 별도 설정이 없다.
+ * 스텝도 따라 늘어난다 — 별도 설정이 없다. 결산 줄은 서버가 만들 때만 생기므로 여기서 세지 않는다.
  */
 export function useWizard(entryId: string | undefined) {
   const [index, setIndex] = useState<number | null>(null);
@@ -27,10 +31,13 @@ export function useWizard(entryId: string | undefined) {
   const steps = useMemo<Step[]>(() => {
     if (!entry) return [];
 
+    // 지난달 이야기(결산)를 먼저 끝내고 이번 달로 넘어간다 — 서버의 줄 순서와 같다
+    const settlements = entry.lines.filter((line) => line.kind === 'SETTLEMENT');
     const income = entry.lines.filter((line) => line.kind === 'INCOME');
     const fixed = entry.lines.filter((line) => line.kind === 'FIXED');
 
     return [
+      ...settlements.map((line) => ({ kind: 'settlement', line }) as Step),
       ...income.map((line) => ({ kind: 'line', line }) as Step),
       ...fixed.map((line) => ({ kind: 'line', line }) as Step),
       { kind: 'extras' },
