@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { draftFromItem, draftToInput, emptyDraft, sanitizeDay, validateDraft } from './draft';
+import {
+  draftFromItem,
+  draftToInput,
+  emptyDraft,
+  patchDraft,
+  sanitizeDay,
+  validateDraft,
+} from './draft';
 
 describe('F-FIX-02 · F-FIX-03 고정비 편집 초안', () => {
   it('새 항목은 주거 분류에 빈 값으로 시작한다', () => {
@@ -11,6 +18,8 @@ describe('F-FIX-02 · F-FIX-03 고정비 편집 초안', () => {
       category: '주거',
       defaultAmount: null,
       dayOfMonth: '',
+      settles: false,
+      settlesTouched: false,
     });
   });
 
@@ -23,6 +32,7 @@ describe('F-FIX-02 · F-FIX-03 고정비 편집 초안', () => {
         category: '주거',
         defaultAmount: 600000,
         dayOfMonth: 25,
+        settles: false,
       },
       'm1',
     );
@@ -40,6 +50,7 @@ describe('F-FIX-02 · F-FIX-03 고정비 편집 초안', () => {
         category: '통신',
         defaultAmount: 55000,
         dayOfMonth: null,
+        settles: false,
       },
       'm1',
     );
@@ -55,10 +66,51 @@ describe('F-FIX-02 · F-FIX-03 고정비 편집 초안', () => {
         category: '기타',
         defaultAmount: 300000,
         dayOfMonth: null,
+        settles: true,
       },
       'm1',
     );
     expect(draft.description).toBe('');
+    // 저장된 항목의 스위치는 그대로 실려 오고, 분류를 바꿔도 안 따라간다
+    expect(draft.settles).toBe(true);
+    expect(draft.settlesTouched).toBe(true);
+  });
+});
+
+describe('★ F-FIX-07 결산 스위치 기본값은 분류를 따라간다 — 사람이 건드리기 전까지만', () => {
+  it('새 항목에서 분류를 생활비로 고르면 켜지고, 다른 분류로 바꾸면 꺼진다', () => {
+    const living = patchDraft(emptyDraft('m1'), { category: '생활비' });
+    expect(living.settles).toBe(true);
+    expect(patchDraft(living, { category: '통신' }).settles).toBe(false);
+  });
+
+  it('스위치를 직접 건드린 뒤에는 분류를 바꿔도 그대로다', () => {
+    const on = patchDraft(emptyDraft('m1'), { settles: true });
+    expect(on.settlesTouched).toBe(true);
+    expect(patchDraft(on, { category: '통신' }).settles).toBe(true);
+    expect(patchDraft(on, { category: '생활비' }).settles).toBe(true);
+  });
+
+  it('저장된 항목은 처음부터 독립이다 — 수정 시트에서 분류를 생활비로 바꿔도 안 켜진다', () => {
+    const saved = draftFromItem(
+      {
+        id: 'f4',
+        name: '통신비',
+        description: null,
+        category: '통신',
+        defaultAmount: 55000,
+        dayOfMonth: null,
+        settles: false,
+      },
+      'm1',
+    );
+    expect(patchDraft(saved, { category: '생활비' }).settles).toBe(false);
+  });
+
+  it('다른 칸을 고치는 것은 스위치와 무관하다', () => {
+    const draft = patchDraft(emptyDraft('m1'), { category: '생활비' });
+    expect(patchDraft(draft, { name: '생활비' }).settles).toBe(true);
+    expect(patchDraft(draft, { name: '생활비' }).settlesTouched).toBe(false);
   });
 });
 
@@ -97,6 +149,7 @@ describe('F-FIX-02 · F-FIX-03 서버로 보낼 모양', () => {
       category: '주거',
       defaultAmount: 0,
       dayOfMonth: null,
+      settles: false,
     });
   });
 
@@ -109,6 +162,7 @@ describe('F-FIX-02 · F-FIX-03 서버로 보낼 모양', () => {
       category: '주거',
       defaultAmount: 600000,
       dayOfMonth: 25,
+      settles: false,
     });
   });
 

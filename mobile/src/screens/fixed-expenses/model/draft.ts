@@ -1,4 +1,6 @@
 import type { FixedExpense, FixedExpenseInput } from '@/entities/fixed-expense';
+// 배럴이 아니라 model 을 직접 가리킨다 — 배럴은 api 를 거쳐 react-native 를 끌어와 1층 테스트가 못 돈다
+import { defaultSettles } from '@/entities/fixed-expense/model/settles';
 import type { Category } from '@/shared/model/types';
 
 /** 시트가 들고 있는 편집 중인 항목. 결제일은 입력창 그대로 문자열이다 (비어 있을 수 있다). */
@@ -10,6 +12,13 @@ export type Draft = {
   category: Category;
   defaultAmount: number | null;
   dayOfMonth: string;
+  /** 다음 달에 실제로 쓴 금액을 물을지 (F-FIX-07) */
+  settles: boolean;
+  /**
+   * 사람이 스위치를 직접 건드렸나. 건드리기 전까지만 분류가 기본값을 정한다 —
+   * 켜 놓은 것을 분류 한 번 바꿨다고 조용히 끄면 안 된다.
+   */
+  settlesTouched: boolean;
 };
 
 export function emptyDraft(membershipId: string): Draft {
@@ -21,6 +30,8 @@ export function emptyDraft(membershipId: string): Draft {
     category: '주거',
     defaultAmount: null,
     dayOfMonth: '',
+    settles: defaultSettles('주거'),
+    settlesTouched: false,
   };
 }
 
@@ -33,7 +44,25 @@ export function draftFromItem(item: FixedExpense, membershipId: string): Draft {
     category: item.category as Category,
     defaultAmount: item.defaultAmount,
     dayOfMonth: item.dayOfMonth ? String(item.dayOfMonth) : '',
+    settles: item.settles,
+    // 저장한 뒤에는 분류와 스위치가 독립이다 — 수정 시트에서 분류를 바꿔도 스위치는 그대로다
+    settlesTouched: true,
   };
+}
+
+/**
+ * 시트의 한 칸을 고친다. 스위치의 기본값이 분류를 따라가는 규칙이 여기 산다.
+ *
+ * 등록 시트에서 분류를 `생활비` 로 고르면 스위치가 켜지고 다른 분류로 바꾸면 꺼진다 —
+ * **사람이 스위치를 직접 건드리기 전까지만.** 저장한 항목은 처음부터 독립이다 (F-FIX-07).
+ */
+export function patchDraft(draft: Draft, patch: Partial<Draft>): Draft {
+  const next = { ...draft, ...patch };
+  if ('settles' in patch) return { ...next, settlesTouched: true };
+  if ('category' in patch && !draft.settlesTouched) {
+    return { ...next, settles: defaultSettles(next.category) };
+  }
+  return next;
 }
 
 /** 결제일 입력은 숫자 두 자리까지만 받는다 */
@@ -58,5 +87,6 @@ export function draftToInput(draft: Draft): FixedExpenseInput {
     category: draft.category,
     defaultAmount: draft.defaultAmount ?? 0,
     dayOfMonth: draft.dayOfMonth ? Number(draft.dayOfMonth) : null,
+    settles: draft.settles,
   };
 }

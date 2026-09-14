@@ -6,6 +6,8 @@ export type FixedExpense = {
   category: string;
   defaultAmount: number;
   dayOfMonth: number | null;
+  /** 다음 달에 실제로 쓴 금액을 물을지 (F-FIX-07). 목록에는 표시하지 않는다 */
+  settles: boolean;
 };
 
 /** 고정비는 항상 사람별로 묶어서 본다. 가족 합계만 보면 아무 대화도 생기지 않는다. */
@@ -26,4 +28,5 @@ export type FixedExpenseInput = {
   category: string;
   defaultAmount: number;
   dayOfMonth: number | null;
+  settles: boolean;
 };

@@ -15,7 +15,14 @@ import { useSession } from '@/entities/session';
 import { MESSAGES } from '@/shared/config/messages';
 import { errorMessage } from '@/shared/lib/errors';
 
-import { type Draft, draftFromItem, draftToInput, emptyDraft, validateDraft } from './draft';
+import {
+  type Draft,
+  draftFromItem,
+  draftToInput,
+  emptyDraft,
+  patchDraft,
+  validateDraft,
+} from './draft';
 
 /**
  * 고정비 화면의 상태 조립 — 사람별 목록과, 시트에서 편집 중인 항목 하나.
@@ -91,7 +98,7 @@ export function useFixedExpenses() {
       setError(null);
       setDraft(draftFromItem(item, membershipId));
     },
-    change: (patch: Partial<Draft>) => setDraft((prev) => (prev ? { ...prev, ...patch } : prev)),
+    change: (patch: Partial<Draft>) => setDraft((prev) => (prev ? patchDraft(prev, patch) : prev)),
     close: () => {
       setDraft(null);
       setError(null);

@@ -3,11 +3,13 @@ import { afterEach, describe, it, expect, vi } from 'vitest';
 import {
   CATEGORIES as SERVER_CATEGORIES,
   currentYearMonth as serverCurrentYearMonth,
+  defaultSettles as serverDefaultSettles,
   needsReason as serverNeedsReason,
   shiftYearMonth as serverShiftYearMonth,
 } from '../../server/src/lib/shared.js';
 
 import { needsReason as appNeedsReason } from '../../mobile/src/entities/entry/model/reason';
+import { defaultSettles as appDefaultSettles } from '../../mobile/src/entities/fixed-expense/model/settles';
 import {
   currentYearMonth as appCurrentYearMonth,
   shiftYearMonth as appShiftYearMonth,
@@ -92,6 +94,23 @@ describe('currentYearMonth — 서버와 앱이 같은 "이번 달"을 본다', 
       vi.setSystemTime(at);
       expect(appCurrentYearMonth()).toBe(serverCurrentYearMonth());
       vi.useRealTimers();
+    }
+  });
+});
+
+describe('defaultSettles — 결산 스위치 기본값이 서버와 앱에서 같다 (F-FIX-07)', () => {
+  it('아홉 분류 모두에서 결과가 갈리지 않는다', () => {
+    const mismatched = [...SERVER_CATEGORIES].filter(
+      (category) => serverDefaultSettles(category) !== appDefaultSettles(category),
+    );
+    expect(mismatched).toEqual([]);
+  });
+
+  it('두 구현 모두 생활비만 켠다 — 등록 시트가 켠 것과 서버가 저장한 것이 같아야 한다', () => {
+    for (const judge of [serverDefaultSettles, appDefaultSettles]) {
+      expect(judge('생활비')).toBe(true);
+      expect(judge('통신')).toBe(false);
+      expect(judge('기타')).toBe(false);
     }
   });
 });
