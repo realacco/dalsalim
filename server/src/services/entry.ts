@@ -1,5 +1,5 @@
 // 기능: F-ENT-01 F-ENT-02 F-ENT-03 F-ENT-04 F-ENT-05 F-ENT-06 F-ENT-07 F-ENT-08
-//       F-ENT-10
+//       F-ENT-10 F-ENT-11
 import type { MemberEntry, MonthlyBook } from '@prisma/client';
 
 import { prisma } from '../lib/db.js';
@@ -83,6 +83,7 @@ async function findLine(entryId: string, lineId: string) {
  *
  * ★ 하드룰 2·3 이 강제되는 자리 — 기본값이 있고 금액이 그와 다르면 사유 없이는 통과시키지 않는다.
  *   판정은 lib/shared 의 needsReason() 한 곳에서만 한다. 제출(submitEntry)에서 한 번 더 막는다.
+ *   결산 줄은 그 함수가 "안 묻는다" 고 답하므로 여기서 따로 가르지 않는다 (F-ENT-11).
  */
 export async function updateLine(
   entryId: string,
@@ -91,7 +92,7 @@ export async function updateLine(
 ) {
   const line = await findLine(entryId, lineId);
   const trimmedReason = body.changeReason?.trim() || null;
-  const reasonNeeded = needsReason(line.plannedAmount, body.actualAmount);
+  const reasonNeeded = needsReason({ ...line, actualAmount: body.actualAmount });
 
   if (reasonNeeded && !trimmedReason) throw fail('REASON_REQUIRED');
 
@@ -136,6 +137,7 @@ export async function deleteExtraLine(entryId: string, lineId: string) {
 
 /**
  * 제출. 안 적은 스텝이 있거나 사유가 빈 줄이 있으면 막는다 (하드룰 3 의 두 번째 방어선).
+ * 결산 줄도 안 적으면 막힌다 — 건너뛰기가 없고, 기본값 그대로 [다음] 을 누른 것이 곧 확정이다 (F-ENT-11).
  * 제출되면 장부의 완성 판정을 다시 한다.
  */
 export async function submitEntry(entry: Pick<MemberEntry, 'id' | 'bookId'>) {
@@ -149,9 +151,7 @@ export async function submitEntry(entry: Pick<MemberEntry, 'id' | 'bookId'>) {
     throw fail('INCOMPLETE', unfilled.map((l) => l.name).join(', '));
   }
 
-  const missingReason = lines.filter(
-    (l) => needsReason(l.plannedAmount, l.actualAmount) && !l.changeReason,
-  );
+  const missingReason = lines.filter((l) => needsReason(l) && !l.changeReason);
   if (missingReason.length > 0) {
     throw fail('REASON_REQUIRED', missingReason.map((l) => l.name).join(', '));
   }

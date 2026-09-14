@@ -37,7 +37,11 @@ export function LineStep({
   const [amount, setAmount] = useState<number | null>(line.actualAmount ?? line.plannedAmount);
   const [reason, setReason] = useState(line.changeReason ?? '');
 
-  const reasonNeeded = needsReason(line.plannedAmount, amount);
+  const reasonNeeded = needsReason({
+    kind: line.kind,
+    plannedAmount: line.plannedAmount,
+    actualAmount: amount,
+  });
 
   const save = useMutation({
     mutationFn: () =>

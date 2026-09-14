@@ -136,11 +136,11 @@ model MemberEntry {
   @@index([membershipId])
 }
 
-/// 위저드의 한 줄 = 한 스텝. 수입 / 고정비 / 추가지출.
+/// 위저드의 한 줄 = 한 스텝. 지난달 결산 / 수입 / 고정비 / 추가지출.
 model EntryLine {
   id             String  @id @default(cuid())
   entryId        String
-  kind           String // INCOME | FIXED | EXTRA
+  kind           String // SETTLEMENT | INCOME | FIXED | EXTRA (F-ENT-11 결산 줄은 지난달 줄의 정정 — 합계에서 다르게 센다)
   fixedExpenseId String? // FIXED 일 때만. 장기 추이의 근거가 되므로 보존한다
   name           String
   category       String

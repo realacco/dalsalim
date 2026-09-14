@@ -41,6 +41,15 @@ export type MonthSummary = {
   changes: { displayName: string; name: string; kind: LineKind; delta: number; reason: string }[];
   extras: { displayName: string; name: string; category: string; amount: number }[];
   byCategory: { category: string; amount: number }[];
+  /** "지난달 결산" — 옮겨둔 돈을 실제로 얼마나 썼나. 사유가 없으므로 changes 와 따로 온다 (F-ENT-11) */
+  settlements: {
+    displayName: string;
+    name: string;
+    planned: number;
+    actual: number;
+    delta: number;
+    overspend: number;
+  }[];
   notes: { displayName: string; note: string }[];
 };
 
@@ -50,6 +59,7 @@ export type TrendPoint = {
   income: number;
   fixedTotal: number;
   extraTotal: number;
+  settlementTotal: number;
   surplus: number;
   submittedCount: number;
   memberCount: number;

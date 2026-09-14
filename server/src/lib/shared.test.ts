@@ -14,39 +14,56 @@ import {
   shiftYearMonth,
 } from './shared.js';
 
+/** 사유 판정 케이스를 짧게 적기 위한 것 — 종류를 안 적으면 고정비 줄이다 */
+function judge(plannedAmount: number | null, actualAmount: number | null, kind = 'FIXED') {
+  return needsReason({ kind, plannedAmount, actualAmount });
+}
+
 /**
  * 하드룰 2·3 의 판정 함수. 줄 저장과 제출 양쪽이 이 하나를 본다.
  * 여기가 조용히 바뀌면 "차이에만 이유를 묻는다"는 제품의 정체성이 무너진다.
  */
 describe('F-ENT-04 needsReason — 사유 강제 (하드룰 2·3)', () => {
   it('기본값과 금액이 같으면 아무것도 묻지 않는다', () => {
-    expect(needsReason(120000, 120000)).toBe(false);
+    expect(judge(120000, 120000)).toBe(false);
   });
 
   it('★ 금액이 달라지면 사유가 필요하다', () => {
-    expect(needsReason(120000, 135000)).toBe(true);
-    expect(needsReason(120000, 90000)).toBe(true);
+    expect(judge(120000, 135000)).toBe(true);
+    expect(judge(120000, 90000)).toBe(true);
   });
 
   it('★ 되돌리면 다시 필요 없어진다 — 사유도 같이 지워야 한다는 근거', () => {
-    expect(needsReason(120000, 135000)).toBe(true);
-    expect(needsReason(120000, 120000)).toBe(false);
+    expect(judge(120000, 135000)).toBe(true);
+    expect(judge(120000, 120000)).toBe(false);
   });
 
   it('기본값이 없는 첫 달은 비교 대상이 없으므로 묻지 않는다', () => {
-    expect(needsReason(null, 135000)).toBe(false);
+    expect(judge(null, 135000)).toBe(false);
   });
 
   it('아직 금액을 적지 않았으면 묻지 않는다', () => {
-    expect(needsReason(120000, null)).toBe(false);
+    expect(judge(120000, null)).toBe(false);
   });
 
   it('★ 0 원과 안 적은 것(null)은 다르다', () => {
     // 0 으로 적은 것은 "이번 달엔 안 냈다"는 기록이다. 비교 대상이 있으므로 사유를 받는다
-    expect(needsReason(120000, 0)).toBe(true);
-    expect(needsReason(0, 0)).toBe(false);
-    expect(needsReason(0, null)).toBe(false);
-    expect(needsReason(null, 0)).toBe(false);
+    expect(judge(120000, 0)).toBe(true);
+    expect(judge(0, 0)).toBe(false);
+    expect(judge(0, null)).toBe(false);
+    expect(judge(null, 0)).toBe(false);
+  });
+
+  it('★ F-ENT-11 결산 줄은 금액이 달라도 묻지 않는다 — 정정이지 변화가 아니다', () => {
+    expect(judge(500000, 350000, 'SETTLEMENT')).toBe(false);
+    expect(judge(500000, 620000, 'SETTLEMENT')).toBe(false);
+    expect(judge(500000, 0, 'SETTLEMENT')).toBe(false);
+    expect(judge(500000, 500000, 'SETTLEMENT')).toBe(false);
+  });
+
+  it('수입 줄은 고정비 줄과 같은 규칙이다', () => {
+    expect(judge(3000000, 3200000, 'INCOME')).toBe(true);
+    expect(judge(3000000, 3000000, 'INCOME')).toBe(false);
   });
 });
 
@@ -132,8 +149,8 @@ describe('공유 상수', () => {
     expect(CATEGORIES as readonly string[]).not.toContain('생활');
   });
 
-  it('줄 종류는 수입 · 고정비 · 추가지출 셋뿐이다', () => {
-    expect(LINE_KINDS).toEqual(['INCOME', 'FIXED', 'EXTRA']);
+  it('줄 종류는 결산 · 수입 · 고정비 · 추가지출 넷뿐이다 — 순서가 위저드 순서다', () => {
+    expect(LINE_KINDS).toEqual(['SETTLEMENT', 'INCOME', 'FIXED', 'EXTRA']);
   });
 
   it('★ 가계부를 볼 수 있는 멤버십은 ACTIVE 하나뿐이다 (하드룰 8)', () => {
@@ -152,8 +169,12 @@ describe('currentYearMonth', () => {
 });
 
 describe('bookProgress — 위저드 진행 표시', () => {
-  it('총 스텝 = 고정비 n + 4 (수입 · 추가지출 · 특이사항 · 확인)', () => {
+  it('총 스텝 = 줄 스텝 n + 4 (수입 · 추가지출 · 특이사항 · 확인)', () => {
     expect(bookProgress(0, 3)).toEqual({ step: 1, total: 7 });
+  });
+
+  it('F-ENT-11 결산 줄도 한 스텝이다 — 고정비 2 + 결산 1 이면 7', () => {
+    expect(bookProgress(0, 2 + 1)).toEqual({ step: 1, total: 7 });
   });
 
   it('cursor 는 0 부터라 사람에게는 +1, 스텝 수를 넘지 않는다', () => {
@@ -161,7 +182,7 @@ describe('bookProgress — 위저드 진행 표시', () => {
     expect(bookProgress(99, 3)).toEqual({ step: 7, total: 7 });
   });
 
-  it('고정비가 없어도 4 스텝은 있다', () => {
+  it('줄 스텝이 없어도 4 스텝은 있다', () => {
     expect(bookProgress(0, 0)).toEqual({ step: 1, total: 4 });
   });
 });

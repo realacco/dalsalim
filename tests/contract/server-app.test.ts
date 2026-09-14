@@ -27,17 +27,23 @@ import { CATEGORIES as APP_CATEGORIES } from '../../mobile/src/shared/model/type
  */
 
 const AMOUNTS: (number | null)[] = [null, 0, 1, 120000, 135000, -5000];
+const KINDS = ['SETTLEMENT', 'INCOME', 'FIXED', 'EXTRA'];
 
 describe('needsReason — 서버와 앱이 같은 답을 낸다 (하드룰 2·3)', () => {
-  it('가능한 조합 36가지에서 결과가 하나도 갈리지 않는다', () => {
+  it('종류 4 × 금액 조합 36 = 144가지에서 결과가 하나도 갈리지 않는다', () => {
     const mismatched: string[] = [];
 
-    for (const planned of AMOUNTS) {
-      for (const actual of AMOUNTS) {
-        const server = serverNeedsReason(planned, actual);
-        const app = appNeedsReason(planned, actual);
-        if (server !== app) {
-          mismatched.push(`(기본값 ${planned}, 금액 ${actual}) 서버 ${server} · 앱 ${app}`);
+    for (const kind of KINDS) {
+      for (const plannedAmount of AMOUNTS) {
+        for (const actualAmount of AMOUNTS) {
+          const line = { kind, plannedAmount, actualAmount };
+          const server = serverNeedsReason(line);
+          const app = appNeedsReason(line);
+          if (server !== app) {
+            mismatched.push(
+              `(${kind} 기본값 ${plannedAmount}, 금액 ${actualAmount}) 서버 ${server} · 앱 ${app}`,
+            );
+          }
         }
       }
     }
@@ -47,11 +53,17 @@ describe('needsReason — 서버와 앱이 같은 답을 낸다 (하드룰 2·3)
 
   it('두 구현 모두 하드룰 그대로 판정한다', () => {
     for (const judge of [serverNeedsReason, appNeedsReason]) {
-      expect(judge(120000, 120000)).toBe(false);
-      expect(judge(120000, 135000)).toBe(true);
-      expect(judge(120000, 0)).toBe(true);
-      expect(judge(null, 135000)).toBe(false);
-      expect(judge(120000, null)).toBe(false);
+      const fixed = (plannedAmount: number | null, actualAmount: number | null) =>
+        judge({ kind: 'FIXED', plannedAmount, actualAmount });
+      expect(fixed(120000, 120000)).toBe(false);
+      expect(fixed(120000, 135000)).toBe(true);
+      expect(fixed(120000, 0)).toBe(true);
+      expect(fixed(null, 135000)).toBe(false);
+      expect(fixed(120000, null)).toBe(false);
+      // 결산 줄은 양쪽 다 안 묻는다 — 한쪽만 물으면 "저장은 되는데 [다음] 이 안 눌린다" 가 된다
+      expect(judge({ kind: 'SETTLEMENT', plannedAmount: 500000, actualAmount: 350000 })).toBe(
+        false,
+      );
     }
   });
 });
