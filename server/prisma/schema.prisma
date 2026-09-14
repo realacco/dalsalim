@@ -80,6 +80,15 @@ model FixedExpense {
   category      String // docs/01-MVP-기획서.md 7.4 의 고정 목록
   defaultAmount Int
   dayOfMonth    Int? // 결제일 (1~31, 선택)
+  /// 다음 달 위저드 맨 앞에서 "실제로 얼마 썼나"를 되물을 것인가 (기획서 7.4 · F-FIX-07).
+  ///
+  /// 통신비·보험처럼 그냥 빠져나가는 돈은 나간 금액이 곧 쓴 금액이라 물을 게 없고,
+  /// 생활비·용돈처럼 옮겨두고 쓰는 돈만 "옮긴 금액"과 "실제 쓴 금액"이 따로 있다.
+  /// 그 구분을 분류가 아니라 항목에 붙인다 — `기타`에 든 용돈만 켜고 잡다한 것은 끄기 위해서다.
+  ///
+  /// EntryLine 에 복사하지 않는다. 스위치의 효과는 "그 달에 결산 줄이 만들어졌다"는 사실로 남고,
+  /// 그 줄 자체가 스냅샷이다 (하드룰 4). 나중에 스위치를 꺼도 이미 만들어진 결산 줄은 그대로다.
+  settles       Boolean  @default(false)
   active        Boolean  @default(true)
   sortOrder     Int      @default(0)
   createdAt     DateTime @default(now())
