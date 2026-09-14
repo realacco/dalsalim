@@ -53,6 +53,12 @@ export const env = {
    *   운영에서는 아예 켤 수 없다 — 아래에서 막는다.
    */
   devLogin: !isProduction && process.env.DEV_LOGIN === 'true',
+
+  /**
+   * 배포된 커밋. "지금 떠 있는 게 어느 커밋이냐"를 /health 로 물을 수 있게 한다.
+   * Railway 가 넣어주는 값이 먼저고, 다른 곳에서는 GIT_SHA 로 직접 넣는다. 로컬은 null.
+   */
+  gitSha: process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.GIT_SHA ?? null,
 } as const;
 
 export const kakaoConfigured = env.kakao.restApiKey.length > 0;
