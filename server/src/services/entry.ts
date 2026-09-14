@@ -20,7 +20,8 @@ export async function serializeEntry(entryId: string) {
     where: { id: entryId },
     include: {
       lines: {
-        orderBy: { sortOrder: 'asc' },
+        // 번호가 같으면 먼저 만든 줄이 앞이다 — cuid 는 시각 순이라 id 가 그 역할을 한다
+        orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
         // 설명은 줄에 복사돼 있지 않아 항목에서 읽어온다 — 아래 map 의 주석 참조
         include: { fixedExpense: { select: { description: true } } },
       },
@@ -119,8 +120,10 @@ export type ExtraLineInput = { name: string; actualAmount: number } & (
  * 기타 수입(F-ENT-12)은 분류 목록을 쓰지 않는다 — 수입 줄과 같은 내부 분류값이 들어간다.
  */
 export async function addExtraLine(entryId: string, body: ExtraLineInput) {
-  // 기타 수입은 수입(0)과 고정비(100번대) 사이, 추가 지출은 1000번대 — 위저드 순서 그대로다
+  // 기타 수입은 수입(0)과 고정비(100번대) 사이, 추가 지출은 1000번대 — 위저드 순서 그대로다.
+  // 기타 수입 자리는 99 에서 멈춘다 — 넘으면 고정비 사이로 끼어든다. 겹친 번호는 id 순으로 정렬된다
   const base = body.kind === 'EXTRA_INCOME' ? 50 : 1000;
+  const cap = body.kind === 'EXTRA_INCOME' ? 99 : Number.MAX_SAFE_INTEGER;
   // 개수가 아니라 마지막 번호 다음이다 — 가운데 줄을 지우고 새로 적으면 개수로는 번호가 겹친다
   const last = await prisma.entryLine.aggregate({
     where: { entryId, kind: body.kind },
@@ -135,7 +138,7 @@ export async function addExtraLine(entryId: string, body: ExtraLineInput) {
       category: body.kind === 'EXTRA_INCOME' ? INCOME_CATEGORY : body.category,
       plannedAmount: null,
       actualAmount: body.actualAmount,
-      sortOrder: Math.max(base, (last._max.sortOrder ?? base - 1) + 1),
+      sortOrder: Math.min(cap, Math.max(base, (last._max.sortOrder ?? base - 1) + 1)),
     },
   });
 }

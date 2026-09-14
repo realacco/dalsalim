@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import {
@@ -84,6 +84,9 @@ export function ExtrasStep({
   const remove = useMutation({
     mutationFn: (lineId: string) => deleteLine(entry.id, lineId),
     onSuccess: () => void refresh(),
+    // 줄마다 붙은 동작이라 붙일 자리가 없다 — Alert (CLAUDE.md 실패 표현)
+    onError: (caught) =>
+      Alert.alert(MESSAGES.actionFailed, errorMessage(caught, MESSAGES.actionFailedBody)),
   });
 
   return (
