@@ -69,7 +69,7 @@ export async function entryRoutes(app: FastifyInstance) {
       .object({
         actualAmount: amount,
         changeReason: reason,
-        name: z.string().trim().min(1).max(30).optional(),
+        name: lineName.optional(),
       })
       .parse(request.body);
 

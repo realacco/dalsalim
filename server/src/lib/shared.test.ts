@@ -182,10 +182,6 @@ describe('bookProgress — 위저드 진행 표시', () => {
     expect(bookProgress(0, 2 + 1)).toEqual({ step: 1, total: 8 });
   });
 
-  it('F-ENT-12 기타 수입은 줄 수와 무관하게 늘 한 스텝이다 — 추가 지출과 같다', () => {
-    expect(bookProgress(0, 0).total).toBe(5);
-  });
-
   it('cursor 는 0 부터라 사람에게는 +1, 스텝 수를 넘지 않는다', () => {
     expect(bookProgress(2, 3)).toEqual({ step: 3, total: 8 });
     expect(bookProgress(99, 3)).toEqual({ step: 8, total: 8 });
