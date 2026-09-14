@@ -812,7 +812,7 @@ async function main() {
       membershipId: descGroup?.membershipId,
       name: '적금',
       description: '   ',
-      category: '기타',
+      category: '저축',
       defaultAmount: 300_000,
     },
   });
@@ -947,6 +947,12 @@ async function main() {
     token: dad.token,
     body: { ...settleBase, name: '통신비', category: '통신' },
   });
+  check(
+    'F-FIX-07 다른 분류는 꺼진 채 저장된다',
+    telecom.status === 200 && telecom.body.fixedExpense?.settles === false,
+    telecom.body,
+  );
+
   const investing = await call('POST', `/families/${dad.familyId}/fixed-expenses`, {
     token: dad.token,
     body: { ...settleBase, name: '연금저축펀드', category: '투자' },
@@ -955,15 +961,6 @@ async function main() {
     'F-FIX-08 투자 분류로 등록되고 결산 스위치는 꺼진 채다 — 옮기면 끝나는 돈이다',
     investing.status === 200 && investing.body.fixedExpense?.settles === false,
     investing.body,
-  );
-  if (investing.body.fixedExpense?.id) {
-    await call('DELETE', `/fixed-expenses/${investing.body.fixedExpense.id}`, { token: dad.token });
-  }
-
-  check(
-    'F-FIX-07 다른 분류는 꺼진 채 저장된다',
-    telecom.status === 200 && telecom.body.fixedExpense?.settles === false,
-    telecom.body,
   );
 
   const livingOff = await call('POST', `/families/${dad.familyId}/fixed-expenses`, {
@@ -1031,7 +1028,7 @@ async function main() {
   });
   check('F-FIX-07 불리언이 아니면 VALIDATION', notBool.body.code === 'VALIDATION', notBool.body);
 
-  for (const item of [living, telecom, livingOff, allowance]) {
+  for (const item of [living, telecom, investing, livingOff, allowance]) {
     const id = item.body.fixedExpense?.id;
     if (id) await call('DELETE', `/fixed-expenses/${id}`, { token: dad.token });
   }

@@ -68,11 +68,7 @@ describe('F-ENT-04 needsReason — 사유 강제 (하드룰 2·3)', () => {
 });
 
 describe('F-FIX-05 CATEGORIES — 분류 고정 목록 (하드룰 1)', () => {
-  it('★ 열한 개다 — 사용자가 만들거나 지울 수 없는 고정 목록이다', () => {
-    expect(CATEGORIES).toHaveLength(11);
-  });
-
-  it('★ 목록과 순서가 화면에 나오는 그대로다', () => {
+  it('★ 목록과 순서가 화면에 나오는 그대로다 — 사용자가 만들거나 지울 수 없는 고정 목록이다', () => {
     expect([...CATEGORIES]).toEqual([
       '주거',
       '통신',
@@ -151,8 +147,7 @@ describe('shiftYearMonth', () => {
 });
 
 describe('공유 상수', () => {
-  it('분류는 11개이고 순서가 화면 순서다', () => {
-    expect(CATEGORIES).toHaveLength(11);
+  it('분류는 주거로 시작해 기타로 끝난다', () => {
     expect(CATEGORIES[0]).toBe('주거');
     expect(CATEGORIES[CATEGORIES.length - 1]).toBe('기타');
   });

@@ -70,7 +70,8 @@ const PEOPLE: Spec[] = [
       // 결산 스위치가 켜지는 항목 — 이게 있어야 데모에서 이번 달 첫 스텝(지난달 결산)을 볼 수 있다 (F-ENT-11)
       { name: '생활비', category: '생활비', amount: 500_000, day: 25 },
       // 저축은 월급에서 빠지지만 소비가 아니다 — 분류별 표에서 따로 보인다 (F-FIX-08)
-      { name: '적금', category: '저축', amount: 300_000, day: 25 },
+      // 금액은 엄마의 남는 돈이 양수로 남는 선에서 잡았다 — 데모 첫 화면에 적자가 뜨면 안 된다
+      { name: '적금', category: '저축', amount: 100_000, day: 25 },
     ],
     extras: [{ name: '아이 학원비', category: '교육', amount: 350_000 }],
     note: '',
