@@ -9,6 +9,8 @@
  */
 import { PrismaClient } from '@prisma/client';
 
+import { defaultSettles } from '../src/lib/shared.js';
+
 const prisma = new PrismaClient();
 
 const CODE = 'DEMO01';
@@ -65,6 +67,8 @@ const PEOPLE: Spec[] = [
       { name: '통신비', category: '통신', amount: 43_000, day: 25 },
       { name: '실비보험', category: '보험', amount: 62_000, day: 15 },
       { name: '넷플릭스', category: '구독', amount: 17_000, day: 8 },
+      // 결산 스위치가 켜지는 항목 — 이게 있어야 데모에서 이번 달 첫 스텝(지난달 결산)을 볼 수 있다 (F-ENT-11)
+      { name: '생활비', category: '생활비', amount: 500_000, day: 25 },
     ],
     extras: [{ name: '아이 학원비', category: '교육', amount: 350_000 }],
     note: '',
@@ -117,6 +121,8 @@ async function main() {
             category: spec.category,
             defaultAmount: spec.amount,
             dayOfMonth: spec.day ?? null,
+            // 등록 라우트와 같은 규칙 — 생활비 분류면 결산 스위치가 켜진다 (F-FIX-07)
+            settles: defaultSettles(spec.category),
             sortOrder: order,
           },
         }),

@@ -15,13 +15,11 @@ export function Toggle({
   hint,
   value,
   onValueChange,
-  disabled,
 }: {
   label: string;
   hint?: string;
   value: boolean;
   onValueChange: (next: boolean) => void;
-  disabled?: boolean;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -34,7 +32,6 @@ export function Toggle({
       <Switch
         value={value}
         onValueChange={onValueChange}
-        disabled={disabled}
         accessibilityLabel={label}
         trackColor={{ false: colors.lineStrong, true: colors.primary }}
         thumbColor={colors.surface}

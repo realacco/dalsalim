@@ -1,5 +1,5 @@
 // `@/` 별칭이 아니라 상대 경로다 — tests/contract 가 서버 사본과 나란히 임포트하므로 별칭 없이 서야 한다
-import { formatAmount, shiftYearMonth } from '../../../shared/lib/format';
+import { formatDelta, shiftYearMonth } from '../../../shared/lib/format';
 
 /**
  * 결산 스텝이 보여줄 "옮긴 것과 얼마나 다른가" (F-ENT-11).
@@ -28,8 +28,7 @@ export function settlementDelta(
  * "옮긴 만큼 썼다" 는 사실을 전하지 못한다.
  */
 export function formatSettlementDelta(delta: number): string {
-  if (delta === 0) return '그대로';
-  return `${delta > 0 ? '+' : '−'}${formatAmount(Math.abs(delta))}`;
+  return delta === 0 ? '그대로' : formatDelta(delta);
 }
 
 /** 결산 줄이 가리키는 달 — 기록의 달에서 한 달 전. 스텝 제목 "8월 · 생활비" 의 8월이다 */
