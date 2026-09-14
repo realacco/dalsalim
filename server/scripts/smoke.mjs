@@ -534,6 +534,8 @@ async function main() {
     income: s.totals?.income,
     fixedTotal: s.totals?.fixedTotal,
     extraTotal: s.totals?.extraTotal,
+    extraIncomeTotal: s.totals?.extraIncomeTotal,
+    settlementTotal: s.totals?.settlementTotal,
     surplus: s.totals?.surplus,
     byCategory: s.byCategory,
     changes: s.changes?.length,
@@ -555,7 +557,9 @@ async function main() {
   );
   check(
     'F-BOOK-02 정원은 현재 구성원 + 그 달에 낸 나간 사람 — 미제출자에는 나간 사람이 안 들어간다',
-    afterKickSummary.body.progress.memberCount === afterKickSummary.body.perMember.length &&
+    // perMember.length 와 비교하면 서버가 그렇게 만들어 주므로 늘 참이다 — 값으로 못 박는다
+    afterKickSummary.body.progress.memberCount === 2 &&
+      afterKickSummary.body.progress.memberCount === beforeKickSummary.progress.memberCount &&
       !afterKickSummary.body.progress.pendingMembers.some(
         (m) => m.membershipId === momMembership.id,
       ),
@@ -568,7 +572,8 @@ async function main() {
       afterKickTrend !== undefined &&
       afterKickTrend.income === beforeKickTrend.income &&
       afterKickTrend.surplus === beforeKickTrend.surplus &&
-      afterKickTrend.submittedCount === beforeKickTrend.submittedCount,
+      afterKickTrend.submittedCount === beforeKickTrend.submittedCount &&
+      afterKickTrend.memberCount === beforeKickTrend.memberCount,
     { before: beforeKickTrend, after: afterKickTrend },
   );
 
@@ -598,7 +603,8 @@ async function main() {
   check(
     '★ F-BOOK-02 다시 신청해 대기 중인 사람도 그 달에 낸 기록은 요약에 남는다',
     pendingMomRow?.submitted === true &&
-      pendingSummary.progress.memberCount === pendingSummary.perMember.length &&
+      pendingSummary.progress.memberCount === 2 &&
+      pendingSummary.progress.memberCount === beforeKickSummary.progress.memberCount &&
       !pendingSummary.progress.pendingMembers.some((m) => m.membershipId === momMembership.id) &&
       pendingSummary.totals.income === beforeKickSummary.totals.income,
     { progress: pendingSummary.progress, mom: pendingMomRow },
