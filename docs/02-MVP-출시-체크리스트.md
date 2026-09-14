@@ -83,7 +83,7 @@ POST /auth/dev { "name": "아빠" }  →  토큰 발급
 - [x] `NODE_ENV=production`이면 켤 수도 없고, `/auth/dev` **라우트를 아예 등록하지 않는다**
       (환경변수 실수 하나로 뚫리는 구조를 남기지 않는다. 핸들러 안에도 검사가 한 겹 더 있다)
 - [x] 앱의 개발용 로그인 UI는 `/auth/config`를 따라 자동으로 사라진다
-- [ ] 그래도 배포 뒤 `GET /health`의 `devLogin`이 `false`인지 눈으로 확인한다
+- [ ] 그래도 배포 뒤 `GET /health`의 `devLogin`이 `false`인지, `sha`가 방금 배포한 커밋인지 눈으로 확인한다
 
 ### 2-2. `JWT_SECRET` 실제 값으로 — ✅ 코드로 막음
 

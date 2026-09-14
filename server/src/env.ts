@@ -57,8 +57,9 @@ export const env = {
   /**
    * 배포된 커밋. "지금 떠 있는 게 어느 커밋이냐"를 /health 로 물을 수 있게 한다.
    * Railway 가 넣어주는 값이 먼저고, 다른 곳에서는 GIT_SHA 로 직접 넣는다. 로컬은 null.
+   * ?? 가 아니라 || 다 — .env.example 의 GIT_SHA="" 가 빈 문자열로 들어오고, 빈 값은 없는 것이다.
    */
-  gitSha: process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.GIT_SHA ?? null,
+  gitSha: process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_SHA || null,
 } as const;
 
 export const kakaoConfigured = env.kakao.restApiKey.length > 0;
