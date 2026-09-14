@@ -89,10 +89,14 @@ export function needsReason(line: ReasonableLine): boolean {
   return line.plannedAmount !== line.actualAmount;
 }
 
-/** 합계를 내는 데 필요한 최소한의 모양. prisma 타입을 쓰지 않으려고 여기서 다시 적는다 */
+/**
+ * 합계를 내는 데 필요한 최소한의 모양. prisma 타입을 쓰지 않으려고 여기서 다시 적는다.
+ * plannedAmount 는 선택이 아니다 — 결산 줄은 이 값이 "옮긴 금액"이라, 안 실어 보내면
+ * 0 원을 옮기고 전액을 더 쓴 것으로 계산된다. 타입이 그 실수를 막아야 한다.
+ */
 export type SummableLine = {
   kind: string;
-  plannedAmount?: number | null;
+  plannedAmount: number | null;
   actualAmount: number | null;
 };
 

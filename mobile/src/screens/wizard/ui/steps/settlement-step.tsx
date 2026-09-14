@@ -63,7 +63,8 @@ export function SettlementStep({
       </Text>
 
       <Text style={stepStyles.question}>
-        {lastMonth}에 {line.name}으로{'\n'}
+        {/* 항목 이름 뒤에 조사를 붙이지 않는다 — 생활비·월세처럼 모음으로 끝나는 이름이 더 흔하다 */}
+        {lastMonth} {line.name}에{'\n'}
         {formatWon(planned)}을 옮겼어요.{'\n'}실제로는 얼마나 썼나요?
       </Text>
 

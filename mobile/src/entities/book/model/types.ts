@@ -48,7 +48,6 @@ export type MonthSummary = {
     planned: number;
     actual: number;
     delta: number;
-    overspend: number;
   }[];
   notes: { displayName: string; note: string }[];
 };

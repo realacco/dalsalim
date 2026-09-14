@@ -1380,8 +1380,7 @@ async function main() {
       overSummary.settlements[0].name === '결산 생활비' &&
       overSummary.settlements[0].planned === 300_000 &&
       overSummary.settlements[0].actual === 350_000 &&
-      overSummary.settlements[0].delta === 50_000 &&
-      overSummary.settlements[0].overspend === 50_000,
+      overSummary.settlements[0].delta === 50_000,
     overSummary.settlements,
   );
   check(
@@ -1424,8 +1423,7 @@ async function main() {
     '★ F-ENT-11 덜 썼다고 남은 돈이 늘지는 않는다 (30만 옮기고 25만 씀 → 0)',
     dadUnder?.settlementTotal === 0 &&
       dadUnder?.surplus === dadUnder?.income - dadUnder?.fixedTotal - dadUnder?.extraTotal &&
-      underSummary.settlements?.[0]?.delta === -50_000 &&
-      underSummary.settlements?.[0]?.overspend === 0,
+      underSummary.settlements?.[0]?.delta === -50_000,
     { dad: dadUnder, settlements: underSummary.settlements },
   );
 

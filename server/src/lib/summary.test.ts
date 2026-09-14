@@ -5,7 +5,11 @@ import { type SummableLine, entrySummary, settlementOverspend } from './shared.j
  * 요약 · 추이 · 홈 카드 · 위저드 확인 화면이 전부 이 계산 하나를 본다.
  * services 안에 있을 때는 DB 를 띄워야 확인됐지만, lib 으로 내려오면서 1층에서 잡힌다.
  */
-const line = (kind: string, actualAmount: number | null): SummableLine => ({ kind, actualAmount });
+const line = (kind: string, actualAmount: number | null): SummableLine => ({
+  kind,
+  plannedAmount: null,
+  actualAmount,
+});
 const settlement = (plannedAmount: number, actualAmount: number | null): SummableLine => ({
   kind: 'SETTLEMENT',
   plannedAmount,

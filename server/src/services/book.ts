@@ -6,7 +6,6 @@ import {
   bookProgress,
   currentYearMonth,
   entrySummary,
-  settlementOverspend,
   shiftYearMonth,
 } from '../lib/shared.js';
 
@@ -385,8 +384,8 @@ export async function buildMonthSummary(familyId: string, yearMonth: string) {
         name: l.name,
         planned: l.plannedAmount ?? 0,
         actual: l.actualAmount ?? 0,
+        // 더 쓴 만큼은 따로 안 싣는다 — max(0, delta) 로 나오고 합계는 totals.settlementTotal 에 있다
         delta: (l.actualAmount ?? 0) - (l.plannedAmount ?? 0),
-        overspend: settlementOverspend(l),
       }))
       .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)),
     notes: perMember
