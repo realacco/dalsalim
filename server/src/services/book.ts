@@ -1,4 +1,11 @@
 // 기능: F-BOOK-01 F-BOOK-02 F-BOOK-03 F-BOOK-04 F-ENT-11 F-ENT-12
+/**
+ * 월 장부를 다루는 곳 — 장부 열기 · 홈 뷰 · 기록 시작(프리필) · 요약 · 추이 · 완성 판정.
+ *
+ * ★ 이 파일은 services/entry 를 임포트하지 않는다. 둘이 서로를 임포트하면 원이 생기고,
+ *   나중에 누가 파일 맨 위에서 상대 함수를 쓰는 순간 "함수가 아니다" 오류로 터진다.
+ *   둘이 같이 쓰는 순수 계산(entrySummary)은 아래층인 lib/shared 에 있다.
+ */
 import { prisma } from '../lib/db.js';
 import { fail } from '../lib/http.js';
 import {
@@ -9,14 +16,6 @@ import {
   entrySummary,
   shiftYearMonth,
 } from '../lib/shared.js';
-
-/**
- * 월 장부를 다루는 곳 — 장부 열기 · 홈 뷰 · 기록 시작(프리필) · 요약 · 추이 · 완성 판정.
- *
- * ★ 이 파일은 services/entry 를 임포트하지 않는다. 둘이 서로를 임포트하면 원이 생기고,
- *   나중에 누가 파일 맨 위에서 상대 함수를 쓰는 순간 "함수가 아니다" 오류로 터진다.
- *   둘이 같이 쓰는 순수 계산(entrySummary)은 아래층인 lib/shared 에 있다.
- */
 
 /**
  * 월 장부는 필요할 때 만든다. 미래의 달은 만들지 않는다 —

@@ -162,6 +162,12 @@ export default function SummaryScreen() {
                     {member.submitted ? '' : ' · 아직 안 적었어요'}
                   </Text>
                   <Row label="수입" value={formatWon(member.income)} />
+                  {member.extraIncomeTotal > 0 ? (
+                    <Row
+                      label={MESSAGES.extraIncomeRow}
+                      value={formatWon(member.extraIncomeTotal)}
+                    />
+                  ) : null}
                   <Row
                     label="지출"
                     value={`− ${formatWon(member.fixedTotal + member.extraTotal)}`}

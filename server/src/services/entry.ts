@@ -73,8 +73,12 @@ export function updateEntryMeta(entryId: string, data: { note?: string | null; c
   return prisma.memberEntry.update({ where: { id: entryId }, data });
 }
 
-/** 그 달에만 있는 줄 — 추가 지출과 기타 수입. 둘 다 기본값이 없어 사유를 묻지 않고, 그 달 안에서 실제로 지운다 */
-const AD_HOC_KINDS = new Set(['EXTRA', 'EXTRA_INCOME']);
+/**
+ * 그 달에만 있는 줄 — 추가 지출과 기타 수입. 둘 다 기본값이 없어 사유를 묻지 않고, 그 달 안에서 실제로 지운다.
+ * 키를 ExtraLineInput 의 종류에 묶어서, 종류가 늘면 여기를 안 고치고는 컴파일이 안 되게 한다
+ */
+const AD_HOC_KINDS: Record<ExtraLineInput['kind'], true> = { EXTRA: true, EXTRA_INCOME: true };
+const isAdHoc = (kind: string) => Object.hasOwn(AD_HOC_KINDS, kind);
 
 async function findLine(entryId: string, lineId: string) {
   const line = await prisma.entryLine.findUnique({ where: { id: lineId } });
@@ -106,7 +110,7 @@ export async function updateLine(
       actualAmount: body.actualAmount,
       // 금액을 원래대로 되돌렸다면 사유도 같이 지운다 (하드룰 2)
       changeReason: reasonNeeded ? trimmedReason : null,
-      ...(body.name && AD_HOC_KINDS.has(line.kind) ? { name: body.name } : {}),
+      ...(body.name && isAdHoc(line.kind) ? { name: body.name } : {}),
     },
   });
 }
@@ -146,7 +150,7 @@ export async function addExtraLine(entryId: string, body: ExtraLineInput) {
 /** 추가 지출·기타 수입만 지울 수 있다. 수입·고정비·결산 줄은 템플릿이라 비울 수는 있어도 없앨 수는 없다. */
 export async function deleteExtraLine(entryId: string, lineId: string) {
   const line = await findLine(entryId, lineId);
-  if (!AD_HOC_KINDS.has(line.kind)) throw fail('NOT_DELETABLE');
+  if (!isAdHoc(line.kind)) throw fail('NOT_DELETABLE');
   await prisma.entryLine.delete({ where: { id: lineId } });
 }
 
@@ -162,7 +166,7 @@ export async function submitEntry(entry: Pick<MemberEntry, 'id' | 'bookId'>) {
   });
 
   // 추가 지출·기타 수입은 만들 때 금액이 있으므로 제출 조건의 대상이 아니다
-  const unfilled = lines.filter((l) => !AD_HOC_KINDS.has(l.kind) && l.actualAmount === null);
+  const unfilled = lines.filter((l) => !isAdHoc(l.kind) && l.actualAmount === null);
   if (unfilled.length > 0) {
     throw fail('INCOMPLETE', unfilled.map((l) => l.name).join(', '));
   }
