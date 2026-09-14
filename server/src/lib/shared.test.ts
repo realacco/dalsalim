@@ -61,6 +61,11 @@ describe('F-ENT-04 needsReason — 사유 강제 (하드룰 2·3)', () => {
     expect(judge(500000, 500000, 'SETTLEMENT')).toBe(false);
   });
 
+  it('★ F-ENT-12 기타 수입 줄은 기본값이 없어 사유를 안 묻는다 — 추가 지출과 같은 자리다', () => {
+    expect(judge(null, 500000, 'EXTRA_INCOME')).toBe(false);
+    expect(judge(null, 0, 'EXTRA_INCOME')).toBe(false);
+  });
+
   it('수입 줄은 고정비 줄과 같은 규칙이다', () => {
     expect(judge(3000000, 3200000, 'INCOME')).toBe(true);
     expect(judge(3000000, 3000000, 'INCOME')).toBe(false);
@@ -158,8 +163,8 @@ describe('공유 상수', () => {
     expect(CATEGORIES as readonly string[]).not.toContain('생활');
   });
 
-  it('줄 종류는 결산 · 수입 · 고정비 · 추가지출 넷뿐이다 — 순서가 위저드 순서다', () => {
-    expect(LINE_KINDS).toEqual(['SETTLEMENT', 'INCOME', 'FIXED', 'EXTRA']);
+  it('줄 종류는 결산 · 수입 · 기타 수입 · 고정비 · 추가지출 다섯뿐이다 — 순서가 위저드 순서다', () => {
+    expect(LINE_KINDS).toEqual(['SETTLEMENT', 'INCOME', 'EXTRA_INCOME', 'FIXED', 'EXTRA']);
   });
 
   it('★ 가계부를 볼 수 있는 멤버십은 ACTIVE 하나뿐이다 (하드룰 8)', () => {
@@ -178,21 +183,21 @@ describe('currentYearMonth', () => {
 });
 
 describe('bookProgress — 위저드 진행 표시', () => {
-  it('총 스텝 = 줄 스텝 n + 4 (수입 · 추가지출 · 특이사항 · 확인)', () => {
-    expect(bookProgress(0, 3)).toEqual({ step: 1, total: 7 });
+  it('총 스텝 = 줄 스텝 n + 5 (수입 · 기타 수입 · 추가지출 · 특이사항 · 확인)', () => {
+    expect(bookProgress(0, 3)).toEqual({ step: 1, total: 8 });
   });
 
-  it('F-ENT-11 결산 줄도 한 스텝이다 — 고정비 2 + 결산 1 이면 7', () => {
-    expect(bookProgress(0, 2 + 1)).toEqual({ step: 1, total: 7 });
+  it('F-ENT-11 결산 줄도 한 스텝이다 — 고정비 2 + 결산 1 이면 8', () => {
+    expect(bookProgress(0, 2 + 1)).toEqual({ step: 1, total: 8 });
   });
 
   it('cursor 는 0 부터라 사람에게는 +1, 스텝 수를 넘지 않는다', () => {
-    expect(bookProgress(2, 3)).toEqual({ step: 3, total: 7 });
-    expect(bookProgress(99, 3)).toEqual({ step: 7, total: 7 });
+    expect(bookProgress(2, 3)).toEqual({ step: 3, total: 8 });
+    expect(bookProgress(99, 3)).toEqual({ step: 8, total: 8 });
   });
 
-  it('줄 스텝이 없어도 4 스텝은 있다', () => {
-    expect(bookProgress(0, 0)).toEqual({ step: 1, total: 4 });
+  it('줄 스텝이 없어도 5 스텝은 있다', () => {
+    expect(bookProgress(0, 0)).toEqual({ step: 1, total: 5 });
   });
 });
 

@@ -1,4 +1,4 @@
-// 기능: F-FIX-05 F-FIX-07 F-FIX-08 F-ENT-03 F-ENT-04 F-ENT-11 F-FAM-03 F-FAM-06 F-BOOK-01 F-FIX-06
+// 기능: F-FIX-05 F-FIX-07 F-FIX-08 F-ENT-03 F-ENT-04 F-ENT-11 F-ENT-12 F-FAM-03 F-FAM-06 F-BOOK-01 F-FIX-06
 /** 앱과 서버가 공유하는 상수·타입. 앱 쪽 mobile/src/shared/model/types.ts 와 짝을 이룬다. */
 
 export const CATEGORIES = [
@@ -30,11 +30,17 @@ export function defaultSettles(category: string): boolean {
 }
 
 /**
- * 줄 종류. SETTLEMENT 는 "지난달에 옮겨둔 돈을 실제로 얼마나 썼나" 를 묻는 결산 줄이다 (F-ENT-11).
+ * 줄 종류. 순서가 위저드 순서다.
+ * SETTLEMENT 는 "지난달에 옮겨둔 돈을 실제로 얼마나 썼나" 를 묻는 결산 줄이다 (F-ENT-11) —
  * 이번 달 지출이 아니라 지난달 지출의 정정이라, 합계에서 고정비·추가지출과 다르게 센다.
+ * EXTRA_INCOME 은 월급 말고 그 달만 들어온 돈이다 (F-ENT-12) — 추가 지출의 수입판이라
+ * 기본값도 사유도 없고, 월급 줄을 지난달과 비교 가능한 채로 두려고 따로 둔다.
  */
-export const LINE_KINDS = ['SETTLEMENT', 'INCOME', 'FIXED', 'EXTRA'] as const;
+export const LINE_KINDS = ['SETTLEMENT', 'INCOME', 'EXTRA_INCOME', 'FIXED', 'EXTRA'] as const;
 export type LineKind = (typeof LINE_KINDS)[number];
+
+/** 수입 줄(월급 · 기타 수입)의 내부 분류값. 분류 목록(CATEGORIES)을 쓰지 않는다 */
+export const INCOME_CATEGORY = '수입';
 
 export type EntryStatus = 'DRAFT' | 'SUBMITTED';
 export type BookStatus = 'OPEN' | 'COMPLETE';
@@ -116,6 +122,7 @@ export function settlementOverspend(line: SummableLine): number {
 
 /**
  * 수입 · 고정비 · 추가지출 · 지난달 더 쓴 것을 더하고 남은 돈을 낸다.
+ * 수입은 월급과 기타 수입을 합친 값이고, 기타 수입만 따로도 낸다 — 화면이 "그중 기타 수입" 을 그린다.
  *
  * 장부(요약 · 추이)와 기록(위저드)이 똑같이 쓰는 계산이라 어느 한쪽에 두면
  * 다른 쪽이 그쪽을 임포트하게 된다. 순수 계산이므로 둘 다의 아래층인 여기가 맞다.
@@ -125,6 +132,7 @@ export function settlementOverspend(line: SummableLine): number {
  */
 export function entrySummary(lines: SummableLine[]) {
   let income = 0;
+  let extraIncomeTotal = 0;
   let fixedTotal = 0;
   let extraTotal = 0;
   let settlementTotal = 0;
@@ -132,7 +140,10 @@ export function entrySummary(lines: SummableLine[]) {
   for (const line of lines) {
     const amount = line.actualAmount ?? 0;
     if (line.kind === 'INCOME') income += amount;
-    else if (line.kind === 'FIXED') fixedTotal += amount;
+    else if (line.kind === 'EXTRA_INCOME') {
+      income += amount;
+      extraIncomeTotal += amount;
+    } else if (line.kind === 'FIXED') fixedTotal += amount;
     // 결산 줄의 금액은 지난달에 이미 고정비로 나간 돈이다. 더 쓴 만큼만 이번 달에서 뺀다
     else if (line.kind === 'SETTLEMENT') settlementTotal += settlementOverspend(line);
     else extraTotal += amount;
@@ -140,6 +151,7 @@ export function entrySummary(lines: SummableLine[]) {
 
   return {
     income,
+    extraIncomeTotal,
     fixedTotal,
     extraTotal,
     settlementTotal,
@@ -148,14 +160,14 @@ export function entrySummary(lines: SummableLine[]) {
 }
 
 /**
- * 위저드 진행 표시. 총 스텝 = 줄 스텝 n(결산 + 고정비) + 수입 1 + 추가지출 1 + 특이사항 1 + 확인 1.
+ * 위저드 진행 표시. 총 스텝 = 줄 스텝 n(결산 + 고정비) + 수입 1 + 기타 수입 1 + 추가지출 1 + 특이사항 1 + 확인 1.
  * cursor 는 0 부터 세는 위치라 사람에게는 +1 로 보여주되, 스텝 수를 넘지 않는다.
  *
  * n 은 고정비 항목 수가 아니라 기록에 실제로 있는 줄 수다 — 결산 줄은 항목이 아니라
  * 지난달 기록에서 오므로 항목을 세서는 맞출 수 없다 (F-ENT-11).
  */
 export function bookProgress(cursor: number, lineStepCount: number) {
-  const total = lineStepCount + 4;
+  const total = lineStepCount + 5;
   return { step: Math.min(cursor + 1, total), total };
 }
 

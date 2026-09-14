@@ -2,6 +2,7 @@ import { afterEach, describe, it, expect, vi } from 'vitest';
 
 import {
   CATEGORIES as SERVER_CATEGORIES,
+  LINE_KINDS as SERVER_LINE_KINDS,
   currentYearMonth as serverCurrentYearMonth,
   defaultSettles as serverDefaultSettles,
   needsReason as serverNeedsReason,
@@ -29,10 +30,24 @@ import { CATEGORIES as APP_CATEGORIES, type LineKind } from '../../mobile/src/sh
  */
 
 const AMOUNTS: (number | null)[] = [null, 0, 1, 120000, 135000, -5000];
-const KINDS: LineKind[] = ['SETTLEMENT', 'INCOME', 'FIXED', 'EXTRA'];
+// 앱의 LineKind 유니온을 키로 받는다 — 앱에만 종류가 늘면 타입이, 서버에만 늘면 아래 케이스가 잡는다
+const APP_LINE_KINDS: Record<LineKind, true> = {
+  SETTLEMENT: true,
+  INCOME: true,
+  EXTRA_INCOME: true,
+  FIXED: true,
+  EXTRA: true,
+};
+const KINDS = Object.keys(APP_LINE_KINDS) as LineKind[];
+
+describe('LINE_KINDS — 서버 배열과 앱 유니온이 같다', () => {
+  it('종류 목록이 한쪽에만 늘지 않는다', () => {
+    expect([...SERVER_LINE_KINDS].sort()).toEqual([...KINDS].sort());
+  });
+});
 
 describe('needsReason — 서버와 앱이 같은 답을 낸다 (하드룰 2·3)', () => {
-  it('종류 4 × 금액 조합 36 = 144가지에서 결과가 하나도 갈리지 않는다', () => {
+  it('종류 5 × 금액 조합 36 = 180가지에서 결과가 하나도 갈리지 않는다', () => {
     const mismatched: string[] = [];
 
     for (const kind of KINDS) {

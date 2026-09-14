@@ -1,10 +1,10 @@
 // 기능: F-ENT-01 F-ENT-02 F-ENT-03 F-ENT-04 F-ENT-05 F-ENT-06 F-ENT-07 F-ENT-08
-//       F-ENT-10 F-ENT-11
+//       F-ENT-10 F-ENT-11 F-ENT-12
 import type { MemberEntry, MonthlyBook } from '@prisma/client';
 
 import { prisma } from '../lib/db.js';
 import { fail } from '../lib/http.js';
-import { currentYearMonth, entrySummary, needsReason } from '../lib/shared.js';
+import { INCOME_CATEGORY, currentYearMonth, entrySummary, needsReason } from '../lib/shared.js';
 import { refreshBookStatus } from './book.js';
 
 /**
@@ -20,7 +20,8 @@ export async function serializeEntry(entryId: string) {
     where: { id: entryId },
     include: {
       lines: {
-        orderBy: { sortOrder: 'asc' },
+        // 번호가 같으면 먼저 만든 줄이 앞이다 — cuid 는 시각 순이라 id 가 그 역할을 한다
+        orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
         // 설명은 줄에 복사돼 있지 않아 항목에서 읽어온다 — 아래 map 의 주석 참조
         include: { fixedExpense: { select: { description: true } } },
       },
@@ -72,6 +73,13 @@ export function updateEntryMeta(entryId: string, data: { note?: string | null; c
   return prisma.memberEntry.update({ where: { id: entryId }, data });
 }
 
+/**
+ * 그 달에만 있는 줄 — 추가 지출과 기타 수입. 둘 다 기본값이 없어 사유를 묻지 않고, 그 달 안에서 실제로 지운다.
+ * 키를 ExtraLineInput 의 종류에 묶어서, 종류가 늘면 여기를 안 고치고는 컴파일이 안 되게 한다
+ */
+const AD_HOC_KINDS: Record<ExtraLineInput['kind'], true> = { EXTRA: true, EXTRA_INCOME: true };
+const isAdHoc = (kind: string) => Object.hasOwn(AD_HOC_KINDS, kind);
+
 async function findLine(entryId: string, lineId: string) {
   const line = await prisma.entryLine.findUnique({ where: { id: lineId } });
   if (!line || line.entryId !== entryId) throw fail('LINE_NOT_FOUND');
@@ -102,36 +110,47 @@ export async function updateLine(
       actualAmount: body.actualAmount,
       // 금액을 원래대로 되돌렸다면 사유도 같이 지운다 (하드룰 2)
       changeReason: reasonNeeded ? trimmedReason : null,
-      ...(body.name && line.kind === 'EXTRA' ? { name: body.name } : {}),
+      ...(body.name && isAdHoc(line.kind) ? { name: body.name } : {}),
     },
   });
 }
 
-/** 추가 지출 항목 — 비교 대상이 없으므로 사유도 묻지 않는다. 이름이 곧 사유다. */
-export async function addExtraLine(
-  entryId: string,
-  body: { name: string; category: string; actualAmount: number },
-) {
-  const count = await prisma.entryLine.count({ where: { entryId, kind: 'EXTRA' } });
+export type ExtraLineInput = { name: string; actualAmount: number } & (
+  { kind: 'EXTRA'; category: string } | { kind: 'EXTRA_INCOME' }
+);
+
+/**
+ * 추가 지출 · 기타 수입 항목 — 비교 대상이 없으므로 사유도 묻지 않는다. 이름이 곧 사유다.
+ * 기타 수입(F-ENT-12)은 분류 목록을 쓰지 않는다 — 수입 줄과 같은 내부 분류값이 들어간다.
+ */
+export async function addExtraLine(entryId: string, body: ExtraLineInput) {
+  // 기타 수입은 수입(0)과 고정비(100번대) 사이, 추가 지출은 1000번대 — 위저드 순서 그대로다.
+  // 기타 수입 자리는 99 에서 멈춘다 — 넘으면 고정비 사이로 끼어든다. 겹친 번호는 id 순으로 정렬된다
+  const base = body.kind === 'EXTRA_INCOME' ? 50 : 1000;
+  const cap = body.kind === 'EXTRA_INCOME' ? 99 : Number.MAX_SAFE_INTEGER;
+  // 개수가 아니라 마지막 번호 다음이다 — 가운데 줄을 지우고 새로 적으면 개수로는 번호가 겹친다
+  const last = await prisma.entryLine.aggregate({
+    where: { entryId, kind: body.kind },
+    _max: { sortOrder: true },
+  });
 
   return prisma.entryLine.create({
     data: {
       entryId,
-      kind: 'EXTRA',
+      kind: body.kind,
       name: body.name,
-      category: body.category,
+      category: body.kind === 'EXTRA_INCOME' ? INCOME_CATEGORY : body.category,
       plannedAmount: null,
       actualAmount: body.actualAmount,
-      // 추가 지출은 1000번대 — 고정비(100번대) 뒤에 온다
-      sortOrder: 1000 + count,
+      sortOrder: Math.min(cap, Math.max(base, (last._max.sortOrder ?? base - 1) + 1)),
     },
   });
 }
 
-/** 추가 지출만 지울 수 있다. 수입·고정비 줄은 템플릿이라 비울 수는 있어도 없앨 수는 없다. */
+/** 추가 지출·기타 수입만 지울 수 있다. 수입·고정비·결산 줄은 템플릿이라 비울 수는 있어도 없앨 수는 없다. */
 export async function deleteExtraLine(entryId: string, lineId: string) {
   const line = await findLine(entryId, lineId);
-  if (line.kind !== 'EXTRA') throw fail('NOT_DELETABLE');
+  if (!isAdHoc(line.kind)) throw fail('NOT_DELETABLE');
   await prisma.entryLine.delete({ where: { id: lineId } });
 }
 
@@ -146,7 +165,8 @@ export async function submitEntry(entry: Pick<MemberEntry, 'id' | 'bookId'>) {
     orderBy: { sortOrder: 'asc' },
   });
 
-  const unfilled = lines.filter((l) => l.kind !== 'EXTRA' && l.actualAmount === null);
+  // 추가 지출·기타 수입은 만들 때 금액이 있으므로 제출 조건의 대상이 아니다
+  const unfilled = lines.filter((l) => !isAdHoc(l.kind) && l.actualAmount === null);
   if (unfilled.length > 0) {
     throw fail('INCOMPLETE', unfilled.map((l) => l.name).join(', '));
   }

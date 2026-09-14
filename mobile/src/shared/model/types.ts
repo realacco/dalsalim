@@ -22,8 +22,11 @@ export const CATEGORIES = [
 
 export type Category = (typeof CATEGORIES)[number];
 
-/** 줄 종류. SETTLEMENT 는 "지난달에 옮겨둔 돈을 실제로 얼마나 썼나" 를 묻는 결산 줄이다 (F-ENT-11) */
-export type LineKind = 'SETTLEMENT' | 'INCOME' | 'FIXED' | 'EXTRA';
+/**
+ * 줄 종류. 순서가 위저드 순서다. SETTLEMENT 는 "지난달에 옮겨둔 돈을 실제로 얼마나 썼나" 를 묻는
+ * 결산 줄이고 (F-ENT-11), EXTRA_INCOME 은 월급 말고 그 달만 들어온 돈이다 (F-ENT-12).
+ */
+export type LineKind = 'SETTLEMENT' | 'INCOME' | 'EXTRA_INCOME' | 'FIXED' | 'EXTRA';
 export type EntryStatus = 'DRAFT' | 'SUBMITTED';
 /** 홈에서 쓰는 상태. 아직 기록을 시작하지 않았으면 NONE */
 export type MemberEntryStatus = EntryStatus | 'NONE';
@@ -32,7 +35,10 @@ export type Role = 'OWNER' | 'MEMBER';
 
 /** 수입 · 고정비 · 추가지출 · 지난달 더 쓴 것 · 남은 돈. 개인 단위와 가족 단위 양쪽에서 같은 모양을 쓴다. */
 export type EntrySummary = {
+  /** 월급 + 기타 수입 */
   income: number;
+  /** 그중 월급 말고 들어온 돈 — 0 이면 화면이 줄을 숨긴다 (F-ENT-12) */
+  extraIncomeTotal: number;
   fixedTotal: number;
   extraTotal: number;
   /** 지난달에 옮겨둔 돈보다 더 쓴 만큼 — 남은 돈에서 빠진다 (F-ENT-11) */

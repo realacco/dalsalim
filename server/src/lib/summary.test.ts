@@ -27,6 +27,7 @@ describe('F-BOOK-02 entrySummary — 한 사람의 한 달 합계', () => {
       ]),
     ).toEqual({
       income: 3_000_000,
+      extraIncomeTotal: 0,
       fixedTotal: 655_000,
       extraTotal: 120_000,
       settlementTotal: 0,
@@ -37,6 +38,7 @@ describe('F-BOOK-02 entrySummary — 한 사람의 한 달 합계', () => {
   it('줄이 하나도 없으면 전부 0 이다 — 아직 아무도 안 적은 달', () => {
     expect(entrySummary([])).toEqual({
       income: 0,
+      extraIncomeTotal: 0,
       fixedTotal: 0,
       extraTotal: 0,
       settlementTotal: 0,
@@ -62,8 +64,8 @@ describe('F-BOOK-02 entrySummary — 한 사람의 한 달 합계', () => {
     expect(summary.surplus).toBe(-500_000);
   });
 
-  it('INCOME · FIXED · SETTLEMENT 가 아닌 것은 추가 지출로 센다', () => {
-    // 줄 종류는 넷뿐이라(LINE_KINDS) 나머지는 EXTRA 다
+  it('INCOME · EXTRA_INCOME · FIXED · SETTLEMENT 가 아닌 것은 추가 지출로 센다', () => {
+    // 줄 종류는 다섯뿐이라(LINE_KINDS) 나머지는 EXTRA 다
     expect(entrySummary([line('EXTRA', 30_000)]).extraTotal).toBe(30_000);
   });
 });
@@ -108,5 +110,36 @@ describe('F-ENT-11 entrySummary — 지난달 결산이 남은 돈에 들어가�
       settlement(100_000, 130_000),
     ]);
     expect(summary.settlementTotal).toBe(80_000);
+  });
+});
+
+describe('F-ENT-12 entrySummary — 기타 수입은 수입에 합산되고 따로도 보인다', () => {
+  const base = [line('INCOME', 3_000_000), line('FIXED', 500_000)];
+
+  it('★ 수입 = 월급 + 기타 수입, 남은 돈도 그만큼 는다', () => {
+    const summary = entrySummary([...base, line('EXTRA_INCOME', 500_000)]);
+    expect(summary.income).toBe(3_500_000);
+    expect(summary.extraIncomeTotal).toBe(500_000);
+    expect(summary.surplus).toBe(3_000_000);
+  });
+
+  it('기타 수입은 지출 어디에도 섞이지 않는다', () => {
+    const summary = entrySummary([...base, line('EXTRA_INCOME', 500_000)]);
+    expect(summary.fixedTotal).toBe(500_000);
+    expect(summary.extraTotal).toBe(0);
+  });
+
+  it('기타 수입이 없으면 0 이다 — 화면이 이 값으로 "그중 기타 수입" 줄을 숨긴다', () => {
+    expect(entrySummary(base).extraIncomeTotal).toBe(0);
+  });
+
+  it('여러 줄이면 더한다', () => {
+    const summary = entrySummary([
+      ...base,
+      line('EXTRA_INCOME', 500_000),
+      line('EXTRA_INCOME', 120_000),
+    ]);
+    expect(summary.extraIncomeTotal).toBe(620_000);
+    expect(summary.income).toBe(3_620_000);
   });
 });

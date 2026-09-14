@@ -36,7 +36,8 @@ export function ReviewStep({
     onError: (caught) => setError(errorMessage(caught, MESSAGES.submitFailed)),
   });
 
-  const { income, fixedTotal, extraTotal, settlementTotal, surplus } = entry.summary;
+  const { income, extraIncomeTotal, fixedTotal, extraTotal, settlementTotal, surplus } =
+    entry.summary;
 
   return (
     <ScrollView contentContainerStyle={stepStyles.body} keyboardShouldPersistTaps="handled">
@@ -44,6 +45,10 @@ export function ReviewStep({
 
       <Card style={{ gap: space.md, marginTop: space.lg }}>
         <Row label="수입" value={formatWon(income)} />
+        {/* 수입에 이미 들어 있는 내역이다 — 더하지 않는다. 0 이면 줄 자체가 없다 (F-ENT-12) */}
+        {extraIncomeTotal > 0 ? (
+          <Row label={MESSAGES.extraIncomeRow} value={formatWon(extraIncomeTotal)} />
+        ) : null}
         <Row label="고정비" value={`− ${formatWon(fixedTotal)}`} />
         <Row label="추가 지출" value={`− ${formatWon(extraTotal)}`} />
         {/* 지난달에 옮긴 것보다 더 쓴 만큼만 — 0 이면 줄 자체가 없다. 덜 쓴 건 여기 안 온다 (F-ENT-11) */}

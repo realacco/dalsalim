@@ -1,14 +1,4 @@
-// 기능: F-BOOK-01 F-BOOK-02 F-BOOK-03 F-BOOK-04 F-ENT-11
-import { prisma } from '../lib/db.js';
-import { fail } from '../lib/http.js';
-import {
-  ACTIVE_MEMBER,
-  bookProgress,
-  currentYearMonth,
-  entrySummary,
-  shiftYearMonth,
-} from '../lib/shared.js';
-
+// 기능: F-BOOK-01 F-BOOK-02 F-BOOK-03 F-BOOK-04 F-ENT-11 F-ENT-12
 /**
  * 월 장부를 다루는 곳 — 장부 열기 · 홈 뷰 · 기록 시작(프리필) · 요약 · 추이 · 완성 판정.
  *
@@ -16,7 +6,16 @@ import {
  *   나중에 누가 파일 맨 위에서 상대 함수를 쓰는 순간 "함수가 아니다" 오류로 터진다.
  *   둘이 같이 쓰는 순수 계산(entrySummary)은 아래층인 lib/shared 에 있다.
  */
-const INCOME_CATEGORY = '수입';
+import { prisma } from '../lib/db.js';
+import { fail } from '../lib/http.js';
+import {
+  ACTIVE_MEMBER,
+  INCOME_CATEGORY,
+  bookProgress,
+  currentYearMonth,
+  entrySummary,
+  shiftYearMonth,
+} from '../lib/shared.js';
 
 /**
  * 월 장부는 필요할 때 만든다. 미래의 달은 만들지 않는다 —
@@ -172,6 +171,7 @@ export async function openMyEntry(familyId: string, yearMonth: string, membershi
   // 의도한 것이다: 결산 줄도 만드는 시점의 스냅샷이고(하드룰 4), 지난달을 고치고 나서 이번 달 초안을
   // 지우고 다시 열면(F-ENT-10) 새 금액으로 묻는다.
 
+  // 월급 줄만 본다. 지난달 기타 수입(EXTRA_INCOME)이 이번 달 월급의 기본값이 되면 안 된다 (F-ENT-12)
   const lastIncome = lastMonthLines.find((l) => l.kind === 'INCOME')?.actualAmount ?? null;
   const lastByFixedId = new Map(
     lastMonthLines
@@ -328,14 +328,16 @@ export async function buildMonthSummary(familyId: string, yearMonth: string) {
   );
 
   const income = perMember.reduce((sum, m) => sum + m.income, 0);
+  const extraIncomeTotal = perMember.reduce((sum, m) => sum + m.extraIncomeTotal, 0);
   const fixedTotal = perMember.reduce((sum, m) => sum + m.fixedTotal, 0);
   const extraTotal = perMember.reduce((sum, m) => sum + m.extraTotal, 0);
   const settlementTotal = perMember.reduce((sum, m) => sum + m.settlementTotal, 0);
 
-  // 카테고리별 합계 (수입 제외). 결산 줄도 뺀다 — 그 돈은 지난달 고정비로 이미 이 표에 들어갔다 (F-ENT-11)
+  // 카테고리별 합계 (수입 제외 — 기타 수입도 수입이다). 결산 줄도 뺀다 — 그 돈은 지난달 고정비로 이미 이 표에 들어갔다 (F-ENT-11)
   const byCategory = new Map<string, number>();
   for (const line of allLines) {
-    if (line.kind === 'INCOME' || line.kind === 'SETTLEMENT') continue;
+    if (line.kind === 'INCOME' || line.kind === 'EXTRA_INCOME' || line.kind === 'SETTLEMENT')
+      continue;
     byCategory.set(line.category, (byCategory.get(line.category) ?? 0) + (line.actualAmount ?? 0));
   }
 
@@ -355,6 +357,7 @@ export async function buildMonthSummary(familyId: string, yearMonth: string) {
     },
     totals: {
       income,
+      extraIncomeTotal,
       fixedTotal,
       extraTotal,
       settlementTotal,
@@ -372,6 +375,11 @@ export async function buildMonthSummary(familyId: string, yearMonth: string) {
         reason: l.changeReason as string,
       }))
       .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)),
+    // 기타 수입 — 월급 말고 그 달만 들어온 돈. 사유가 없는 줄이라 changes 에는 안 들어간다 (F-ENT-12)
+    extraIncomes: allLines
+      .filter((l) => l.kind === 'EXTRA_INCOME')
+      .map((l) => ({ displayName: l.displayName, name: l.name, amount: l.actualAmount ?? 0 }))
+      .sort((a, b) => b.amount - a.amount),
     extras: allLines
       .filter((l) => l.kind === 'EXTRA')
       .map((l) => ({
