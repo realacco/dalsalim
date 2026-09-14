@@ -105,8 +105,12 @@ function SettlementHint({
   const { colors } = useTheme();
   const delta = settlementDelta(planned, amount);
 
-  if (delta.kind === 'empty')
-    return <Muted>옮긴 만큼 다 썼다면 그대로 [다음]을 누르면 돼요.</Muted>;
+  // 칸은 옮긴 금액으로 채워진 채 시작하므로 여기는 사용자가 지웠을 때만 온다 — 가리킬 값이 없으니 금액을 다시 말해준다
+  if (delta.kind === 'empty') {
+    return (
+      <Muted>옮긴 금액은 {formatWon(planned)}이에요. 다 썼다면 그 금액을 그대로 적으면 돼요.</Muted>
+    );
+  }
   if (delta.kind === 'same') return <Text style={styles.hintSame}>옮긴 만큼 썼어요</Text>;
   if (delta.kind === 'over') {
     return (

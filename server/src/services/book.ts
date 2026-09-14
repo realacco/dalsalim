@@ -141,8 +141,11 @@ export async function syncFixedLines(
  * ★ 결산 줄 (F-ENT-11): 지난달 고정비 줄 가운데 항목의 결산 스위치가 켜진 것마다 한 줄씩,
  *   "그 돈을 실제로 얼마나 썼나" 를 묻는다. 이름·분류는 **지난달 줄**에서 복사한다 — 항목이 아니라
  *   지난달 기록의 정정이므로, 그 사이 항목 이름이 바뀌었거나 항목이 지워졌어도 지난달 그 이름으로 묻는다.
- *   기록을 처음 만들 때만 붙인다. syncFixedLines 가 붙이지 않는 이유는 스위치를 나중에 켰다고
- *   이미 적는 중인 기록에 지난달 질문이 끼어들면 안 되기 때문이다 — 다음 달부터 물으면 된다.
+ *   기록을 처음 만들 때만 붙인다 (정의서: "스위치는 이번 달 기록을 만드는 시점에 읽는다").
+ *   syncFixedLines 가 붙이지 않는 이유는 적는 중인 기록의 맨 앞에 스텝이 끼어들면 cursor 가 밀려
+ *   "다음에 열었더니 다른 질문이 나온다" 가 되기 때문이다. 스위치를 나중에 켠 경우뿐 아니라
+ *   이번 달을 먼저 열어두고 지난달을 나중에 마무리한 경우도 같다 — 그때는 이번 달 초안을 지우고
+ *   다시 열면 묻고(F-ENT-10), 아니면 다음 달부터 묻는다.
  */
 export async function openMyEntry(familyId: string, yearMonth: string, membershipId: string) {
   const book = await getOrCreateBook(familyId, yearMonth);
