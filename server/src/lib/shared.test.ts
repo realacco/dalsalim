@@ -7,6 +7,7 @@ import {
   MEMBERSHIP_STATUSES,
   bookProgress,
   currentYearMonth,
+  defaultSettles,
   isYearMonth,
   needsReason,
   randomInviteCode,
@@ -182,5 +183,18 @@ describe('randomInviteCode — 초대코드 규칙', () => {
   it('난수원을 주면 결정적이다', () => {
     expect(randomInviteCode(() => 0)).toBe('AAAAAA');
     expect(randomInviteCode(() => 0.999)).toBe('999999');
+  });
+});
+
+/** 결산 스위치의 기본값은 분류가 정한다. 앱에 같은 사본이 있다 — tests/contract 가 맞춰본다 */
+describe('F-FIX-07 defaultSettles — 생활비만 기본 켜짐', () => {
+  it('생활비는 켜진다', () => {
+    expect(defaultSettles('생활비')).toBe(true);
+  });
+
+  it('나머지 여덟 분류는 꺼진다 — 통신비·보험은 나간 금액이 곧 쓴 금액이라 물을 게 없다', () => {
+    for (const category of CATEGORIES.filter((c) => c !== '생활비')) {
+      expect(defaultSettles(category)).toBe(false);
+    }
   });
 });

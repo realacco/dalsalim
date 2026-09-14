@@ -10,6 +10,11 @@ export const displayName = z.string().trim().min(1, '이름을 입력해주세�
 export const amount = z.number().int().min(0).max(1_000_000_000);
 export const category = z.enum(CATEGORIES);
 export const dayOfMonth = z.number().int().min(1).max(31).nullable().optional();
+/**
+ * 결산 스위치 (F-FIX-07). 안 보내면 등록 때는 분류로 기본값을 정하고, 수정 때는 안 건드린다 —
+ * 그래서 optional 이지 default 가 아니다. 여기서 기본값을 채우면 이름만 고쳐도 스위치가 꺼진다.
+ */
+export const settles = z.boolean().optional();
 
 /**
  * 고정비 항목의 한 줄 설명.

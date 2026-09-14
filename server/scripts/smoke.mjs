@@ -914,6 +914,104 @@ async function main() {
     if (id) await call('DELETE', `/fixed-expenses/${id}`, { token: dad.token });
   }
 
+  console.log('\n[결산 스위치]');
+  // F-FIX-07 — 다음 달에 실제 쓴 금액을 되물을지. 안 보내면 등록 때는 분류가 정하고 수정 때는 안 건드린다.
+  //   여기서 만드는 항목은 이 절 끝에서 지운다 — 스모크는 몇 번이고 다시 돌 수 있어야 한다.
+  const settleGroup = (
+    await call('GET', `/families/${dad.familyId}/fixed-expenses`, { token: dad.token })
+  ).body.groups?.[0];
+  const settleBase = { membershipId: settleGroup?.membershipId, defaultAmount: 300_000 };
+
+  const living = await call('POST', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+    body: { ...settleBase, name: '생활비', category: '생활비' },
+  });
+  check(
+    '★ F-FIX-07 생활비 분류로 등록하면 스위치가 켜진 채 저장된다',
+    living.status === 200 && living.body.fixedExpense?.settles === true,
+    living.body,
+  );
+
+  const telecom = await call('POST', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+    body: { ...settleBase, name: '통신비', category: '통신' },
+  });
+  check(
+    'F-FIX-07 다른 분류는 꺼진 채 저장된다',
+    telecom.status === 200 && telecom.body.fixedExpense?.settles === false,
+    telecom.body,
+  );
+
+  const livingOff = await call('POST', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+    body: { ...settleBase, name: '식비 정산', category: '생활비', settles: false },
+  });
+  check(
+    'F-FIX-07 보낸 값이 있으면 분류보다 앞선다 — 생활비라도 끌 수 있다',
+    livingOff.status === 200 && livingOff.body.fixedExpense?.settles === false,
+    livingOff.body,
+  );
+
+  const allowance = await call('POST', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+    body: { ...settleBase, name: '용돈', category: '기타', settles: true },
+  });
+  check(
+    'F-FIX-07 기타에 든 용돈도 직접 켤 수 있다',
+    allowance.status === 200 && allowance.body.fixedExpense?.settles === true,
+    allowance.body,
+  );
+
+  const settleListed = await call('GET', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+  });
+  const listedLiving = (settleListed.body.groups ?? [])
+    .flatMap((g) => g.items ?? [])
+    .find((i) => i.id === living.body.fixedExpense?.id);
+  check('F-FIX-01 목록에도 스위치가 실려 온다', listedLiving?.settles === true, listedLiving);
+
+  const settleRenamed = await call('PATCH', `/fixed-expenses/${living.body.fixedExpense?.id}`, {
+    token: dad.token,
+    body: { name: '생활비 이체' },
+  });
+  check(
+    '★ F-FIX-07 스위치를 안 보내면 이름만 고쳐도 스위치는 그대로다 — 안 건드림과 끔은 다르다',
+    settleRenamed.body.fixedExpense?.settles === true &&
+      settleRenamed.body.fixedExpense?.name === '생활비 이체',
+    settleRenamed.body,
+  );
+
+  const recategorized = await call('PATCH', `/fixed-expenses/${telecom.body.fixedExpense?.id}`, {
+    token: dad.token,
+    body: { category: '생활비' },
+  });
+  check(
+    'F-FIX-07 저장한 뒤에는 분류와 스위치가 독립이다 — 분류를 생활비로 바꿔도 스위치는 안 켜진다',
+    recategorized.body.fixedExpense?.settles === false,
+    recategorized.body,
+  );
+
+  const turnedOff = await call('PATCH', `/fixed-expenses/${living.body.fixedExpense?.id}`, {
+    token: dad.token,
+    body: { settles: false },
+  });
+  check(
+    'F-FIX-07 스위치만 보내면 스위치만 바뀐다',
+    turnedOff.body.fixedExpense?.settles === false,
+    turnedOff.body,
+  );
+
+  const notBool = await call('POST', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+    body: { ...settleBase, name: '이상한값', category: '기타', settles: 'yes' },
+  });
+  check('F-FIX-07 불리언이 아니면 VALIDATION', notBool.body.code === 'VALIDATION', notBool.body);
+
+  for (const item of [living, telecom, livingOff, allowance]) {
+    const id = item.body.fixedExpense?.id;
+    if (id) await call('DELETE', `/fixed-expenses/${id}`, { token: dad.token });
+  }
+
   console.log('\n[고정비 삭제]');
   // ★ 하드룰 6 — 이 기능이 존재하는 이유가 곧 하드룰 6 이다.
   //   실제 삭제는 과거 장부의 합계를 바꾼다. 지운 뒤에도 지난달이 그대로여야 한다.

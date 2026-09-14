@@ -1,9 +1,9 @@
-// 기능: F-FIX-01 F-FIX-02 F-FIX-03 F-FIX-04
+// 기능: F-FIX-01 F-FIX-02 F-FIX-03 F-FIX-04 F-FIX-07
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
 import { requireMembership, requireUser } from '../lib/auth.js';
-import { amount, category, dayOfMonth, description } from '../lib/schemas.js';
+import { amount, category, dayOfMonth, description, settles } from '../lib/schemas.js';
 import {
   createFixedExpense,
   deactivateFixedExpense,
@@ -33,6 +33,7 @@ export async function fixedExpenseRoutes(app: FastifyInstance) {
           category: f.category,
           defaultAmount: f.defaultAmount,
           dayOfMonth: f.dayOfMonth,
+          settles: f.settles,
         })),
         monthlyTotal: m.fixedExpenses.reduce((sum, f) => sum + f.defaultAmount, 0),
       })),
@@ -52,6 +53,7 @@ export async function fixedExpenseRoutes(app: FastifyInstance) {
         category,
         defaultAmount: amount,
         dayOfMonth,
+        settles,
       })
       .parse(request.body);
 
@@ -71,6 +73,7 @@ export async function fixedExpenseRoutes(app: FastifyInstance) {
         category: category.optional(),
         defaultAmount: amount.optional(),
         dayOfMonth,
+        settles,
       })
       .parse(request.body);
 

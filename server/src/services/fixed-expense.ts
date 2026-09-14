@@ -1,7 +1,7 @@
-// 기능: F-FIX-01 F-FIX-02 F-FIX-03 F-FIX-04
+// 기능: F-FIX-01 F-FIX-02 F-FIX-03 F-FIX-04 F-FIX-07
 import { prisma } from '../lib/db.js';
 import { fail } from '../lib/http.js';
-import { ACTIVE_MEMBER } from '../lib/shared.js';
+import { ACTIVE_MEMBER, defaultSettles } from '../lib/shared.js';
 
 export type FixedExpenseInput = {
   name: string;
@@ -9,6 +9,8 @@ export type FixedExpenseInput = {
   category: string;
   defaultAmount: number;
   dayOfMonth?: number | null;
+  /** 결산 스위치. 등록 때 안 보내면 분류로 정한다 (F-FIX-07) */
+  settles?: boolean;
 };
 
 /** 가족 전체의 고정비를 사람별로 — 구성원은 ACTIVE 만, 항목은 active 만 */
@@ -47,6 +49,8 @@ export async function createFixedExpense(
       category: input.category,
       defaultAmount: input.defaultAmount,
       dayOfMonth: input.dayOfMonth ?? null,
+      // 안 보냈을 때만 분류가 정한다. 보낸 값이 있으면 그대로 — 생활비라도 끌 수 있어야 한다
+      settles: input.settles ?? defaultSettles(input.category),
       sortOrder: count,
     },
   });

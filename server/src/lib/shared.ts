@@ -1,4 +1,4 @@
-// 기능: F-FIX-05 F-ENT-03 F-ENT-04 F-FAM-03 F-FAM-06 F-BOOK-01 F-FIX-06
+// 기능: F-FIX-05 F-FIX-07 F-ENT-03 F-ENT-04 F-FAM-03 F-FAM-06 F-BOOK-01 F-FIX-06
 /** 앱과 서버가 공유하는 상수·타입. 앱 쪽 mobile/src/shared/model/types.ts 와 짝을 이룬다. */
 
 export const CATEGORIES = [
@@ -14,6 +14,17 @@ export const CATEGORIES = [
 ] as const;
 
 export type Category = (typeof CATEGORIES)[number];
+
+/**
+ * 결산 스위치의 기본값 — 분류가 생활비면 켜진다 (기획서 7.4 · F-FIX-07).
+ *
+ * 생활비·용돈처럼 "옮겨두고 쓰는 돈"만 다음 달에 실제 쓴 금액을 되묻는다. 분류로 기본값만 정하고
+ * 저장한 뒤에는 둘이 독립이다 — 기타에 든 용돈은 직접 켜고, 생활비 분류라도 끌 수 있다.
+ * 앱의 entities/fixed-expense/model 에 같은 함수가 있다 — tests/contract 가 둘을 맞춰본다.
+ */
+export function defaultSettles(category: string): boolean {
+  return category === '생활비';
+}
 
 export const LINE_KINDS = ['INCOME', 'FIXED', 'EXTRA'] as const;
 export type LineKind = (typeof LINE_KINDS)[number];
