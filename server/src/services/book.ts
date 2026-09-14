@@ -167,6 +167,10 @@ export async function openMyEntry(familyId: string, yearMonth: string, membershi
     // 옮겨둔 돈을 얼마나 썼는지는 항목을 지웠다고 없어지는 사실이 아니다
     include: { fixedExpense: { select: { settles: true } } },
   });
+  // 제출 여부는 보지 않는다 — 프리필과 같은 정책이다. 그래서 지난달이 아직 초안인 채로 이번 달을 열면
+  // 결산 줄의 "옮긴 금액"은 그 시점의 값으로 굳고, 지난달 초안을 나중에 고쳐도 따라가지 않는다.
+  // 의도한 것이다: 결산 줄도 만드는 시점의 스냅샷이고(하드룰 4), 지난달을 고치고 나서 이번 달 초안을
+  // 지우고 다시 열면(F-ENT-10) 새 금액으로 묻는다.
 
   const lastIncome = lastMonthLines.find((l) => l.kind === 'INCOME')?.actualAmount ?? null;
   const lastByFixedId = new Map(
@@ -205,6 +209,7 @@ export async function openMyEntry(familyId: string, yearMonth: string, membershi
             category: l.category,
             plannedAmount: l.actualAmount,
             plannedSource: 'LAST_MONTH',
+            // 100 은 여유분이다 — 한 사람이 결산 항목을 100개 넘게 가질 일은 없다
             sortOrder: -100 + index,
           })),
           {
