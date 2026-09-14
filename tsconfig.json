@@ -8,7 +8,9 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": { "@/*": ["mobile/src/*"] }
   },
   "include": ["tests/**/*.ts", "vitest.config.mts"]
 }

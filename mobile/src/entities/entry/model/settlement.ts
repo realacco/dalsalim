@@ -1,5 +1,4 @@
-// `@/` 별칭이 아니라 상대 경로다 — tests/contract 가 서버 사본과 나란히 임포트하므로 별칭 없이 서야 한다
-import { formatDelta, shiftYearMonth } from '../../../shared/lib/format';
+import { formatDelta, shiftYearMonth } from '@/shared/lib/format';
 
 /**
  * 결산 스텝이 보여줄 "옮긴 것과 얼마나 다른가" (F-ENT-11).

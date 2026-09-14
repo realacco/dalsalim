@@ -16,7 +16,7 @@ import {
   currentYearMonth as appCurrentYearMonth,
   shiftYearMonth as appShiftYearMonth,
 } from '../../mobile/src/shared/lib/format';
-import { CATEGORIES as APP_CATEGORIES } from '../../mobile/src/shared/model/types';
+import { CATEGORIES as APP_CATEGORIES, type LineKind } from '../../mobile/src/shared/model/types';
 
 /**
  * ★ 서버와 앱에 **각각** 있는 같은 규칙이 진짜 같은지 본다.
@@ -29,7 +29,7 @@ import { CATEGORIES as APP_CATEGORIES } from '../../mobile/src/shared/model/type
  */
 
 const AMOUNTS: (number | null)[] = [null, 0, 1, 120000, 135000, -5000];
-const KINDS = ['SETTLEMENT', 'INCOME', 'FIXED', 'EXTRA'];
+const KINDS: LineKind[] = ['SETTLEMENT', 'INCOME', 'FIXED', 'EXTRA'];
 
 describe('needsReason — 서버와 앱이 같은 답을 낸다 (하드룰 2·3)', () => {
   it('종류 4 × 금액 조합 36 = 144가지에서 결과가 하나도 갈리지 않는다', () => {

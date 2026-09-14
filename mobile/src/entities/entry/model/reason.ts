@@ -1,10 +1,8 @@
-/**
- * 사유 판정에 필요한 최소한의 모양. 줄 종류가 판정에 들어가므로 금액 둘만으로는 부족하다.
- * kind 를 LineKind 로 좁히지 않는 이유: 이 파일은 tests/contract 가 서버 사본과 나란히 임포트하므로
- * `@/` 별칭 없이 혼자 서야 한다 (settles.ts 와 같은 이유).
- */
+import type { LineKind } from '@/shared/model/types';
+
+/** 사유 판정에 필요한 최소한의 모양. 줄 종류가 판정에 들어가므로 금액 둘만으로는 부족하다 */
 export type ReasonableLine = {
-  kind: string;
+  kind: LineKind;
   plannedAmount: number | null;
   actualAmount: number | null;
 };
