@@ -79,7 +79,7 @@ export const ERRORS = {
     message: '지난 달 기록은 지울 수 없어요. [수정하기]로 고칠 수는 있어요.',
   },
   LINE_NOT_FOUND: { status: 404, message: '입력 줄을 찾을 수 없어요.' },
-  NOT_DELETABLE: { status: 400, message: '추가 지출 항목만 지울 수 있어요.' },
+  NOT_DELETABLE: { status: 400, message: '추가 지출과 기타 수입만 지울 수 있어요.' },
   /** ★ 하드룰 2·3 — 줄 저장에서는 항목 없이, 제출에서는 비어 있는 항목 이름을 붙여서 */
   REASON_REQUIRED: {
     status: 400,

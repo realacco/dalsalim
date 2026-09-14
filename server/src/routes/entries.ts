@@ -19,6 +19,19 @@ import {
 const reason = z.string().trim().max(200).nullable().optional();
 const entryParams = z.object({ id: z.string() });
 const lineParams = z.object({ id: z.string(), lineId: z.string() });
+const lineName = z.string().trim().min(1, '항목 이름을 적어주세요.').max(30);
+const extraLineBody = z.preprocess(
+  // kind 를 안 보내면 추가 지출이다 — 기타 수입이 생기기 전 앱은 kind 자체를 모른다
+  (raw) => (raw && typeof raw === 'object' && !('kind' in raw) ? { kind: 'EXTRA', ...raw } : raw),
+  z.discriminatedUnion(
+    'kind',
+    [
+      z.object({ kind: z.literal('EXTRA'), name: lineName, category, actualAmount: amount }),
+      z.object({ kind: z.literal('EXTRA_INCOME'), name: lineName, actualAmount: amount }),
+    ],
+    { error: '추가 지출이나 기타 수입만 적을 수 있어요.' },
+  ),
+);
 
 export async function entryRoutes(app: FastifyInstance) {
   app.get('/entries/:id', async (request) => {
@@ -62,21 +75,6 @@ export async function entryRoutes(app: FastifyInstance) {
 
     return { line: await updateLine(params.id, params.lineId, body) };
   });
-
-  const lineName = z.string().trim().min(1, '항목 이름을 적어주세요.').max(30);
-  const extraLineBody = z.preprocess(
-    // kind 를 안 보내면 추가 지출이다 — 기타 수입이 생기기 전 앱은 kind 자체를 모른다
-    (raw) => (raw && typeof raw === 'object' && !('kind' in raw) ? { kind: 'EXTRA', ...raw } : raw),
-    z.discriminatedUnion('kind', [
-      z.object({
-        kind: z.literal('EXTRA'),
-        name: lineName,
-        category,
-        actualAmount: amount,
-      }),
-      z.object({ kind: z.literal('EXTRA_INCOME'), name: lineName, actualAmount: amount }),
-    ]),
-  );
 
   /** 추가 지출 · 기타 수입 항목 — 이름부터 받는다. 기타 수입은 분류가 없다 (F-ENT-12) */
   app.post('/entries/:id/lines', async (request) => {
