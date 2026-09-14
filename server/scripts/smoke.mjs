@@ -284,6 +284,14 @@ async function runWizard(name, { changeFirstFixed }) {
 
   await call('DELETE', `/entries/${entry.id}/lines/${livingExtra.body.line.id}`, { token });
 
+  // 저축·투자 — 월급에서 빠지지만 소비가 아닌 돈에 이름표를 붙인다. 목록을 늘린 것뿐이라 남은 돈 식은 그대로다
+  const savingExtra = await call('POST', `/entries/${entry.id}/lines`, {
+    token,
+    body: { name: '청약 추가 납입', category: '저축', actualAmount: 100_000 },
+  });
+  check('★ F-FIX-08 저축 분류로 적을 수 있다', savingExtra.status === 200, savingExtra.body);
+  await call('DELETE', `/entries/${entry.id}/lines/${savingExtra.body.line?.id}`, { token });
+
   // 5) 특이사항
   const note = await call('PATCH', `/entries/${entry.id}`, {
     token,
@@ -939,6 +947,19 @@ async function main() {
     token: dad.token,
     body: { ...settleBase, name: '통신비', category: '통신' },
   });
+  const investing = await call('POST', `/families/${dad.familyId}/fixed-expenses`, {
+    token: dad.token,
+    body: { ...settleBase, name: '연금저축펀드', category: '투자' },
+  });
+  check(
+    'F-FIX-08 투자 분류로 등록되고 결산 스위치는 꺼진 채다 — 옮기면 끝나는 돈이다',
+    investing.status === 200 && investing.body.fixedExpense?.settles === false,
+    investing.body,
+  );
+  if (investing.body.fixedExpense?.id) {
+    await call('DELETE', `/fixed-expenses/${investing.body.fixedExpense.id}`, { token: dad.token });
+  }
+
   check(
     'F-FIX-07 다른 분류는 꺼진 채 저장된다',
     telecom.status === 200 && telecom.body.fixedExpense?.settles === false,

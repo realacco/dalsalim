@@ -69,6 +69,8 @@ const PEOPLE: Spec[] = [
       { name: '넷플릭스', category: '구독', amount: 17_000, day: 8 },
       // 결산 스위치가 켜지는 항목 — 이게 있어야 데모에서 이번 달 첫 스텝(지난달 결산)을 볼 수 있다 (F-ENT-11)
       { name: '생활비', category: '생활비', amount: 500_000, day: 25 },
+      // 저축은 월급에서 빠지지만 소비가 아니다 — 분류별 표에서 따로 보인다 (F-FIX-08)
+      { name: '적금', category: '저축', amount: 300_000, day: 25 },
     ],
     extras: [{ name: '아이 학원비', category: '교육', amount: 350_000 }],
     note: '',
