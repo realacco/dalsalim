@@ -67,12 +67,8 @@ describe('F-ENT-04 needsReason — 사유 강제 (하드룰 2·3)', () => {
   });
 });
 
-describe('F-FIX-05 CATEGORIES — 분류 고정 목록 9개 (하드룰 1)', () => {
-  it('★ 아홉 개다 — 사용자가 만들거나 지울 수 없는 고정 목록이다', () => {
-    expect(CATEGORIES).toHaveLength(9);
-  });
-
-  it('★ 목록과 순서가 화면에 나오는 그대로다', () => {
+describe('F-FIX-05 CATEGORIES — 분류 고정 목록 (하드룰 1)', () => {
+  it('★ 목록과 순서가 화면에 나오는 그대로다 — 사용자가 만들거나 지울 수 없는 고정 목록이다', () => {
     expect([...CATEGORIES]).toEqual([
       '주거',
       '통신',
@@ -81,9 +77,23 @@ describe('F-FIX-05 CATEGORIES — 분류 고정 목록 9개 (하드룰 1)', () =
       '구독',
       '교육',
       '대출·상환',
+      '저축',
+      '투자',
       '생활비',
       '기타',
     ]);
+  });
+
+  it('★ F-FIX-08 저축·투자가 대출·상환 뒤, 생활비 앞에 있다 — 나가는 돈의 이름표지 자산 관리가 아니다', () => {
+    const list = [...CATEGORIES];
+    expect(list.indexOf('저축')).toBe(list.indexOf('대출·상환') + 1);
+    expect(list.indexOf('투자')).toBe(list.indexOf('저축') + 1);
+    expect(list.indexOf('생활비')).toBe(list.indexOf('투자') + 1);
+  });
+
+  it('F-FIX-08 저축·투자는 결산 스위치가 기본 꺼짐이다 — 옮기면 끝나는 돈이라 되물을 게 없다', () => {
+    expect(defaultSettles('저축')).toBe(false);
+    expect(defaultSettles('투자')).toBe(false);
   });
 
   it('중복이 없다 — 같은 이름이 두 번 뜨면 고르는 사람이 헷갈린다', () => {
@@ -137,8 +147,7 @@ describe('shiftYearMonth', () => {
 });
 
 describe('공유 상수', () => {
-  it('분류는 9개이고 순서가 화면 순서다', () => {
-    expect(CATEGORIES).toHaveLength(9);
+  it('분류는 주거로 시작해 기타로 끝난다', () => {
     expect(CATEGORIES[0]).toBe('주거');
     expect(CATEGORIES[CATEGORIES.length - 1]).toBe('기타');
   });
