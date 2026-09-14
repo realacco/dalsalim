@@ -201,7 +201,8 @@ export async function openMyEntry(familyId: string, yearMonth: string, membershi
       membershipId,
       lines: {
         create: [
-          // 결산 줄은 수입보다 앞(-100번대)에 온다 — 지난달 이야기를 먼저 끝내고 이번 달로 넘어간다
+          // 결산 줄은 수입(0)보다 앞에 온다 — 지난달 이야기를 먼저 끝내고 이번 달로 넘어간다.
+          // 음수를 뒤에서부터 매겨서(-n … -1) 개수가 몇이든 0 과 겹치지 않는다
           ...settlementSources.map((l, index) => ({
             kind: 'SETTLEMENT',
             fixedExpenseId: l.fixedExpenseId,
@@ -209,8 +210,7 @@ export async function openMyEntry(familyId: string, yearMonth: string, membershi
             category: l.category,
             plannedAmount: l.actualAmount,
             plannedSource: 'LAST_MONTH',
-            // 100 은 여유분이다 — 한 사람이 결산 항목을 100개 넘게 가질 일은 없다
-            sortOrder: -100 + index,
+            sortOrder: index - settlementSources.length,
           })),
           {
             kind: 'INCOME',
