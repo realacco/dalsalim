@@ -310,18 +310,33 @@ export async function buildMonthSummary(familyId: string, yearMonth: string) {
   ]);
 
   const submitted = (book?.entries ?? []).filter((entry) => entry.status === 'SUBMITTED');
-  const submittedByMembership = new Map(submitted.map((entry) => [entry.membershipId, entry]));
+  const submittedIds = new Set(submitted.map((entry) => entry.membershipId));
 
-  const perMember = memberships.map((membership) => {
-    const entry = submittedByMembership.get(membership.id);
-    return {
-      membershipId: membership.id,
-      displayName: membership.displayName,
-      submitted: Boolean(entry),
-      note: entry?.note ?? null,
-      ...entrySummary(entry?.lines ?? []),
-    };
-  });
+  // ★ 집계의 축은 구성원 상태가 아니라 그 달의 제출본이다 (하드룰 6 · F-FAM-08).
+  //   나간 사람의 제출본을 빼면 그 사람이 나가는 순간 지난달 합계가 줄어든다 — 실제 삭제와 같은 결과다.
+  //   사람별 = 그 달에 낸 사람(나간 사람 포함) + 현재 구성원 중 미제출자. 그래야 사람별 합이 총계다.
+  const perMember = [
+    ...submitted.map((entry) => ({
+      sortOrder: entry.membership.sortOrder,
+      membershipId: entry.membershipId,
+      displayName: entry.membership.displayName,
+      submitted: true,
+      note: entry.note,
+      ...entrySummary(entry.lines),
+    })),
+    ...memberships
+      .filter((membership) => !submittedIds.has(membership.id))
+      .map((membership) => ({
+        sortOrder: membership.sortOrder,
+        membershipId: membership.id,
+        displayName: membership.displayName,
+        submitted: false,
+        note: null,
+        ...entrySummary([]),
+      })),
+  ]
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map(({ sortOrder: _order, ...row }) => row);
 
   const allLines = submitted.flatMap((entry) =>
     entry.lines.map((line) => ({ ...line, displayName: entry.membership.displayName })),
@@ -350,7 +365,8 @@ export async function buildMonthSummary(familyId: string, yearMonth: string) {
     /** 숫자가 몇 명 기준인지 — 앱이 "엄마가 아직 안 적었어요" 배너를 그리는 근거 */
     progress: {
       submittedCount: submitted.length,
-      memberCount: memberships.length,
+      // 정원 = 현재 구성원 + 그 달에 낸 나간 사람. "N명 기준"의 N 이 숫자에 들어간 사람 수와 같아야 한다
+      memberCount: perMember.length,
       pendingMembers: perMember
         .filter((m) => !m.submitted)
         .map((m) => ({ membershipId: m.membershipId, displayName: m.displayName })),
@@ -417,17 +433,19 @@ export async function buildMonthSummary(familyId: string, yearMonth: string) {
  * 거짓 그래프가 된다. 없는 건 없는 대로 두는 게 맞다.
  */
 export async function buildTrend(familyId: string, months: number) {
-  const memberCount = await prisma.membership.count({ where: { familyId, ...ACTIVE_MEMBER } });
+  const activeMembers = await prisma.membership.findMany({
+    where: { familyId, ...ACTIVE_MEMBER },
+    select: { id: true },
+  });
+  const activeIds = new Set(activeMembers.map((m) => m.id));
 
   const books = await prisma.monthlyBook.findMany({
     where: { familyId },
     orderBy: { yearMonth: 'desc' },
     take: months,
     include: {
-      entries: {
-        where: { status: 'SUBMITTED', membership: ACTIVE_MEMBER },
-        include: { lines: true },
-      },
+      // 나간 사람의 제출본도 센다 — 요약과 같은 축이다 (하드룰 6 · F-FAM-08). 빼면 나가는 순간 과거 점이 내려앉는다
+      entries: { where: { status: 'SUBMITTED' }, include: { lines: true } },
     },
   });
 
@@ -452,7 +470,9 @@ export async function buildTrend(familyId: string, months: number) {
         ...totals,
         surplus: totals.income - totals.fixedTotal - totals.extraTotal - totals.settlementTotal,
         submittedCount: book.entries.length,
-        memberCount,
+        // 정원 = 현재 구성원 + 그 달에 낸 나간 사람 (요약의 memberCount 와 같은 규칙)
+        memberCount:
+          activeIds.size + book.entries.filter((e) => !activeIds.has(e.membershipId)).length,
       };
     })
     .reverse(); // 오래된 달이 왼쪽에 오게
