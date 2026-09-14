@@ -521,6 +521,11 @@ async function main() {
     token: dad.token,
   });
   check(
+    '★ F-BOOK-02 홈이 말하는 "N명 기준"도 요약과 같은 축이다 — 나간 사람의 제출본을 센다',
+    afterKick.body.submittedCount === 2,
+    { submittedCount: afterKick.body.submittedCount, members: afterKick.body.members.length },
+  );
+  check(
     '★ F-BOOK-04 남은 사람만으로 장부가 완성된다',
     afterKick.body.book.status === 'COMPLETE' && afterKick.body.members.length === 1,
     { status: afterKick.body.book.status, members: afterKick.body.members.length },
@@ -556,7 +561,7 @@ async function main() {
     afterKickSummary.body.perMember,
   );
   check(
-    'F-BOOK-02 정원은 현재 구성원 + 그 달에 낸 나간 사람 — 미제출자에는 나간 사람이 안 들어간다',
+    '★ F-BOOK-02 정원은 현재 구성원 + 그 달에 낸 나간 사람 — 미제출자에는 나간 사람이 안 들어간다',
     // perMember.length 와 비교하면 서버가 그렇게 만들어 주므로 늘 참이다 — 값으로 못 박는다
     afterKickSummary.body.progress.memberCount === 2 &&
       afterKickSummary.body.progress.memberCount === beforeKickSummary.progress.memberCount &&

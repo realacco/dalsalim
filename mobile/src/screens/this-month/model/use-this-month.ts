@@ -105,7 +105,9 @@ export function useThisMonth() {
     mine,
     alone: members.length > 0 && members.length - 1 === 0,
     notSubmitted,
-    submittedCount: members.length - notSubmitted.length,
+    // 사람별 목록(현재 구성원)에서 세면 그 달에 낸 뒤 나간 사람이 빠져 요약 화면의 "N명 기준"과 갈린다.
+    // 서버가 요약과 같은 축으로 센 값을 쓴다 (F-BOOK-02). 옛 서버 응답에는 이 값이 없어 그때만 예전 식으로 센다
+    submittedCount: book.data?.submittedCount ?? members.length - notSubmitted.length,
 
     actionError: error,
     /**

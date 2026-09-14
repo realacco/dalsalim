@@ -7,6 +7,8 @@ export type BookView = {
   book: Book;
   myMembershipId: string;
   isFuture: boolean;
+  /** 그 달에 제출본이 있는 사람 수 — 요약 화면의 progress.submittedCount 와 같은 축 (F-BOOK-02) */
+  submittedCount: number;
   members: {
     membershipId: string;
     displayName: string;

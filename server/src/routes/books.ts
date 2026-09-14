@@ -8,6 +8,7 @@ import { currentYearMonth, isYearMonth } from '../lib/shared.js';
 import { serializeEntry } from '../services/entry.js';
 import {
   buildBookView,
+  countSubmittedEntries,
   buildMonthSummary,
   buildTrend,
   getOrCreateBook,
@@ -36,6 +37,7 @@ export async function bookRoutes(app: FastifyInstance) {
       myMembershipId: mine.id,
       isFuture: yearMonth > currentYearMonth(),
       members: await buildBookView(params.familyId, book.id, mine.id),
+      submittedCount: await countSubmittedEntries(book.id),
     };
   });
 

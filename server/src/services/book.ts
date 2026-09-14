@@ -66,6 +66,15 @@ export async function buildBookView(familyId: string, bookId: string, myMembersh
 }
 
 /**
+ * 그 달에 제출본이 있는 사람 수 — 홈의 "아래 숫자는 N명 기준" 의 N.
+ * 요약의 progress.submittedCount 와 같은 축(구성원 상태를 안 봄)이어야 한다.
+ * 홈의 사람별 목록은 현재 구성원만 보이므로 거기서 세면 나간 사람의 제출본이 빠져 요약과 갈린다 (F-BOOK-02).
+ */
+export function countSubmittedEntries(bookId: string) {
+  return prisma.memberEntry.count({ where: { bookId, status: 'SUBMITTED' } });
+}
+
+/**
  * 기록을 시작한 뒤에 고정비 항목이 추가됐다면 줄을 채워 넣는다.
  * 삭제된 항목의 줄은 지우지 않는다 — 이미 금액을 적었을 수 있고,
  * 그 달에 실제로 나간 돈이라는 사실은 항목을 지운다고 사라지지 않는다.
