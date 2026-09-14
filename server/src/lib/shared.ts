@@ -54,7 +54,11 @@ export type Role = 'OWNER' | 'MEMBER';
 export const MEMBERSHIP_STATUSES = ['PENDING', 'ACTIVE', 'LEFT'] as const;
 export type MembershipStatus = (typeof MEMBERSHIP_STATUSES)[number];
 
-/** 구성원으로 세는 조건. 정원·목록·권한이 전부 이 하나를 봐야 어긋나지 않는다. */
+/**
+ * 구성원으로 세는 조건. 정원·목록·권한이 전부 이 하나를 봐야 어긋나지 않는다.
+ * 단, 이미 제출본이 있는 달의 집계(요약·추이의 사람별·정원)는 예외다 — 그 달에 낸 사람은
+ * 상태와 무관하게 센다 (F-BOOK-02 · 하드룰 8 의 예외). 여기를 안 본다고 되돌리지 말 것.
+ */
 export const ACTIVE_MEMBER = { status: 'ACTIVE' } as const;
 
 /** 'YYYY-MM' 형식인지 */
