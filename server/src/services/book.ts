@@ -446,21 +446,19 @@ export async function buildMonthSummary(familyId: string, yearMonth: string) {
  * 거짓 그래프가 된다. 없는 건 없는 대로 두는 게 맞다.
  */
 export async function buildTrend(familyId: string, months: number) {
-  const activeMembers = await prisma.membership.findMany({
-    where: { familyId, ...ACTIVE_MEMBER },
-    select: { id: true },
-  });
+  const [activeMembers, books] = await Promise.all([
+    prisma.membership.findMany({ where: { familyId, ...ACTIVE_MEMBER }, select: { id: true } }),
+    prisma.monthlyBook.findMany({
+      where: { familyId },
+      orderBy: { yearMonth: 'desc' },
+      take: months,
+      include: {
+        // 나간 사람의 제출본도 센다 — 요약과 같은 축이다 (하드룰 6 · F-FAM-08). 빼면 나가는 순간 과거 점이 내려앉는다
+        entries: { where: { status: 'SUBMITTED' }, include: { lines: true } },
+      },
+    }),
+  ]);
   const activeIds = new Set(activeMembers.map((m) => m.id));
-
-  const books = await prisma.monthlyBook.findMany({
-    where: { familyId },
-    orderBy: { yearMonth: 'desc' },
-    take: months,
-    include: {
-      // 나간 사람의 제출본도 센다 — 요약과 같은 축이다 (하드룰 6 · F-FAM-08). 빼면 나가는 순간 과거 점이 내려앉는다
-      entries: { where: { status: 'SUBMITTED' }, include: { lines: true } },
-    },
-  });
 
   return books
     .filter((book) => book.entries.length > 0)
