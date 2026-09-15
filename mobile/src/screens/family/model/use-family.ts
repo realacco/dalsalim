@@ -28,7 +28,7 @@ import { errorMessage } from '@/shared/lib/errors';
 export function useFamily() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { me, familyId, signOut, refreshMe, selectFamily } = useSession();
+  const { familyId, refreshMe, selectFamily } = useSession();
 
   const [copied, setCopied] = useState(false);
 
@@ -121,14 +121,7 @@ export function useFamily() {
     setTimeout(() => setCopied(false), 1600);
   }
 
-  function switchFamily(nextFamilyId: string) {
-    void selectFamily(nextFamilyId);
-    void queryClient.invalidateQueries();
-  }
-
   return {
-    me,
-    familyId,
     family: detail.data?.family ?? null,
     members,
     myMembership,
@@ -162,8 +155,5 @@ export function useFamily() {
     handOver: (membershipId: string) => handOver.mutate(membershipId),
     remove: (membershipId: string) => remove.mutate(membershipId),
     leave: () => myMembership && leave.mutate(myMembership.id),
-    switchFamily,
-    // 토큰이 비면 앱 셸이 로그인으로 보낸다
-    signOut: () => void signOut(),
   };
 }
