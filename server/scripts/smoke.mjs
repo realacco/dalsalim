@@ -1752,6 +1752,26 @@ async function main() {
     lonerMe.body.contents,
   );
 
+  // 홈을 한 번 열기만 해도 MonthlyBook 이 생긴다. 그걸 세면 아무것도 안 적은 사람에게
+  // "기록한 달 1개월이 지워져요" 라고 겁을 주게 되므로, 기록이 있는 달만 세는지 본다
+  await call('GET', `/families/${lonerFamilyId}/books/${thisMonth}`, { token: lonerToken });
+  const lonerAfterPeek = await call('GET', `/families/${lonerFamilyId}`, { token: lonerToken });
+  check(
+    '★ F-FAM-11 열어보기만 한 달은 "기록한 달"에 들지 않는다',
+    lonerAfterPeek.body.contents?.months === 0,
+    lonerAfterPeek.body.contents,
+  );
+
+  await call('POST', `/families/${lonerFamilyId}/books/${thisMonth}/my-entry`, {
+    token: lonerToken,
+  });
+  const lonerAfterEntry = await call('GET', `/families/${lonerFamilyId}`, { token: lonerToken });
+  check(
+    'F-FAM-11 한 줄이라도 적으면 그 달이 잡힌다',
+    lonerAfterEntry.body.contents?.months === 1,
+    lonerAfterEntry.body.contents,
+  );
+
   // ★ 여기가 이 절의 핵심이다. 막지 않으면 초대코드만 살아 있는 유령 가족이 남고,
   //   그 코드로 들어온 사람은 승인해줄 가족장이 없어 영원히 대기한다
   const lonerMembershipId = lonerMe.body.myMembershipId;

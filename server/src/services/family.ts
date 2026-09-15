@@ -160,7 +160,11 @@ export function getFamilyWithMembers(familyId: string) {
  */
 export async function countFamilyContents(familyId: string) {
   const [months, fixedExpenses] = await Promise.all([
-    prisma.monthlyBook.count({ where: { familyId } }),
+    // 기록이 한 줄이라도 있는 달만 센다. MonthlyBook 은 getOrCreateBook() 이
+    // 그 달을 열어보기만 해도 만들어지므로, 그냥 세면 "열어본 달"이 나와
+    // 아무것도 안 적은 사람에게 "기록한 달 3개월이 지워져요" 라고 겁을 준다.
+    prisma.monthlyBook.count({ where: { familyId, entries: { some: {} } } }),
+    // 이미 지운 고정비(active=false)는 화면에서도 없는 것이라 세지 않는다 (하드룰 6)
     prisma.fixedExpense.count({ where: { familyId, active: true } }),
   ]);
 
