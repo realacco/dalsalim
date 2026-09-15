@@ -56,6 +56,13 @@ export default function PendingScreen() {
       if (joined) {
         await selectFamily(joined.family.id);
         queryClient.clear();
+        /*
+          이 확인은 10초마다 뒤에서도 돈다. 그 사이 이 화면 위에 다른 화면(내 정보)이
+          얹혀 있으면 replace 가 그 자리만 바꿔 승인 대기가 스택에 남고, 뒤로가기하면
+          방금 승인된 사람에게 "거절됐거나 이미 처리된 요청" 이 뜬다 — 이 파일이
+          위에서 막아둔 바로 그 화면이다. 먼저 비우고 간다 (앱 셸의 로그아웃과 같은 모양).
+        */
+        if (router.canDismiss()) router.dismissAll();
         router.replace('/(tabs)');
         return true;
       }
