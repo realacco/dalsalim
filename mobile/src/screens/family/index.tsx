@@ -77,12 +77,16 @@ export default function FamilyScreen() {
             <MembersCard
               members={f.members}
               iAmOwner={f.iAmOwner}
+              familyName={f.family?.name ?? ''}
+              contents={f.contents}
               canLeave={Boolean(f.myMembership)}
               ownerMustHandOverFirst={f.iAmOwner && f.others.length > 0}
+              lastOwner={f.iAmOwner && f.others.length === 0}
               busy={f.busy}
               onHandOver={f.handOver}
               onRemove={f.remove}
               onLeave={f.leave}
+              onDeleteFamily={f.deleteFamily}
             />
           </>
         ) : null}

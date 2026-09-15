@@ -4,6 +4,8 @@ export type Family = { id: string; name: string; inviteCode: string };
 
 export type FamilyDetail = {
   family: Family;
+  /** 가족을 없앨 때 무엇이 사라지는지 (F-FAM-11). 확인 다이얼로그가 세어 보여준다 */
+  contents: { months: number; fixedExpenses: number };
   myMembershipId: string;
   members: {
     id: string;

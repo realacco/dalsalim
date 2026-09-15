@@ -10,6 +10,7 @@ export {
   approveJoinRequest,
   cancelJoinRequest,
   createFamily,
+  deleteFamily,
   familyKeys,
   fetchFamily,
   fetchJoinRequests,
