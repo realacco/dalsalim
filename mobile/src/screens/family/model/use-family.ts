@@ -23,7 +23,7 @@ import { errorMessage } from '@/shared/lib/errors';
 /**
  * 가족 화면의 상태 조립. 화면은 여기서 받은 것을 그리기만 한다.
  *
- * 조회 2 + 동작 6 이라 화면에 두면 JSX 보다 통신 코드가 길어진다 (CLAUDE.md 분리 기준: 3개 초과).
+ * 조회 2 + 동작 7 이라 화면에 두면 JSX 보다 통신 코드가 길어진다 (CLAUDE.md 분리 기준: 3개 초과).
  * 동작이 실패하면 전부 같은 알림을 띄운다 — 버튼 하나짜리 동작의 실패 표현 규칙.
  */
 export function useFamily() {

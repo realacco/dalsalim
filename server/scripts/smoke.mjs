@@ -1767,7 +1767,7 @@ async function main() {
   });
   const lonerAfterEntry = await call('GET', `/families/${lonerFamilyId}`, { token: lonerToken });
   check(
-    'F-FAM-11 한 줄이라도 적으면 그 달이 잡힌다',
+    'F-FAM-11 기록을 시작하면 그 달이 잡힌다',
     lonerAfterEntry.body.contents?.months === 1,
     lonerAfterEntry.body.contents,
   );
@@ -1810,6 +1810,26 @@ async function main() {
     companionApproved.body,
   );
 
+  // 나간 사람의 고정비는 목록에 안 보이므로 세어서도 안 된다 — 확인할 길이 없는 숫자다
+  const companionMembership = (
+    await call('GET', `/families/${lonerFamilyId}`, { token: lonerToken })
+  ).body.members?.find((m) => !m.isMe);
+  await call('POST', `/families/${lonerFamilyId}/fixed-expenses`, {
+    token: companionToken,
+    body: {
+      membershipId: companionMembership?.id,
+      name: '곁님 통신비',
+      category: '통신',
+      defaultAmount: 30_000,
+    },
+  });
+  const withCompanionItem = await call('GET', `/families/${lonerFamilyId}`, { token: lonerToken });
+  check(
+    'F-FAM-11 (준비) 곁님의 고정비가 수에 든다',
+    withCompanionItem.body.contents?.fixedExpenses === 1,
+    withCompanionItem.body.contents,
+  );
+
   const deleteWithMembers = await call('DELETE', `/families/${lonerFamilyId}`, {
     token: lonerToken,
   });
@@ -1838,12 +1858,16 @@ async function main() {
   );
 
   // 다시 혼자로 만들고 없앤다
-  const companionMembershipId = (
-    await call('GET', `/families/${lonerFamilyId}`, { token: lonerToken })
-  ).body.members?.find((m) => !m.isMe)?.id;
-  await call('DELETE', `/families/${lonerFamilyId}/members/${companionMembershipId}`, {
+  await call('DELETE', `/families/${lonerFamilyId}/members/${companionMembership?.id}`, {
     token: lonerToken,
   });
+
+  const afterKickOut = await call('GET', `/families/${lonerFamilyId}`, { token: lonerToken });
+  check(
+    '★ F-FAM-11 나간 사람의 고정비는 수에서 빠진다 — 목록에 없는 것은 안 센다',
+    afterKickOut.body.contents?.fixedExpenses === 0,
+    afterKickOut.body.contents,
+  );
 
   const familyGone = await call('DELETE', `/families/${lonerFamilyId}`, { token: lonerToken });
   check('★ F-FAM-11 혼자 남은 가족장은 가족을 없앤다', familyGone.status === 200, familyGone.body);
