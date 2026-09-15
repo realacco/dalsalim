@@ -41,13 +41,18 @@ export function SettlementSheet({
     <Modal visible={draft !== null} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.backdropWrap}>
         <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="닫기" />
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + space.lg }]}>
+        <View style={styles.sheet}>
           <View style={styles.grabber} />
           <Text style={styles.title}>정산일</Text>
           {/* 칩이 쉰 개 남짓이라 큰 글자 설정에서는 화면을 넘는다 — 뚜껑을 두고 안에서 스크롤 (저장 버튼이 잘리면 기능이 막힌다) */}
           {draft ? (
+            /*
+              좌우·아래 여백은 시트가 아니라 contentContainerStyle 에 준다. 시트에 패딩을 주면
+              ScrollView 가 그만큼 안쪽에 놓여서 스크롤바가 화면 끝이 아니라 칩 위에 그려진다.
+              (고정비 시트와 같은 이유 — `fixed-expense-sheet.tsx`)
+            */
             <ScrollView
-              contentContainerStyle={{ gap: space.md }}
+              contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + space.lg }]}
               keyboardShouldPersistTaps="handled"
             >
               <Text style={styles.preview}>{formatSettlement(draft)}</Text>
@@ -106,10 +111,10 @@ const useStyles = makeStyles((t) => ({
     backgroundColor: t.colors.surface,
     borderTopLeftRadius: t.radius.sheet,
     borderTopRightRadius: t.radius.sheet,
-    paddingHorizontal: t.space.lg,
     paddingTop: t.space.sm,
     gap: t.space.md,
   },
+  content: { paddingHorizontal: t.space.lg, gap: t.space.md },
   grabber: {
     alignSelf: 'center',
     width: t.size.grabberWidth,
@@ -118,7 +123,13 @@ const useStyles = makeStyles((t) => ({
     backgroundColor: t.colors.lineStrong,
     marginBottom: t.space.xs,
   },
-  title: { ...t.font.title, fontWeight: t.weight.heavy, color: t.colors.ink },
+  /** 시트가 아니라 안쪽이 패딩을 가지므로 스크롤 밖에 있는 제목만 따로 들여쓴다 */
+  title: {
+    ...t.font.title,
+    fontWeight: t.weight.heavy,
+    color: t.colors.ink,
+    paddingHorizontal: t.space.lg,
+  },
   preview: { ...t.font.bodyLg, fontWeight: t.weight.bold, color: t.colors.primary },
   label: { ...t.font.sectionTitle, fontWeight: t.weight.bold, color: t.colors.inkSoft },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: t.space.sm },
