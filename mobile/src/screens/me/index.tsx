@@ -29,7 +29,7 @@ export default function MeScreen() {
           <Text style={styles.back}>‹</Text>
         </Pressable>
         <Text style={styles.title}>내 정보</Text>
-        <View style={{ width: 24 }} />
+        <View style={styles.backSpacer} />
       </View>
 
       {/* 가족 이름은 다른 사람이 바꾼다. 목록이 있는 화면이라 당겨서 새로고침을 단다 */}
@@ -96,7 +96,9 @@ const useStyles = makeStyles((t) => ({
     paddingHorizontal: t.space.lg,
     paddingVertical: t.space.md,
   },
-  back: { ...t.font.glyph, color: t.colors.inkSoft, width: 24 },
+  back: { ...t.font.glyph, color: t.colors.inkSoft, width: t.size.backGlyph },
+  /** 제목을 가운데 두려고 `‹` 와 같은 폭을 반대쪽에 비워 둔다 */
+  backSpacer: { width: t.size.backGlyph },
   title: { ...t.font.bodyLg, fontWeight: t.weight.heavy, color: t.colors.ink },
 
   content: { padding: t.space.lg, gap: t.space.lg, paddingBottom: t.space.xxl },

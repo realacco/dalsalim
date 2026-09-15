@@ -62,7 +62,7 @@ describe('isSessionExpired() — 실패를 보여줄지 말지 가르는 스위�
     expect(isSessionExpired(new ApiError(401, 'UNAUTHORIZED', '다시 로그인해주세요.'))).toBe(true);
   });
 
-  it('★ 서버에 못 닿은 것은 아니다 — 여기가 새면 서버가 꺼졌을 때 알림이 통째로 사라진다', () => {
+  it('서버에 못 닿은 것은 아니다 — 여기가 새면 서버가 꺼졌을 때 알림이 통째로 사라진다', () => {
     expect(isSessionExpired(new ApiError(0, 'NETWORK', MESSAGES.network))).toBe(false);
   });
 
