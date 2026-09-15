@@ -42,7 +42,6 @@ export function useFamily() {
   const [signingOut, setSigningOut] = useState(false);
   /** 앱 전체의 값 — 앱을 켤 때의 조용한 재등록 결과도 여기로 온다 */
   const pushState = usePushStore((state) => state.state);
-  const setPushState = usePushStore((state) => state.setState);
 
   const detail = useQuery({
     queryKey: familyKeys.detail(familyId),
@@ -138,9 +137,8 @@ export function useFamily() {
       setSettlementError(null);
       void queryClient.invalidateQueries({ queryKey: familyKeys.detail(familyId) });
       void refreshMe();
-      // 안 받기로 했으면 "알림이 꺼져 있어요" 도 지운다 — 방금 끈 사람에게 켜라고 하지 않는다
+      // 안 받기로 한 사람에게 "꺼져 있어요" 를 안 보이는 건 카드가 정산일 유무로 가른다 — 앱 전체 값은 안 건드린다
       if (settlement) await enablePushForThisDevice({ ask: true });
-      else setPushState(null);
     },
     onError: (caught) => setSettlementError(errorMessage(caught, MESSAGES.saveFailed)),
   });
@@ -219,6 +217,8 @@ export function useFamily() {
       setSettlementError(null);
     },
     saveSettlement: () => settlementDraft && saveSettlement.mutate(settlementDraft),
+    /** 정산일은 있는데 아직 권한을 안 물은 기기(폰을 바꿨을 때) — 앱 안에서 바로 묻는다 */
+    enablePush: () => void enablePushForThisDevice({ ask: true }),
     clearSettlement: () => {
       setSettlementError(null);
       saveSettlement.mutate(null);

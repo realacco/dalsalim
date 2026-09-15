@@ -73,9 +73,12 @@ export async function enablePushForThisDevice({ ask }: { ask: boolean }): Promis
 async function resolvePushState(ask: boolean): Promise<PushState> {
   if (!pushSupportedHere()) return 'unavailable';
 
-  let { status } = await Notifications.getPermissionsAsync();
-  if (status !== 'granted' && ask) ({ status } = await Notifications.requestPermissionsAsync());
-  if (status !== 'granted') return 'denied';
+  let { status, canAskAgain } = await Notifications.getPermissionsAsync();
+  if (status !== 'granted' && ask) {
+    ({ status, canAskAgain } = await Notifications.requestPermissionsAsync());
+  }
+  // 아직 안 물어본 것과 거절한 것은 다음 행동이 다르다 — 앞은 앱 안에서 묻고, 뒤는 설정으로 가야 한다
+  if (status !== 'granted') return canAskAgain ? 'unasked' : 'denied';
 
   const token = await fetchExpoToken();
   if (!token) return 'unavailable';
@@ -146,7 +149,12 @@ export function useNotificationTap() {
       router.replace('/(tabs)');
     };
 
-    void Notifications.getLastNotificationResponseAsync().then(open);
+    // 마지막 응답은 OS 가 계속 들고 있다 — 처리했으면 지워야 다음 실행에서 또 가족을 옮기지 않는다
+    void Notifications.getLastNotificationResponseAsync().then(async (response) => {
+      if (!response) return;
+      await Notifications.clearLastNotificationResponseAsync();
+      await open(response);
+    });
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
       void open(response);
     });

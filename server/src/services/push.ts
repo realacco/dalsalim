@@ -41,7 +41,9 @@ const EXPO_CHUNK = 100;
 /** 스케줄러가 1분마다 돌고 겹침을 막으므로, 한 전송이 이보다 오래 매달리면 틱이 통째로 밀린다 */
 const EXPO_TIMEOUT_MS = 10_000;
 
-type ExpoTicket = { status: 'ok' | 'error'; details?: { error?: string } };
+type ExpoTicket = { status: 'ok' | 'error'; message?: string; details?: { error?: string } };
+/** Expo 는 요청 전체가 잘못됐을 때 200 에 errors 만 담아 보낸다 — data 가 없다 */
+type ExpoPushResponse = { data?: ExpoTicket[]; errors?: { code?: string; message?: string }[] };
 
 /**
  * Expo Push Service 로 보낸다. Expo 가 FCM(안드로이드) · APNs(iOS) 에 넘긴다.
@@ -66,8 +68,11 @@ export const sendViaExpo: PushSender = async (messages) => {
     });
     if (!response.ok) throw new Error(`Expo push 응답 ${response.status}`);
 
-    const { data } = (await response.json()) as { data: ExpoTicket[] };
-    data.forEach((ticket, index) => {
+    const parsed = (await response.json()) as ExpoPushResponse;
+    if (!Array.isArray(parsed.data)) {
+      throw new Error(`Expo push 거절: ${JSON.stringify(parsed.errors ?? parsed)}`);
+    }
+    parsed.data.forEach((ticket, index) => {
       if (ticket.status === 'error' && ticket.details?.error === 'DeviceNotRegistered') {
         dead.push(chunk[index].to);
       }

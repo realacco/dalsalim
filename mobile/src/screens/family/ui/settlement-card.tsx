@@ -15,6 +15,7 @@ export function SettlementCard({
   busy,
   onEdit,
   onClear,
+  onEnablePush,
 }: {
   settlement: Settlement | null;
   /** 마지막 저장 때 알림 권한이 어떻게 됐나. 아직 저장한 적 없으면 null */
@@ -23,6 +24,7 @@ export function SettlementCard({
   busy: boolean;
   onEdit: () => void;
   onClear: () => void;
+  onEnablePush: () => void;
 }) {
   const styles = useStyles();
   const { space } = useTheme();
@@ -35,7 +37,7 @@ export function SettlementCard({
       {settlement ? (
         <View style={{ gap: space.xxs }}>
           <Text style={styles.value}>{formatSettlement(settlement)}</Text>
-          <Muted>이날 이 시각에 "살림 적을 때예요" 하고 알려드려요.</Muted>
+          <Muted>이날 이 시각에 알림으로 알려드려요.</Muted>
           {hint ? <Muted>{hint}</Muted> : null}
         </View>
       ) : (
@@ -43,6 +45,12 @@ export function SettlementCard({
       )}
 
       {/* 알림 상태는 받기로 한 사람에게만 말한다 — 정한 적 없는 사람에게 켜라고 하면 잔소리다 */}
+      {settlement && pushState === 'unasked' ? (
+        <View style={{ gap: space.sm }}>
+          <Notice>이 폰에서는 아직 알림을 안 받고 있어요.</Notice>
+          <Button label="알림 받기" variant="ghost" onPress={onEnablePush} />
+        </View>
+      ) : null}
       {settlement && pushState === 'denied' ? (
         <Notice>알림이 꺼져 있어요. 폰 설정에서 달살림 알림을 켜면 그날 알려드려요.</Notice>
       ) : null}

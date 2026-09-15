@@ -74,6 +74,7 @@ export default function FamilyScreen() {
               busy={f.savingSettlement}
               onEdit={f.openSettlement}
               onClear={f.clearSettlement}
+              onEnablePush={f.enablePush}
             />
 
             {f.iAmOwner && f.requests.length > 0 ? (
