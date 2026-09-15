@@ -14,8 +14,7 @@ export function MembersCard({
   contents,
   iAmOwner,
   canLeave,
-  ownerMustHandOverFirst,
-  lastOwner,
+  ownerExit,
   busy,
   onHandOver,
   onRemove,
@@ -28,10 +27,8 @@ export function MembersCard({
   contents: FamilyContents | null;
   iAmOwner: boolean;
   canLeave: boolean;
-  /** 가족장인데 다른 구성원이 남아 있으면 먼저 넘겨야 나갈 수 있다 */
-  ownerMustHandOverFirst: boolean;
-  /** 가족장인데 나 혼자다 — 나가는 게 아니라 없애는 것이다 (F-FAM-11) */
-  lastOwner: boolean;
+  /** 가족장이 나가기 전에 할 일. 남은 사람이 있으면 넘기고, 나 혼자면 없앤다 (F-FAM-11) */
+  ownerExit: 'handover' | 'delete' | null;
   busy: boolean;
   onHandOver: (membershipId: string) => void;
   onRemove: (membershipId: string) => void;
@@ -102,11 +99,11 @@ export function MembersCard({
         할 일이 다르다 — 있으면 넘기고, 나 혼자면 나가는 게 아니라 없애는 것이다 (F-FAM-11).
         서버가 막지만 버튼을 눌러보고 나서 알게 되면 늦으므로 여기서 먼저 갈라 보여준다.
       */}
-      {ownerMustHandOverFirst ? (
+      {ownerExit === 'handover' ? (
         <Muted>
           가족장은 바로 나갈 수 없어요. 위에서 다른 구성원에게 가족장을 넘긴 뒤에 나갈 수 있어요.
         </Muted>
-      ) : lastOwner ? (
+      ) : ownerExit === 'delete' ? (
         <View style={{ gap: space.sm }}>
           <Muted>구성원이 나 혼자예요. 나가는 대신 가족을 없앨 수 있어요.</Muted>
           <Button

@@ -80,8 +80,7 @@ export default function FamilyScreen() {
               familyName={f.family.name}
               contents={f.contents}
               canLeave={Boolean(f.myMembership)}
-              ownerMustHandOverFirst={f.iAmOwner && f.others.length > 0}
-              lastOwner={f.iAmOwner && f.others.length === 0}
+              ownerExit={f.ownerExit}
               busy={f.busy}
               onHandOver={f.handOver}
               onRemove={f.remove}

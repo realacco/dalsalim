@@ -147,6 +147,11 @@ export function useFamily() {
     myMembership,
     iAmOwner,
     others,
+    /**
+     * 가족장이 나가려면 먼저 할 일이 있다 — 남은 사람이 있으면 넘기고, 나 혼자면 없앤다 (F-FAM-11).
+     * 배타적인 두 갈래라 boolean 둘로 내려보내면 어긋날 수 있어 하나로 정한다.
+     */
+    ownerExit: iAmOwner ? (others.length > 0 ? ('handover' as const) : ('delete' as const)) : null,
     requests: joinRequests.data ?? [],
 
     isLoading: detail.isLoading,
