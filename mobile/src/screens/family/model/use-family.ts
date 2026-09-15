@@ -210,7 +210,10 @@ export function useFamily() {
     },
     editSettlement: (patch: Partial<Settlement>) =>
       setSettlementDraft((draft) => (draft ? { ...draft, ...patch } : draft)),
-    closeSettlement: () => setSettlementDraft(null),
+    closeSettlement: () => {
+      setSettlementDraft(null);
+      setSettlementError(null);
+    },
     saveSettlement: () => settlementDraft && saveSettlement.mutate(settlementDraft),
     clearSettlement: () => saveSettlement.mutate(null),
   };

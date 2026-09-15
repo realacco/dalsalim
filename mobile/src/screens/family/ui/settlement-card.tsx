@@ -42,13 +42,14 @@ export function SettlementCard({
         <Muted>정산일을 정해두면 그날 알림으로 알려드려요. 사람마다 달라도 돼요.</Muted>
       )}
 
-      {pushState === 'denied' ? (
+      {/* 알림 상태는 받기로 한 사람에게만 말한다 — 정한 적 없는 사람에게 켜라고 하면 잔소리다 */}
+      {settlement && pushState === 'denied' ? (
         <Notice>알림이 꺼져 있어요. 폰 설정에서 달살림 알림을 켜면 그날 알려드려요.</Notice>
       ) : null}
-      {pushState === 'unavailable' ? (
-        <Notice>이 기기에서는 알림을 받을 수 없어요. 정산일은 저장돼요.</Notice>
+      {settlement && pushState === 'unavailable' ? (
+        <Notice>이 기기에서는 알림을 받을 수 없어요. 정산일은 저장돼 있어요.</Notice>
       ) : null}
-      {pushState === 'failed' ? (
+      {settlement && pushState === 'failed' ? (
         <Notice>알림 받을 기기를 등록하지 못했어요. 다음에 앱을 열 때 다시 해요.</Notice>
       ) : null}
 

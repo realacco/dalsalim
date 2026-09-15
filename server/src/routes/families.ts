@@ -68,6 +68,9 @@ export async function familyRoutes(app: FastifyInstance) {
     const { familyId } = z.object({ familyId: z.string() }).parse(request.params);
     const body = z
       .object({ displayName: displayName.optional(), settlement: settlement.optional() })
+      .refine((value) => value.displayName !== undefined || value.settlement !== undefined, {
+        error: '바꿀 것을 보내주세요.',
+      })
       .parse(request.body);
     const mine = await requireMembership(user.id, familyId);
 

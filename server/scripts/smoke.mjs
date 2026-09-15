@@ -1759,6 +1759,15 @@ async function main() {
     badDay.status === 400 && badDay.body.code === 'VALIDATION',
     badDay.body,
   );
+  const emptyPatch = await call('PATCH', `/families/${dad.familyId}/me`, {
+    token: dad.token,
+    body: {},
+  });
+  check(
+    'F-FAM-07 빈 본문은 거절한다',
+    emptyPatch.status === 400 && emptyPatch.body.code === 'VALIDATION',
+    emptyPatch.body,
+  );
 
   // 승인 전에는 정산일을 정할 수 없다 (하드룰 8)
   const waiterToken = await login('스모크알림대기');

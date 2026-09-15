@@ -33,7 +33,8 @@ export async function notificationRoutes(app: FastifyInstance) {
   /**
    * 스케줄러를 "지금"이 아닌 시각으로 돌려본다 — 스모크가 말일 보정 · 한 달 한 번을 검증하는 길.
    * 개발 전용이라 /auth/dev 와 같은 조건으로만 열린다 (운영에서는 라우트 자체가 없다).
-   * 실제로 보내지 않고 누구에게 무엇을 보냈을지만 답한다.
+   * 실제로 보내지는 않지만 "이번 달에 보냈다"는 표시(settlementNotifiedFor)는 **남는다** —
+   * 스모크가 "같은 달엔 두 번 안 간다"를 보려면 그래야 한다. 미래 달로 돌려보면 그 달의 진짜 알림이 막힌다.
    */
   if (env.devLogin) {
     app.post('/dev/reminders/run', async (request) => {

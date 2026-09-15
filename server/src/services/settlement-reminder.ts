@@ -21,6 +21,7 @@ export function settlementReminderBody(familyName: string): string {
  * 표시는 **보낸 뒤에** 적는다. Expo 응답을 기다리다 프로세스가 죽으면 다음 틱에 한 번 더 갈 수 있다 —
  * 반대로 먼저 적으면 "보냈다고 적고 못 보낸" 쪽이 되는데, 한 달에 한 번 오는 알림은 안 오는 쪽이 더 나쁘다.
  * 같은 이유로 서버 복제본은 하나여야 한다 (Railway 1개). 둘이 같은 틱을 돌면 둘 다 보낸다.
+ * 토큰이 100개를 넘어 청크가 여럿일 때 뒤 청크가 실패하면 앞 청크 수신자는 다음 틱에 한 번 더 받는다 — 같은 한계다.
  */
 export async function runSettlementReminders({
   now = new Date(),

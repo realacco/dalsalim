@@ -85,11 +85,16 @@ async function resolvePushState(ask: boolean): Promise<PushState> {
   return 'granted';
 }
 
-/** 로그아웃 직전에. 실패해도 로그아웃을 막지 않는다 — 토큰은 서버가 죽은 것으로 알아서 지운다 */
+/**
+ * 로그아웃 직전에. 실패해도 로그아웃을 막지 않는다 — 토큰은 서버가 죽은 것으로 알아서 지운다.
+ * 이번 실행에서 등록에 실패했어도 지난 세션이 올린 토큰이 서버에 남아 있을 수 있다 —
+ * 그래서 기억한 토큰이 없으면 한 번 더 뽑아서 무른다. 안 그러면 다음 사람의 폰에 내 알림이 간다.
+ */
 export async function disablePushForThisDevice(): Promise<void> {
-  const token = registeredToken;
+  const remembered = registeredToken;
   registeredToken = null;
   usePushStore.getState().setState(null);
+  const token = remembered ?? (pushSupportedHere() ? await fetchExpoToken() : null);
   if (!token) return;
   try {
     await removePushToken(token);
