@@ -66,22 +66,24 @@ export default function MeScreen() {
           )}
         </Card>
 
-        <Button
-          label="로그아웃"
-          variant="ghost"
-          onPress={() =>
-            confirm({
-              title: '로그아웃',
-              body: '다시 로그인하면 그대로예요.',
-              confirmLabel: '로그아웃',
-              destructive: true,
-              onConfirm: m.signOut,
-            })
-          }
-        />
-
-        {/* 지금 이 폰이 어느 번들을 보고 있는지. OTA 가 닿았는지 가리는 유일한 창구다 */}
-        <BuildInfo />
+        <Card style={{ gap: space.md }}>
+          <Text style={styles.cardTitle}>앱 정보</Text>
+          {/* 지금 이 폰이 어느 번들을 보고 있는지. OTA 가 닿았는지 가리는 유일한 창구다 */}
+          <BuildInfo />
+          <Button
+            label="로그아웃"
+            variant="ghost"
+            onPress={() =>
+              confirm({
+                title: '로그아웃',
+                body: '다시 로그인하면 그대로예요.',
+                confirmLabel: '로그아웃',
+                destructive: true,
+                onConfirm: m.signOut,
+              })
+            }
+          />
+        </Card>
       </ScrollView>
     </SafeAreaView>
   );

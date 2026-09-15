@@ -191,8 +191,10 @@ export default function PendingScreen() {
         {/*
           로그아웃 버튼을 여기 따로 두지 않는다. 이 화면에는 탭 바가 없어서 예전에는
           나갈 길이 여기뿐이었는데, 이제 내 정보 화면이 그 자리를 맡는다 (F-SES-06).
+          문구에 「로그아웃」을 남겨 둔 건 **원래 그 버튼이 있던 자리**이기 때문이다 —
+          나가려던 사람이 「내 정보」만 보고 출구를 못 알아보면 이 화면에 갇힌다.
         */}
-        <Button label="내 정보" variant="ghost" onPress={() => router.push('/me')} />
+        <Button label="내 정보 · 로그아웃" variant="ghost" onPress={() => router.push('/me')} />
       </ScrollView>
     </SafeAreaView>
   );

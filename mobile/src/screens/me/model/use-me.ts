@@ -52,7 +52,8 @@ export function useMe() {
     if (nextFamilyId !== familyId) {
       try {
         // 보안 저장소에 쓰는 일이라 던질 수 있다. 던지면 바꾸지 못한 채 화면만 닫히므로
-        // 여기서 멈추고 알린다 — 목록의 줄마다 붙은 동작이라 문구를 붙일 자리가 Alert 뿐이다
+        // 여기서 멈추고 알린다 — 목록의 줄마다 붙은 동작이라 문구를 붙일 자리가 Alert 뿐이다.
+        // 위의 refresh 와 달리 isSessionExpired 로 거르지 않는다: 서버를 안 타므로 401 이 날 길이 없다
         await selectFamily(nextFamilyId);
       } catch (caught) {
         Alert.alert(MESSAGES.actionFailed, errorMessage(caught, MESSAGES.actionFailedBody));
