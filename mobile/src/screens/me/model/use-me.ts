@@ -1,8 +1,11 @@
 import { useState } from 'react';
+import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useSession } from '@/entities/session';
+import { MESSAGES } from '@/shared/config/messages';
+import { errorMessage } from '@/shared/lib/errors';
 
 /**
  * 내 정보 화면의 상태 조립. 화면은 여기서 받은 것을 그리기만 한다.
@@ -41,7 +44,14 @@ export function useMe() {
    */
   async function switchFamily(nextFamilyId: string) {
     if (nextFamilyId !== familyId) {
-      await selectFamily(nextFamilyId);
+      try {
+        // 보안 저장소에 쓰는 일이라 던질 수 있다. 던지면 바꾸지 못한 채 화면만 닫히므로
+        // 여기서 멈추고 알린다 — 목록의 줄마다 붙은 동작이라 문구를 붙일 자리가 Alert 뿐이다
+        await selectFamily(nextFamilyId);
+      } catch (caught) {
+        Alert.alert(MESSAGES.actionFailed, errorMessage(caught, MESSAGES.actionFailedBody));
+        return;
+      }
       queryClient.clear();
     }
     router.back();

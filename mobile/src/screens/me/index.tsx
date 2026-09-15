@@ -22,7 +22,8 @@ export default function MeScreen() {
   const m = useMe();
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
+    // 탭 화면이 아니라 위에서 올라오는 화면이라 아래 인셋도 우리가 먹는다 (탭 바가 없다)
+    <SafeAreaView style={styles.screen}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Text style={styles.back}>‹</Text>
@@ -39,7 +40,8 @@ export default function MeScreen() {
         <Card style={{ gap: space.sm }}>
           <Text style={styles.cardTitle}>프로필</Text>
           <Text style={styles.nickname}>{m.nickname}</Text>
-          <Muted>가족 안에서 불리는 이름은 가족마다 따로 있어요. 가족 탭에서 바꿀 수 있어요.</Muted>
+          {/* 「가족 탭에서 바꿀 수 있어요」를 안 붙인다 — F-FAM-07 이 아직 화면에 안 연결돼 있다 */}
+          <Muted>가족 안에서 불리는 이름은 가족마다 따로 있어요.</Muted>
         </Card>
 
         <Card style={{ gap: space.md }}>
