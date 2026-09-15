@@ -1,25 +1,11 @@
 import { Text, View } from 'react-native';
 
-import type { FamilyDetail } from '@/entities/family';
+import { contentsLine, type FamilyContents, type FamilyDetail } from '@/entities/family';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Button, Card, Divider, Muted } from '@/shared/ui';
 import { confirm } from '@/shared/lib/confirm';
 
 type Member = FamilyDetail['members'][number];
-
-/**
- * "기록한 달 7개월 · 고정비 9개" — 없애면 사라지는 것을 세어 문장으로 (F-FAM-11).
- * 하나도 없으면 아무 말도 안 한다. "0개가 사라져요" 는 겁만 주고 정보가 없다.
- */
-function contentsLine(contents: { months: number; fixedExpenses: number } | null): string {
-  if (!contents) return '';
-
-  const parts = [];
-  if (contents.months > 0) parts.push(`기록한 달 ${contents.months}개월`);
-  if (contents.fixedExpenses > 0) parts.push(`고정비 ${contents.fixedExpenses}개`);
-
-  return parts.length > 0 ? `\n${parts.join(' · ')}이 함께 지워져요.` : '';
-}
 
 /** 구성원 목록. 가족장만 남을 다룰 수 있고, 되돌리기 어려운 동작은 항상 확인을 받는다. */
 export function MembersCard({
@@ -39,7 +25,7 @@ export function MembersCard({
   members: Member[];
   familyName: string;
   /** 없앨 때 사라지는 것의 수. 확인 다이얼로그가 세어 보여준다 (F-FAM-11) */
-  contents: { months: number; fixedExpenses: number } | null;
+  contents: FamilyContents | null;
   iAmOwner: boolean;
   canLeave: boolean;
   /** 가족장인데 다른 구성원이 남아 있으면 먼저 넘겨야 나갈 수 있다 */
@@ -131,7 +117,8 @@ export function MembersCard({
               confirm({
                 title: '가족 없애기',
                 // "정말 삭제하시겠습니까" 보다 세어 보여주는 쪽이 한 번 더 생각하게 만든다
-                body: `${familyName}가 사라지고 되돌릴 수 없어요.${contentsLine(contents)}\n초대코드도 못 쓰게 돼요.`,
+                // 가족 이름 뒤에 이/가 를 붙이지 않는다 — "김씨네가" 와 "우리집이" 로 갈린다
+                body: `${familyName} 가족이 사라지고 되돌릴 수 없어요.${contentsLine(contents)}\n초대코드도 못 쓰게 돼요.`,
                 confirmLabel: '없애기',
                 destructive: true,
                 onConfirm: onDeleteFamily,
