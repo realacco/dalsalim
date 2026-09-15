@@ -69,6 +69,7 @@ export default function FamilyScreen() {
 
             <SettlementCard
               settlement={f.mySettlement}
+              hint={f.settlementHint}
               pushState={f.pushState}
               error={f.settlementError}
               busy={f.savingSettlement}

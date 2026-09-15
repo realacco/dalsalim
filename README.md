@@ -459,6 +459,9 @@ Environment variables ... loaded from the "preview" environment on EAS: EXPO_PUB
 - 가족 탭 → 내 정산일 → 정하기 → 권한 허용. 서버 DB 의 `PushToken` 에 행이 생긴다.
 - 실제 발송은 정한 시각에 온다. 바로 보고 싶으면 expo.dev 의 **Push notifications tool** 에 그 토큰을 넣어 한 통 보내본다.
 - 서버 로그에 `정산일 알림을 보냈어요` 가 찍힌다. 스케줄러 로직 자체는 스모크가 시각을 바꿔 가며 검증한다.
+  일부 기기에 못 갔으면 `정산일 알림이 일부 기기에 못 갔어요` 경고에 Expo 의 오류 이름이 붙는다 —
+  `InvalidCredentials` · `MismatchSenderId` 는 3번(FCM V1 키)이 틀린 것이다.
+- 같은 DB 에 서버를 둘 띄우면 둘 다 보낸다. 로컬에서 그런 상황이면 `REMINDERS_ENABLED=false` 로 한쪽을 끈다.
 - `EXPO_ACCESS_TOKEN` 은 expo.dev 에서 *Enhanced push security* 를 켰을 때만 필요하다 (`server/.env.example`).
 
 ### 안 하는 것

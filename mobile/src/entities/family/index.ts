@@ -30,5 +30,6 @@ export {
   formatHour,
   formatSettlement,
   formatTime,
+  passedMonthHint,
   shortMonthHint,
 } from './model/settlement';

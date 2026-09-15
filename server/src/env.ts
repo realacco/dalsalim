@@ -66,6 +66,12 @@ export const env = {
    * 켰을 때만 필요하다. 빈 문자열은 없는 것 (gitSha 와 같은 이유로 ||).
    */
   expoAccessToken: process.env.EXPO_ACCESS_TOKEN || null,
+
+  /**
+   * 정산일 알림 스케줄러 (F-FAM-10). 기본은 켜짐 — 운영에서 빼먹으면 알림이 안 오는 쪽이 더 나쁘다.
+   * 로컬 두 대를 같은 DB 에 붙이거나 CI 처럼 exp.host 에 닿으면 안 되는 곳에서만 끈다.
+   */
+  remindersEnabled: process.env.REMINDERS_ENABLED !== 'false',
 } as const;
 
 export const kakaoConfigured = env.kakao.restApiKey.length > 0;

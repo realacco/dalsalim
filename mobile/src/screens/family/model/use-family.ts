@@ -16,12 +16,14 @@ import {
   removeMember,
   transferOwner,
   updateMySettlement,
+  passedMonthHint,
 } from '@/entities/family';
 import { useSession } from '@/entities/session';
 import { disablePushForThisDevice, enablePushForThisDevice, usePushStore } from '@/features/push';
 import type { Settlement } from '@/shared/model/types';
 import { MESSAGES } from '@/shared/config/messages';
 import { errorMessage } from '@/shared/lib/errors';
+import { currentYearMonth } from '@/shared/lib/format';
 
 /**
  * 가족 화면의 상태 조립. 화면은 여기서 받은 것을 그리기만 한다.
@@ -51,6 +53,8 @@ export function useFamily() {
 
   const members = detail.data?.members ?? [];
   const myMembership = members.find((m) => m.isMe);
+  /** "이번 달에 보냈다" 표시는 /me 에만 실린다 — 남의 것은 보여줄 일이 없다 */
+  const mySession = me?.memberships.find((m) => m.family.id === familyId);
   const iAmOwner = myMembership?.role === 'OWNER';
   const others = members.filter((m) => !m.isMe);
 
@@ -202,6 +206,7 @@ export function useFamily() {
 
     // 정산일 (F-FAM-10)
     mySettlement: myMembership?.settlement ?? null,
+    settlementHint: passedMonthHint(mySession?.settlementNotifiedFor ?? null, currentYearMonth()),
     settlementDraft,
     settlementError,
     savingSettlement: saveSettlement.isPending,

@@ -10,6 +10,7 @@ import { confirm } from '@/shared/lib/confirm';
 /** 내 정산일. 정하면 그날 그 시각에 알림이 온다 (F-FAM-10) */
 export function SettlementCard({
   settlement,
+  hint,
   pushState,
   error,
   busy,
@@ -18,6 +19,8 @@ export function SettlementCard({
   onEnablePush,
 }: {
   settlement: Settlement | null;
+  /** "이번 달 알림은 지났어요" — 이미 갔거나 지난 시각으로 정해 건너뛴 달. 없으면 null */
+  hint: string | null;
   /** 마지막 저장 때 알림 권한이 어떻게 됐나. 아직 저장한 적 없으면 null */
   pushState: PushState | null;
   error: string | null;
@@ -28,7 +31,7 @@ export function SettlementCard({
 }) {
   const styles = useStyles();
   const { space } = useTheme();
-  const hint = settlement ? shortMonthHint(settlement.day) : null;
+  const shortMonth = settlement ? shortMonthHint(settlement.day) : null;
 
   return (
     <Card style={{ gap: space.md }}>
@@ -37,8 +40,8 @@ export function SettlementCard({
       {settlement ? (
         <View style={{ gap: space.xxs }}>
           <Text style={styles.value}>{formatSettlement(settlement)}</Text>
-          <Muted>이날 이 시각에 알림으로 알려드려요.</Muted>
-          {hint ? <Muted>{hint}</Muted> : null}
+          <Muted>{hint ?? '이날 이 시각에 알림으로 알려드려요.'}</Muted>
+          {shortMonth ? <Muted>{shortMonth}</Muted> : null}
         </View>
       ) : (
         <Muted>정산일을 정해두면 그날 알림으로 알려드려요. 사람마다 달라도 돼요.</Muted>

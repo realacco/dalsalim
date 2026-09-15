@@ -80,7 +80,12 @@ export function updateMyDisplayName(familyId: string, displayName: string) {
 /** 내 정산일 (F-FAM-10). null 이면 안 받기. 같은 라우트지만 이름은 안 건드린다 */
 export async function updateMySettlement(familyId: string, settlement: Settlement | null) {
   const { membership } = await api<{
-    membership: { id: string; displayName: string; settlement: Settlement | null };
+    membership: {
+      id: string;
+      displayName: string;
+      settlement: Settlement | null;
+      settlementNotifiedFor: string | null;
+    };
   }>(`/families/${familyId}/me`, { method: 'PATCH', body: { settlement } });
   return membership;
 }

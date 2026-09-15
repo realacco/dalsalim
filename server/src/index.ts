@@ -95,7 +95,8 @@ await app.register(notificationRoutes);
 await app.listen({ port: env.port, host: env.host });
 
 // 정산일 알림 (F-FAM-10). 별도 크론 없이 서버 안에서 1분마다 본다
-startSettlementScheduler(app.log);
+if (env.remindersEnabled) startSettlementScheduler(app.log);
+else app.log.warn('정산일 알림 스케줄러가 꺼져 있어요 (REMINDERS_ENABLED=false).');
 
 app.log.info(`달살림 서버 · ${env.publicBaseUrl}`);
 if (!kakaoConfigured) {

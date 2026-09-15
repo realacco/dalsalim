@@ -83,6 +83,7 @@ export async function familyRoutes(app: FastifyInstance) {
         id: updated.id,
         displayName: updated.displayName,
         settlement: settlementOf(updated),
+        settlementNotifiedFor: updated.settlementNotifiedFor,
       },
     };
   });

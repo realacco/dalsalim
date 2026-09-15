@@ -165,6 +165,8 @@ export async function authRoutes(app: FastifyInstance) {
         role: m.role,
         displayName: m.displayName,
         settlement: settlementOf(m),
+        // 이번 달 알림이 이미 갔거나 (지난 시각으로 정해) 건너뛴 달. 카드가 "다음 달부터" 를 말할 근거
+        settlementNotifiedFor: m.settlementNotifiedFor,
         family: { id: m.family.id, name: m.family.name, inviteCode: m.family.inviteCode },
       })),
     };

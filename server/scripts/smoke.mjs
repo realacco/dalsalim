@@ -1839,6 +1839,27 @@ async function main() {
     mar.body,
   );
 
+  // "이번 달에 보냈다" 표시는 /me 에 실린다 — 카드가 "이번 달 알림은 지났어요" 를 말할 근거
+  const meAfterMar = await call('GET', '/me', { token: dad.token });
+  check(
+    'F-FAM-10 /me 에 이번 달 알림이 간 달이 실린다',
+    meAfterMar.body.memberships?.find((m) => m.family.id === dad.familyId)
+      ?.settlementNotifiedFor === '2030-03',
+    meAfterMar.body.memberships,
+  );
+  // 오늘 이미 지난 시각으로 정하면 이번 달은 보낸 것으로 적는다 — 저장하자마자 튀어나오면 놀람이다
+  const seoulNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const pastToday = await call('PATCH', `/families/${dad.familyId}/me`, {
+    token: dad.token,
+    body: { settlement: { day: seoulNow.getUTCDate(), hour: 0, minute: 0 } },
+  });
+  check(
+    '★ F-FAM-10 오늘 지난 시각으로 정하면 이번 달은 건너뛴 것으로 적힌다',
+    pastToday.status === 200 &&
+      pastToday.body.membership?.settlementNotifiedFor === seoulNow.toISOString().slice(0, 7),
+    pastToday.body,
+  );
+
   // 안 받기 · 기기 해제
   const clearSettlement = await call('PATCH', `/families/${dad.familyId}/me`, {
     token: dad.token,

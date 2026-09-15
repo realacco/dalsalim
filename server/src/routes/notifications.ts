@@ -46,7 +46,7 @@ export async function notificationRoutes(app: FastifyInstance) {
         now: now ? new Date(now) : new Date(),
         send: async (messages) => {
           sent.push(...messages);
-          return { dead: [] };
+          return { dead: [], failed: [] };
         },
       });
       return { ...result, messages: sent.map(({ to, body }) => ({ to, body })) };

@@ -47,7 +47,7 @@ export async function runSettlementReminders({
     })),
   );
 
-  const { dead } = messages.length > 0 ? await send(messages) : { dead: [] };
+  const { dead, failed } = messages.length > 0 ? await send(messages) : { dead: [], failed: [] };
   await removeDeadTokens(dead);
 
   if (due.length > 0) {
@@ -61,6 +61,8 @@ export async function runSettlementReminders({
     yearMonth: local.yearMonth,
     notified: due.map((m) => ({ membershipId: m.id, tokens: m.user.pushTokens.length })),
     dead: dead.length,
+    /** 못 간 기기. 비어 있지 않으면 스케줄러가 경고로 찍는다 — 삼키면 아무도 모른다 */
+    failed,
   };
 }
 
@@ -77,7 +79,8 @@ export function startSettlementScheduler(log: FastifyBaseLogger) {
     running = true;
     try {
       const result = await runSettlementReminders();
-      if (result.notified.length > 0) log.info(result, '정산일 알림을 보냈어요');
+      if (result.failed.length > 0) log.warn(result, '정산일 알림이 일부 기기에 못 갔어요');
+      else if (result.notified.length > 0) log.info(result, '정산일 알림을 보냈어요');
     } catch (error) {
       log.error(error, '정산일 알림을 보내지 못했어요');
     } finally {

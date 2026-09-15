@@ -13,8 +13,17 @@ export type PushMessage = {
   data?: Record<string, string>;
 };
 
-/** 보내는 쪽. 실제로는 Expo 지만, 스모크는 기록만 하는 가짜를 꽂는다 */
-export type PushSender = (messages: PushMessage[]) => Promise<{ dead: string[] }>;
+/** Expo 가 못 보냈다고 답한 한 통. 토큰은 사용자 데이터가 아니라 기기 주소라 로그에 실어도 된다 */
+export type PushFailure = { to: string; error: string };
+
+/**
+ * 보내는 쪽. 실제로는 Expo 지만, 스모크는 기록만 하는 가짜를 꽂는다.
+ * `dead` 는 지워야 할 토큰, `failed` 는 그 밖에 못 간 것 — 자격 증명 · 발신자 불일치처럼 설정이 틀린 것들이라
+ * 조용히 삼키면 한 달에 한 번 오는 알림이 안 온 채로 "보냈다"고 적힌다. 로그로는 반드시 나가야 한다
+ */
+export type PushSender = (
+  messages: PushMessage[],
+) => Promise<{ dead: string[]; failed: PushFailure[] }>;
 
 /** 같은 토큰이 다른 계정으로 로그인하면 그 계정의 것이 된다 — 폰은 사람의 것이고 한 폰에는 한 계정이다 */
 export function registerPushToken(userId: string, token: string, platform: string) {
@@ -47,10 +56,12 @@ type ExpoPushResponse = { data?: ExpoTicket[]; errors?: { code?: string; message
 
 /**
  * Expo Push Service 로 보낸다. Expo 가 FCM(안드로이드) · APNs(iOS) 에 넘긴다.
- * 표(ticket)에서 DeviceNotRegistered 만 골라 돌려준다 — 나머지 실패는 다음 달에 다시 시도되는 것뿐이라 삼킨다.
+ * 표(ticket)의 오류를 둘로 가른다 — DeviceNotRegistered 는 토큰을 지울 근거(dead), 나머지는 로그에 남길 것(failed).
+ * 어느 쪽도 다시 보내지 않는다. 같은 달엔 한 번뿐이고, 설정 문제는 사람이 고쳐야 다음 달에 간다.
  */
 export const sendViaExpo: PushSender = async (messages) => {
   const dead: string[] = [];
+  const failed: PushFailure[] = [];
 
   for (let start = 0; start < messages.length; start += EXPO_CHUNK) {
     const chunk = messages.slice(start, start + EXPO_CHUNK);
@@ -73,11 +84,12 @@ export const sendViaExpo: PushSender = async (messages) => {
       throw new Error(`Expo push 거절: ${JSON.stringify(parsed.errors ?? parsed)}`);
     }
     parsed.data.forEach((ticket, index) => {
-      if (ticket.status === 'error' && ticket.details?.error === 'DeviceNotRegistered') {
-        dead.push(chunk[index].to);
-      }
+      if (ticket.status !== 'error') return;
+      const to = chunk[index].to;
+      if (ticket.details?.error === 'DeviceNotRegistered') dead.push(to);
+      else failed.push({ to, error: ticket.details?.error ?? ticket.message ?? 'unknown' });
     });
   }
 
-  return { dead };
+  return { dead, failed };
 };

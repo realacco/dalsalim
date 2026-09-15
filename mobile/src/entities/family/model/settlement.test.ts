@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatHour, formatSettlement, formatTime, shortMonthHint } from './settlement';
+import {
+  formatHour,
+  formatSettlement,
+  formatTime,
+  passedMonthHint,
+  shortMonthHint,
+} from './settlement';
 
 describe('F-FAM-10 정산일 표시', () => {
   it('시각은 오전·오후 12시간제로 — 자정은 오전 12시, 정오는 오후 12시', () => {
@@ -19,5 +25,11 @@ describe('F-FAM-10 정산일 표시', () => {
     expect(shortMonthHint(28)).toBeNull();
     expect(shortMonthHint(29)).not.toBeNull();
     expect(shortMonthHint(31)).not.toBeNull();
+  });
+
+  it('이번 달에 이미 갔거나 건너뛴 달이면 "다음 달부터" 안내가 붙는다', () => {
+    expect(passedMonthHint('2026-09', '2026-09')).not.toBeNull();
+    expect(passedMonthHint('2026-08', '2026-09')).toBeNull();
+    expect(passedMonthHint(null, '2026-09')).toBeNull();
   });
 });

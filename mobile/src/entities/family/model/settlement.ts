@@ -30,6 +30,14 @@ export function formatSettlement(settlement: Settlement): string {
   return `매달 ${settlement.day}일 · ${formatTime(settlement.hour, settlement.minute)}`;
 }
 
+/**
+ * 이번 달 알림이 이미 갔거나, 오늘 지난 시각으로 정해 서버가 이번 달을 건너뛴 사람에게.
+ * 둘 다 "이번 달엔 안 온다" 는 점이 같고, 카드가 "이날 알려드려요" 만 말하면 기다리게 된다.
+ */
+export function passedMonthHint(notifiedFor: string | null, yearMonth: string): string | null {
+  return notifiedFor === yearMonth ? '이번 달 알림은 지났어요. 다음 달부터 알려드려요.' : null;
+}
+
 /** 29일 이상은 짧은 달에 그 달 말일로 보낸다 (서버 규칙). 고를 때 미리 알려준다 */
 export function shortMonthHint(day: number): string | null {
   return day >= 29 ? '2월처럼 짧은 달에는 그 달 말일에 알려드려요.' : null;

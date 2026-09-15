@@ -7,6 +7,8 @@ export type Me = {
     role: Role;
     displayName: string;
     settlement: Settlement | null;
+    /** 이번 달 알림이 이미 갔거나 (지난 시각으로 정해) 건너뛴 달 `YYYY-MM`. 없으면 null */
+    settlementNotifiedFor: string | null;
     family: { id: string; name: string; inviteCode: string };
   }[];
 };
