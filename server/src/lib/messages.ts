@@ -65,7 +65,7 @@ export const ERRORS = {
   },
   FAMILY_ABANDONED: {
     status: 404,
-    message: '구성원이 아무도 없는 가족이라 들어갈 수 없어요.',
+    message: '가족장이 없는 가족이라 승인해줄 사람이 없어요. 가족에게 새 초대코드를 받아주세요.',
   },
   ALREADY_OWNER: { status: 400, message: '이미 가족장이에요.' },
   TRANSFER_OWNER_FIRST: {

@@ -42,6 +42,10 @@ export async function requestJoin(userId: string, inviteCode: string, displayNam
   });
   if (!family) throw fail('INVITE_CODE_NOT_FOUND');
 
+  const existing = family.memberships.find((m) => m.userId === userId);
+  if (existing?.status === 'ACTIVE') throw fail('ALREADY_MEMBER');
+  if (existing?.status === 'PENDING') throw fail('ALREADY_REQUESTED');
+
   // 승인해줄 가족장이 없는 가족 — 들어가봐야 영원히 대기다.
   // F-FAM-11 이전에 혼자 남은 가족장이 나가서 생긴 가족이 여기 걸린다 (지금은 그 길도 막혀 있다).
   //
@@ -49,13 +53,12 @@ export async function requestJoin(userId: string, inviteCode: string, displayNam
   // (가족장은 넘기지 않고는 못 나간다) F-SES-08 탈퇴가 User 를 지우면 Membership 이
   // Cascade 로 따라가, 구성원은 남고 가족장만 없는 가족이 생길 수 있다.
   // 막으려는 것은 "사람이 없다"가 아니라 "승인할 사람이 없다"이므로 그쪽을 본다.
+  //
+  // 내 상태(ALREADY_*)를 먼저 보는 이유: 그 가족에 이미 들어와 있는 사람에게는
+  // 가족장이 있고 없고가 답이 아니다. 나에 대한 답을 먼저 주고, 가족 얘기는 그다음이다.
   if (!family.memberships.some((m) => m.status === ACTIVE_MEMBER.status && m.role === 'OWNER')) {
     throw fail('FAMILY_ABANDONED');
   }
-
-  const existing = family.memberships.find((m) => m.userId === userId);
-  if (existing?.status === 'ACTIVE') throw fail('ALREADY_MEMBER');
-  if (existing?.status === 'PENDING') throw fail('ALREADY_REQUESTED');
 
   let membership: Membership;
   if (existing) {
