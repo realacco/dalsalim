@@ -168,7 +168,6 @@ export function renameMember(membershipId: string, displayName: string) {
 export function updateMemberSettlement(
   mine: Pick<Membership, 'id' | 'settlementNotifiedFor'>,
   settlement: Settlement | null,
-  now: Date = new Date(),
 ) {
   const fields = {
     settlementDay: settlement?.day ?? null,
@@ -182,7 +181,7 @@ export function updateMemberSettlement(
       settlementNotifiedFor: carriedNotifiedFor(
         mine.settlementNotifiedFor,
         fields,
-        localParts(now),
+        localParts(new Date()),
       ),
     },
   });
