@@ -17,7 +17,7 @@ import {
 } from '@/entities/family';
 import { useSession } from '@/entities/session';
 import { MESSAGES } from '@/shared/config/messages';
-import { errorMessage } from '@/shared/lib/errors';
+import { errorMessage, isSessionExpired } from '@/shared/lib/errors';
 
 /**
  * 가족 화면의 상태 조립. 화면은 여기서 받은 것을 그리기만 한다.
@@ -53,8 +53,10 @@ export function useFamily() {
     enabled: Boolean(familyId) && iAmOwner,
   });
 
-  const failed = (caught: unknown) =>
+  const failed = (caught: unknown) => {
+    if (isSessionExpired(caught)) return;
     Alert.alert(MESSAGES.actionFailed, errorMessage(caught, MESSAGES.actionFailedBody));
+  };
 
   /** 구성원이 바뀌면 장부의 완성 판정도 바뀐다. 가족·요청·장부 캐시를 같이 비운다. */
   function refetchAll() {

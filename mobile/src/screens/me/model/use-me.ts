@@ -5,7 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { useSession } from '@/entities/session';
 import { MESSAGES } from '@/shared/config/messages';
-import { errorMessage } from '@/shared/lib/errors';
+import { errorMessage, isSessionExpired } from '@/shared/lib/errors';
 
 /**
  * 내 정보 화면의 상태 조립. 화면은 여기서 받은 것을 그리기만 한다.
@@ -28,7 +28,9 @@ export function useMe() {
       // 조용히 넘기면 "가족 이름이 그대로네" 를 최신으로 읽는다 — 이 화면에서 당기는 이유가
       // 남이 바꾼 가족 이름을 보려는 것이라 실패가 안 보이면 틀린 값을 믿게 된다.
       // 다른 화면은 useQuery 가 있어 QueryError 카드가 뜨는데 여기는 그 자리가 없다.
-      Alert.alert(MESSAGES.actionFailed, errorMessage(caught, MESSAGES.actionFailedBody));
+      if (!isSessionExpired(caught)) {
+        Alert.alert(MESSAGES.actionFailed, errorMessage(caught, MESSAGES.actionFailedBody));
+      }
     } finally {
       setRefreshing(false);
     }
