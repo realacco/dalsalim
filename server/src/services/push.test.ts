@@ -67,6 +67,16 @@ describe('F-FAM-10 Expo 전송 결과 가르기', () => {
 
     expect(result.dead).toEqual(['ExponentPushToken[a]']);
     expect(result.failed).toEqual([]);
+    expect(result.shortTickets).toBe(0); // 남아도는 쪽은 짝 없는 통이 아니다
+  });
+
+  it('★ 표가 모자라면 그 수를 세어 돌려준다 — 스케줄러가 "보냈어요" 대신 경고로 찍는 근거다', async () => {
+    expoAnswers({ data: [{ status: 'ok' }] });
+    const result = await sendViaExpo(
+      ['a', 'b', 'c'].map((to) => message(`ExponentPushToken[${to}]`)),
+    );
+    expect(result.shortTickets).toBe(2);
+    expect(result.failed).toEqual([]);
   });
 
   it('100통씩 끊어 보낸다 — Expo 가 한 번에 받는 최대', async () => {

@@ -21,9 +21,16 @@ export type PushFailure = { to: string; error: string };
  * `dead` 는 지워야 할 토큰, `failed` 는 그 밖에 못 간 것 — 자격 증명 · 발신자 불일치처럼 설정이 틀린 것들이라
  * 조용히 삼키면 한 달에 한 번 오는 알림이 안 온 채로 "보냈다"고 적힌다. 로그로는 반드시 나가야 한다
  */
-export type PushSender = (
-  messages: PushMessage[],
-) => Promise<{ dead: string[]; failed: PushFailure[] }>;
+export type PushSender = (messages: PushMessage[]) => Promise<PushResult>;
+
+/**
+ * 한 번 보낸 결과.
+ *  - `dead` 지울 토큰 · `failed` 못 간 기기 · `shortTickets` **표를 못 받은 통의 수**
+ *
+ * 셋 다 스케줄러가 한 곳에서 읽어 로그로 내보낸다. 여기서 직접 `console` 로 찍지 않는다 —
+ * 서버 로그는 pino 한 줄기이고, 벗어난 줄은 "잘 보냈어요" 옆에 안 붙어서 상관관계를 잃는다
+ */
+export type PushResult = { dead: string[]; failed: PushFailure[]; shortTickets: number };
 
 /** 같은 토큰이 다른 계정으로 로그인하면 그 계정의 것이 된다 — 폰은 사람의 것이고 한 폰에는 한 계정이다 */
 export function registerPushToken(userId: string, token: string, platform: string) {
@@ -68,6 +75,8 @@ type ExpoPushResponse = { data?: ExpoTicket[]; errors?: { code?: string; message
 export const sendViaExpo: PushSender = async (messages) => {
   const dead: string[] = [];
   const failed: PushFailure[] = [];
+  /** 짝을 못 찾은 통. dead 도 failed 도 아니라 세지 않으면 "잘 보냈다"로 지나간다 */
+  let shortTickets = 0;
 
   for (let start = 0; start < messages.length; start += EXPO_CHUNK) {
     const chunk = messages.slice(start, start + EXPO_CHUNK);
@@ -94,11 +103,9 @@ export const sendViaExpo: PushSender = async (messages) => {
     /*
       표가 모자라면 짝을 못 찾은 통들이 dead 도 failed 도 아닌 채 성공으로 지나가고
       settlementNotifiedFor 는 적힌다 — 그 달 알림을 못 받은 사람이 어디에도 안 남는다.
-      Expo 가 실제로 그러지는 않지만, 그렇게 되는 날 단서가 이 한 줄뿐이다
+      Expo 가 실제로 그러지는 않지만, 그렇게 되는 날 단서가 이 수 하나뿐이다
     */
-    if (parsed.data.length !== chunk.length) {
-      console.warn(`[push] Expo 가 ${chunk.length}통에 표 ${parsed.data.length}장을 돌려줬어요`);
-    }
+    if (parsed.data.length < chunk.length) shortTickets += chunk.length - parsed.data.length;
     parsed.data.forEach((ticket, index) => {
       if (ticket.status !== 'error') return;
       /*
@@ -114,5 +121,5 @@ export const sendViaExpo: PushSender = async (messages) => {
     });
   }
 
-  return { dead, failed };
+  return { dead, failed, shortTickets };
 };

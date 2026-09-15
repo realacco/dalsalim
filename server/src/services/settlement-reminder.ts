@@ -50,7 +50,8 @@ export async function runSettlementReminders({
     })),
   );
 
-  const { dead, failed } = messages.length > 0 ? await send(messages) : { dead: [], failed: [] };
+  const { dead, failed, shortTickets } =
+    messages.length > 0 ? await send(messages) : { dead: [], failed: [], shortTickets: 0 };
   await removeDeadTokens(dead);
 
   if (due.length > 0) {
@@ -66,6 +67,8 @@ export async function runSettlementReminders({
     dead: dead.length,
     /** 못 간 기기. 비어 있지 않으면 스케줄러가 경고로 찍는다 — 삼키면 아무도 모른다 */
     failed,
+    /** Expo 가 표를 안 준 통의 수. 0 이 아니면 "보냈다"고 적혔지만 갔는지 모르는 통이 있다는 뜻 */
+    shortTickets,
   };
 }
 
@@ -82,8 +85,9 @@ export function startSettlementScheduler(log: FastifyBaseLogger) {
     running = true;
     try {
       const result = await runSettlementReminders();
-      if (result.failed.length > 0) log.warn(result, '정산일 알림이 일부 기기에 못 갔어요');
-      else if (result.notified.length > 0) log.info(result, '정산일 알림을 보냈어요');
+      if (result.failed.length > 0 || result.shortTickets > 0) {
+        log.warn(result, '정산일 알림이 일부 기기에 못 갔어요');
+      } else if (result.notified.length > 0) log.info(result, '정산일 알림을 보냈어요');
     } catch (error) {
       log.error(error, '정산일 알림을 보내지 못했어요');
     } finally {
