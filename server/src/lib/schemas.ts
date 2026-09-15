@@ -50,7 +50,11 @@ export const settlement = z
   })
   .nullable();
 
-/** Expo 푸시 토큰. 다른 모양은 우리 서버가 보낼 수 없는 주소다 */
+/**
+ * Expo 푸시 토큰. 다른 모양은 우리 서버가 보낼 수 없는 주소다.
+ * 대괄호만 피하면 regex 는 길이를 안 보므로 상한을 같이 둔다 — 이 파일의 다른 문자열 조각과 같은 결이다
+ */
 export const pushToken = z
   .string()
+  .max(200, '알림을 받을 기기 정보가 올바르지 않아요.')
   .regex(/^Expo(nent)?PushToken\[[^\]]+\]$/, '알림을 받을 기기 정보가 올바르지 않아요.');
