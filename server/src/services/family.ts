@@ -187,13 +187,19 @@ export async function countFamilyContents(familyId: string) {
  * Family 를 지우면 MonthlyBook · MemberEntry · EntryLine · FixedExpense · Membership 이
  * 스키마의 onDelete: Cascade 로 따라 사라진다.
  */
-export async function deleteFamily(familyId: string) {
-  const activeCount = await prisma.membership.count({
-    where: { familyId, ...ACTIVE_MEMBER },
+export async function deleteFamily(familyId: string, myMembershipId: string) {
+  // 세고 나서 지우면 그 사이에 승인이 하나 끼어들 수 있다 (가족장이 두 기기를 쓸 때).
+  // 이 가드는 위의 예외를 떠받치는 유일한 장치라 뚫리면 남의 과거 기록이 Cascade 로 사라지므로,
+  // "나 말고 ACTIVE 가 없을 때만 지운다"를 한 문장에 넣어 틈을 없앤다.
+  const { count } = await prisma.family.deleteMany({
+    where: {
+      id: familyId,
+      memberships: { none: { ...ACTIVE_MEMBER, id: { not: myMembershipId } } },
+    },
   });
-  if (activeCount > 1) throw fail('MEMBERS_REMAIN');
 
-  await prisma.family.delete({ where: { id: familyId } });
+  // 가족이 있는 것은 requireOwner 가 이미 봤다. 안 지워졌으면 남은 사람이 있다는 뜻이다
+  if (count === 0) throw fail('MEMBERS_REMAIN');
 }
 
 /** 초대코드 재발급 — 예전 코드를 아는 사람을 막고 싶을 때 */

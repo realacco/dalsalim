@@ -107,9 +107,9 @@ export async function familyRoutes(app: FastifyInstance) {
   app.delete('/families/:familyId', async (request) => {
     const user = await requireUser(request);
     const { familyId } = z.object({ familyId: z.string() }).parse(request.params);
-    await requireOwner(user.id, familyId);
+    const mine = await requireOwner(user.id, familyId);
 
-    await deleteFamily(familyId);
+    await deleteFamily(familyId, mine.id);
     return { ok: true };
   });
 }
