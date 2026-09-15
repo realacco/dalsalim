@@ -72,7 +72,16 @@ function AppShell() {
     if (!hadToken.current) return;
     hadToken.current = false;
     queryClient.clear();
-    if (pathname !== '/login') router.replace('/login');
+    if (pathname === '/login') return;
+
+    /*
+      먼저 스택을 비운다. replace 는 **지금 화면 자리만** 바꾸므로, 탭 위에 얹힌
+      화면(내 정보)에서 로그아웃하면 아래 깔린 (tabs) 가 그대로 남고 안드로이드
+      뒤로가기로 토큰 없는 탭이 다시 보인다. 이 effect 는 한 번 돌고 나면
+      다시 안 도니까(hadToken 이 이미 false 다) 여기서 끝내야 한다.
+    */
+    if (router.canDismiss()) router.dismissAll();
+    router.replace('/login');
   }, [token, ready, pathname]);
 
   /**

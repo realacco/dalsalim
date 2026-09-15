@@ -66,8 +66,13 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   signOut: async () => {
-    await SecureStore.deleteItemAsync(TOKEN_KEY);
-    await SecureStore.deleteItemAsync(FAMILY_KEY);
+    try {
+      await SecureStore.deleteItemAsync(TOKEN_KEY);
+      await SecureStore.deleteItemAsync(FAMILY_KEY);
+    } catch {
+      // 저장소에서 지우기가 실패해도 메모리는 비운다 (F-SES-04).
+      // 로그아웃을 눌렀는데 그대로 있는 것이 가장 나쁘다.
+    }
     setAuthToken(null);
     set({ token: null, me: null, familyId: null });
   },
