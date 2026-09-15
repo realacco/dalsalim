@@ -1,6 +1,6 @@
 import { Text, View } from 'react-native';
 
-import type { FamilyDetail } from '@/entities/family';
+import { type FamilyDetail, formatSettlement } from '@/entities/family';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Button, Card, Divider, Muted } from '@/shared/ui';
 import { confirm } from '@/shared/lib/confirm';
@@ -45,6 +45,10 @@ export function MembersCard({
                 {member.isMe ? ' (나)' : ''}
               </Text>
               <Text style={styles.memberMeta}>{member.nickname}</Text>
+              {/* 남의 정산일 — 언제쯤 적을지 서로 안다 (F-FAM-10) */}
+              {member.settlement ? (
+                <Text style={styles.memberMeta}>{formatSettlement(member.settlement)}</Text>
+              ) : null}
             </View>
             {member.role === 'OWNER' ? <Text style={styles.ownerTag}>가족장</Text> : null}
           </View>

@@ -6,6 +6,7 @@ import * as Clipboard from 'expo-clipboard';
 
 import { bookKeys } from '@/entities/book';
 import {
+  DEFAULT_SETTLEMENT,
   approveJoinRequest,
   familyKeys,
   fetchFamily,
@@ -14,8 +15,11 @@ import {
   rejectJoinRequest,
   removeMember,
   transferOwner,
+  updateMySettlement,
 } from '@/entities/family';
 import { useSession } from '@/entities/session';
+import { type PushState, disablePushForThisDevice, enablePushForThisDevice } from '@/features/push';
+import type { Settlement } from '@/shared/model/types';
 import { MESSAGES } from '@/shared/config/messages';
 import { errorMessage } from '@/shared/lib/errors';
 
@@ -31,6 +35,11 @@ export function useFamily() {
   const { me, familyId, signOut, refreshMe, selectFamily } = useSession();
 
   const [copied, setCopied] = useState(false);
+
+  /** 정산일 시트. draft 가 있으면 열려 있다 (F-FAM-10) */
+  const [settlementDraft, setSettlementDraft] = useState<Settlement | null>(null);
+  const [settlementError, setSettlementError] = useState<string | null>(null);
+  const [pushState, setPushState] = useState<PushState | null>(null);
 
   const detail = useQuery({
     queryKey: familyKeys.detail(familyId),
@@ -114,6 +123,23 @@ export function useFamily() {
     onError: failed,
   });
 
+  /**
+   * 정산일 저장 · 안 받기. 저장이 되고 나서 알림 권한을 묻는다 — 정산일을 정한 사람에게
+   * 묻는 것이 앱을 켜자마자 묻는 것보다 훨씬 덜 거절당한다. 권한 결과는 카드에 남긴다.
+   */
+  const saveSettlement = useMutation({
+    mutationFn: (settlement: Settlement | null) =>
+      updateMySettlement(familyId as string, settlement),
+    onSuccess: async (_membership, settlement) => {
+      setSettlementDraft(null);
+      setSettlementError(null);
+      void queryClient.invalidateQueries({ queryKey: familyKeys.detail(familyId) });
+      void refreshMe();
+      if (settlement) setPushState(await enablePushForThisDevice({ ask: true }));
+    },
+    onError: (caught) => setSettlementError(errorMessage(caught, MESSAGES.saveFailed)),
+  });
+
   async function copyCode() {
     if (!detail.data) return;
     await Clipboard.setStringAsync(detail.data.family.inviteCode);
@@ -163,7 +189,25 @@ export function useFamily() {
     remove: (membershipId: string) => remove.mutate(membershipId),
     leave: () => myMembership && leave.mutate(myMembership.id),
     switchFamily,
-    // 토큰이 비면 앱 셸이 로그인으로 보낸다
-    signOut: () => void signOut(),
+    // 토큰이 비면 앱 셸이 로그인으로 보낸다. 그 전에 이 기기의 알림 등록을 무른다 (F-FAM-10)
+    signOut: () => {
+      void disablePushForThisDevice().then(signOut);
+    },
+
+    // 정산일 (F-FAM-10)
+    mySettlement: myMembership?.settlement ?? null,
+    settlementDraft,
+    settlementError,
+    savingSettlement: saveSettlement.isPending,
+    pushState,
+    openSettlement: () => {
+      setSettlementError(null);
+      setSettlementDraft(myMembership?.settlement ?? DEFAULT_SETTLEMENT);
+    },
+    editSettlement: (patch: Partial<Settlement>) =>
+      setSettlementDraft((draft) => (draft ? { ...draft, ...patch } : draft)),
+    closeSettlement: () => setSettlementDraft(null),
+    saveSettlement: () => settlementDraft && saveSettlement.mutate(settlementDraft),
+    clearSettlement: () => saveSettlement.mutate(null),
   };
 }

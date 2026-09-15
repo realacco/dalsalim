@@ -1,4 +1,4 @@
-import type { Role } from '@/shared/model/types';
+import type { Role, Settlement } from '@/shared/model/types';
 
 export type Me = {
   user: { id: string; nickname: string; profileImageUrl: string | null; isDev: boolean };
@@ -6,6 +6,7 @@ export type Me = {
     id: string;
     role: Role;
     displayName: string;
+    settlement: Settlement | null;
     family: { id: string; name: string; inviteCode: string };
   }[];
 };

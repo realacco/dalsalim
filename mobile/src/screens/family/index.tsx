@@ -1,4 +1,4 @@
-// 기능: F-FAM-02 F-FAM-06 F-FAM-07 F-FAM-08 F-FAM-09 F-SES-04
+// 기능: F-FAM-02 F-FAM-06 F-FAM-07 F-FAM-08 F-FAM-09 F-FAM-10 F-SES-04
 import { Pressable, RefreshControl, ScrollView, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,6 +9,8 @@ import { confirm } from '@/shared/lib/confirm';
 import { useFamily } from './model/use-family';
 import { JoinRequestsCard } from './ui/join-requests-card';
 import { MembersCard } from './ui/members-card';
+import { SettlementCard } from './ui/settlement-card';
+import { SettlementSheet } from './ui/settlement-sheet';
 
 /**
  * 가족 화면 — 초대코드 · 참여 요청 · 구성원 · 계정.
@@ -64,6 +66,15 @@ export default function FamilyScreen() {
                 />
               ) : null}
             </Card>
+
+            <SettlementCard
+              settlement={f.mySettlement}
+              pushState={f.pushState}
+              error={f.settlementError}
+              busy={f.savingSettlement}
+              onEdit={f.openSettlement}
+              onClear={f.clearSettlement}
+            />
 
             {f.iAmOwner && f.requests.length > 0 ? (
               <JoinRequestsCard
@@ -127,6 +138,15 @@ export default function FamilyScreen() {
         {/* 지금 이 폰이 어느 번들을 보고 있는지. OTA 가 닿았는지 가리는 유일한 창구다 */}
         <BuildInfo />
       </ScrollView>
+
+      <SettlementSheet
+        draft={f.settlementDraft}
+        error={f.settlementError}
+        saving={f.savingSettlement}
+        onChange={f.editSettlement}
+        onSave={f.saveSettlement}
+        onClose={f.closeSettlement}
+      />
     </SafeAreaView>
   );
 }
