@@ -162,7 +162,7 @@ Railway 에 올라가 있고 Postgres 를 본다. `https://dalsalim-production.u
 
 - [ ] Expo 계정 + `eas.json` 작성
 - [ ] `eas build --platform android --profile preview` → APK (가족 내부 배포는 이걸로 충분)
-- [ ] **앱 아이콘 / 스플래시 실제 디자인** — 지금은 Expo 기본 이미지 그대로다
+- [ ] **앱 아이콘 / 스플래시 실제 디자인** — 에셋은 PR #46 으로 들어갔다("한 달 한 장" 아이콘 · 타일 + 워드마크 스플래시). APK 를 새로 떠서 실기기에서 보는 것이 남았다
 - [ ] `app.json`의 `version` / Android `versionCode` 정책 정하기
 - [ ] **실기기 테스트** — 지금까지 에뮬레이터에서만 확인했다
 - [ ] 작은 화면(폭 360dp)에서 위저드 버튼이 잘리는지
