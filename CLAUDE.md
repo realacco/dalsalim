@@ -347,5 +347,6 @@ cd mobile && npm run dev -- --android             # 에뮬레이터 + Metro
 
 ⚠️ **네이티브 빌드를 하지 않는다.** 카카오를 REST OAuth 로 붙여 `expo prebuild` 도 `android/` 도 없다.
 네이티브 모듈이 필요한 라이브러리를 들이기 전에 **먼저 상의한다** — Expo Go 로 바로 도는 루프를 잃는 결정이다.
+**원격 푸시(정산일 알림)만은 Expo Go 에서 안 나온다** — 정산일 저장까지만 되고 알림은 Firebase 키를 넣은 APK 에서 본다.
 
 📖 전문: `.claude/rules/commands.md` · 개발 환경 함정은 `docs/개발-노트.md` (로컬 전용)

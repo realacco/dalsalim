@@ -76,7 +76,7 @@ describe('★ F-FAM-10 carriedNotifiedFor — 정산일을 바꿀 때 "보냈다
     settlementMinute: 0,
   });
 
-  it('★ 이미 받은 날 안에서 시각만 늦추면 다시 안 온다', () => {
+  it('★ 이미 받은(또는 건너뛴) 날 안에서 시각만 늦추면 다시 안 온다', () => {
     expect(carriedNotifiedFor('2030-02', fields(28, 21), feb28)).toBe('2030-02');
     expect(carriedNotifiedFor('2030-02', fields(31, 21), feb28)).toBe('2030-02'); // 말일 보정도 같은 날
   });

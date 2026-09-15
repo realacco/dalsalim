@@ -98,6 +98,17 @@ async function resolvePushState(ask: boolean): Promise<PushState> {
  * 그래서 기억한 토큰이 없으면 한 번 더 뽑아서 무른다. 안 그러면 다음 사람의 폰에 내 알림이 간다.
  */
 export async function disablePushForThisDevice(): Promise<void> {
+  await Promise.race([unregisterThisDevice(), sleep(DISABLE_TIMEOUT_MS)]);
+}
+
+/**
+ * 로그아웃이 네트워크에 매이면 안 된다 — 원래 secure-store 를 비우는 로컬 동작이었다.
+ * 무르기는 토큰 발급 + 서버 호출이라 약한 망에서 수십 초 매달릴 수 있어 상한을 둔다 (서버의 EXPO_TIMEOUT_MS 와 같은 이유)
+ */
+const DISABLE_TIMEOUT_MS = 3_000;
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+async function unregisterThisDevice(): Promise<void> {
   const remembered = registeredToken;
   registeredToken = null;
   usePushStore.getState().setState(null);

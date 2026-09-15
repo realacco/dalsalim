@@ -44,8 +44,12 @@ export function SettlementSheet({
         <View style={[styles.sheet, { paddingBottom: insets.bottom + space.lg }]}>
           <View style={styles.grabber} />
           <Text style={styles.title}>정산일</Text>
+          {/* 칩이 쉰 개 남짓이라 큰 글자 설정에서는 화면을 넘는다 — 뚜껑을 두고 안에서 스크롤 (저장 버튼이 잘리면 기능이 막힌다) */}
           {draft ? (
-            <>
+            <ScrollView
+              contentContainerStyle={{ gap: space.md }}
+              keyboardShouldPersistTaps="handled"
+            >
               <Text style={styles.preview}>{formatSettlement(draft)}</Text>
               {hint ? <Muted>{hint}</Muted> : null}
 
@@ -62,18 +66,17 @@ export function SettlementSheet({
               </View>
 
               <Text style={styles.label}>시각</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={styles.row}>
-                  {SETTLEMENT_HOURS.map((hour) => (
-                    <Chip
-                      key={hour}
-                      label={formatHour(hour)}
-                      selected={draft.hour === hour}
-                      onPress={() => onChange({ hour })}
-                    />
-                  ))}
-                </View>
-              </ScrollView>
+              {/* 가로 스크롤이면 골라둔 칩이 화면 밖에 있을 수 있다 — 접어서 전부 보이게 */}
+              <View style={styles.wrap}>
+                {SETTLEMENT_HOURS.map((hour) => (
+                  <Chip
+                    key={hour}
+                    label={formatHour(hour)}
+                    selected={draft.hour === hour}
+                    onPress={() => onChange({ hour })}
+                  />
+                ))}
+              </View>
               <View style={styles.row}>
                 {SETTLEMENT_MINUTES.map((minute) => (
                   <Chip
@@ -87,7 +90,7 @@ export function SettlementSheet({
 
               {error ? <ErrorText>{error}</ErrorText> : null}
               <Button label="저장" loading={saving} onPress={onSave} />
-            </>
+            </ScrollView>
           ) : null}
         </View>
       </View>
@@ -99,6 +102,7 @@ const useStyles = makeStyles((t) => ({
   backdropWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: t.colors.overlay },
   backdrop: { flex: 1 },
   sheet: {
+    maxHeight: '90%',
     backgroundColor: t.colors.surface,
     borderTopLeftRadius: t.radius.sheet,
     borderTopRightRadius: t.radius.sheet,
