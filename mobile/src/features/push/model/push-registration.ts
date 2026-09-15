@@ -63,9 +63,25 @@ async function fetchExpoToken(): Promise<string | null> {
 /**
  * 권한이 있으면(또는 `ask` 로 받아내면) 토큰을 서버에 올린다. 결과는 돌려주고 스토어에도 적는다.
  * 토큰이 안 나오는 것(기기 문제)과 서버에 못 올린 것(잠깐 못 닿음)을 가른다 — 카드가 다른 말을 해야 한다.
+ *
+ * 🔴 **이 함수는 던지지 않는다.** 실패는 전부 `PushState` 로 돌아온다. 부르는 곳 셋이 그걸 전제한다 —
+ * 둘은 `void` 로 부르고(거절이 잡히지 않는다), 나머지 하나는 정산일 저장 mutation 의 `onSuccess` 다.
+ * 거기서 던지면 TanStack Query 가 그 거절을 mutation 의 실패로 바꿔 `onError` 를 부르고,
+ * **서버에 저장이 된 뒤인데 카드에 "저장 실패" 가 뜬다.** 알림 권한이 안 열린 것과 정산일이 안 저장된 것은
+ * 사용자에게 전혀 다른 일이라 섞이면 안 된다.
+ *
+ * `failed` 로 눕히는 이유: 우리가 고칠 수 있는 게 없고 다음에 앱을 열 때 다시 하면 되는 실패다
+ * (카드 문구도 그렇게 말한다). 서버가 "받고 거절한 것은 던지지 않는다" 로 간 것과 같은 결이다.
  */
 export async function enablePushForThisDevice({ ask }: { ask: boolean }): Promise<PushState> {
-  const state = await resolvePushState(ask);
+  let state: PushState;
+  try {
+    state = await resolvePushState(ask);
+  } catch (caught) {
+    // 권한 API 가 던지는 것은 드물지만(OS·모듈 쪽 사정) 그때 단서는 로그밖에 없다
+    console.warn('[push] 알림 권한을 확인하지 못했어요', caught);
+    state = 'failed';
+  }
   usePushStore.getState().setState(state);
   return state;
 }
