@@ -75,6 +75,9 @@ export function effectiveDay(day: number, daysInMonth: number): number {
  *    저장할 때 "이미 지났다"고 건너뛴 표시도 같게 본다 — 그날 시각을 다시 고쳐도 이번 달은 안 온다.
  *    둘을 가르려면 칸이 하나 더 필요한데, 다른 날로 옮기면 오는 것으로 충분해 그만한 값이 아니다
  *  - 오늘이 새 정산일이고 시각이 이미 지났으면 이번 달은 보낸 것으로 적는다 — 저장하자마자 튀어나오는 건 놀람이다
+ *  - **이번 달의 그 날이 이미 지났어도 같다** (11일에 10일로 정하기). 안 오는 건 매한가지인데 표시가 없으면
+ *    카드가 "이날 이 시각에 알려드려요" 라고 말해 그 달 내내 기다리게 한다. 정의서가 이 칸을 카드의 근거로
+ *    삼은 이유도 「갔든 건너뛰었든 이번 달엔 안 온다는 같다」이다
  *  - 그 밖에는 지운다 — 5일에 받은 사람이 25일로 옮기면 25일에 다시 온다. 날을 옮긴 건 다시 받겠다는 뜻이다
  *  - **안 받기(`null`)는 표시를 건드리지 않는다.** 정산일이 없으면 어차피 안 읽히는 값이라 지워서 얻는 것이 없고,
  *    지우면 「안 받기 → 같은 날 다시 정하기」로 그 달 알림이 두 번 간다. 위의 첫 줄이 막으려던 바로 그 일이
@@ -88,9 +91,10 @@ export function carriedNotifiedFor(
 ): string | null {
   const settlement = settlementOf(fields);
   if (!settlement) return previous;
-  const sameDayAlreadyNotified =
-    previous === now.yearMonth && effectiveDay(settlement.day, now.daysInMonth) === now.day;
+  const dayThisMonth = effectiveDay(settlement.day, now.daysInMonth);
+  const sameDayAlreadyNotified = previous === now.yearMonth && dayThisMonth === now.day;
   if (sameDayAlreadyNotified) return previous;
+  if (dayThisMonth < now.day) return now.yearMonth;
   return isSettlementDue({ ...fields, settlementNotifiedFor: null }, now) ? now.yearMonth : null;
 }
 

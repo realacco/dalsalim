@@ -81,8 +81,18 @@ describe('★ F-FAM-10 carriedNotifiedFor — 정산일을 바꿀 때 "보냈다
     expect(carriedNotifiedFor('2030-02', fields(31, 21), feb28)).toBe('2030-02'); // 말일 보정도 같은 날
   });
 
-  it('다른 날로 옮기면 그 날에 다시 온다', () => {
-    expect(carriedNotifiedFor('2030-02', fields(5, 9), feb28)).toBeNull();
+  // 2030-02-10 09:30 KST — 앞으로 올 날과 이미 지난 날이 둘 다 있는 날짜
+  const feb10 = localParts(new Date('2030-02-10T00:30:00Z'));
+
+  it('앞으로 올 날로 옮기면 그 날에 다시 온다', () => {
+    expect(carriedNotifiedFor('2030-02', fields(25, 9), feb10)).toBeNull();
+  });
+
+  it('★ 이미 지난 날로 정하면 이번 달은 건너뛴 것으로 적는다', () => {
+    // 안 오는 건 "오늘 지난 시각" 과 매한가지인데, 표시가 없으면 카드가
+    // "이날 이 시각에 알려드려요" 라고 말해 그 달 내내 기다리게 한다
+    expect(carriedNotifiedFor(null, fields(5, 9), feb10)).toBe('2030-02');
+    expect(carriedNotifiedFor(null, fields(5, 23), feb10)).toBe('2030-02'); // 시각은 안 본다. 날이 지났다
   });
 
   it('오늘로 정했는데 시각이 이미 지났으면 이번 달은 보낸 것으로 적는다', () => {
