@@ -54,6 +54,19 @@ export const ERRORS = {
     message: '그 참여 요청을 찾을 수 없어요. 이미 처리됐을 수 있어요.',
   },
   MEMBER_NOT_FOUND: { status: 404, message: '그 구성원을 찾을 수 없어요.' },
+  // 혼자 남은 가족장은 나가는 게 아니라 없애는 것이다 (F-FAM-11)
+  LAST_OWNER_MUST_DELETE: {
+    status: 400,
+    message: '혼자 남은 가족이에요. 나가는 대신 가족을 없앨 수 있어요.',
+  },
+  MEMBERS_REMAIN: {
+    status: 400,
+    message: '아직 구성원이 남아 있어요. 모두 내보낸 뒤에 없앨 수 있어요.',
+  },
+  FAMILY_ABANDONED: {
+    status: 404,
+    message: '구성원이 아무도 없는 가족이라 들어갈 수 없어요.',
+  },
   ALREADY_OWNER: { status: 400, message: '이미 가족장이에요.' },
   TRANSFER_OWNER_FIRST: {
     status: 400,
