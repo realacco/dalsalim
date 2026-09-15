@@ -52,14 +52,18 @@ export async function runSettlementReminders({
 
   const { dead, failed, shortTickets } =
     messages.length > 0 ? await send(messages) : { dead: [], failed: [], shortTickets: 0 };
-  await removeDeadTokens(dead);
-
+  /*
+    보낸 뒤에 적는다 — 그 사이에 다른 쓰기를 끼우지 않는다.
+    죽은 토큰 정리가 먼저 있을 때는 거기서 DB 가 튀면 due 전원이 표시를 못 받고,
+    다음 틱에 이미 받은 사람까지 진짜 푸시를 한 번 더 받았다. 정리는 이번 달 판정과 무관하니 뒤로 둔다
+  */
   if (due.length > 0) {
     await prisma.membership.updateMany({
       where: { id: { in: due.map((m) => m.id) } },
       data: { settlementNotifiedFor: local.yearMonth },
     });
   }
+  await removeDeadTokens(dead);
 
   return {
     yearMonth: local.yearMonth,
