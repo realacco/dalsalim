@@ -12,7 +12,7 @@ import { JoinRequestsCard } from './ui/join-requests-card';
 import { MembersCard } from './ui/members-card';
 
 /**
- * 가족 화면 — 초대코드 · 참여 요청 · 구성원 · 계정.
+ * 가족 화면 — 초대코드 · 참여 요청 · 구성원. 계정 쪽 일은 내 정보로 옮겼다 (F-SES-06).
  * 상태와 서버 통신은 useFamily 에, 카드 둘은 ui/ 에 있다. 여기는 배치만 한다.
  */
 export default function FamilyScreen() {

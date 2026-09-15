@@ -21,21 +21,30 @@ export function useMe() {
     setRefreshing(true);
     try {
       await refreshMe();
+    } catch {
+      // 일부러 삼킨다. 보여주는 값은 이미 세션에 있어 실패해도 화면이 비지 않고,
+      // 당겨서 새로고침은 안 되면 한 번 더 당기면 되는 동작이라 붙일 자리가 없다.
     } finally {
       setRefreshing(false);
     }
   }
 
   /**
-   * 다른 가족으로 갈아탄다. 캐시를 그대로 두면 바꾼 직후 한 프레임 동안
-   * 아까 보던 가족의 숫자가 남아 있으므로 비우고 간다.
+   * 다른 가족으로 갈아탄다.
+   *
+   * clear() 다. invalidateQueries() 는 stale 표시와 리패치일 뿐이라 이전 가족의 응답이
+   * 캐시에 남고, 바꾼 직후 한 프레임 동안 아까 보던 숫자가 비친다.
+   * 가족 나가기(use-family)와 승인 확인(pending)도 같은 이유로 clear() 를 쓴다.
+   *
+   * 돌아가는 곳은 back() 이다 — 가족 목록이 비지 않는 사람은 가족 탭에서만 여기 올 수 있고
+   * (/me 는 ACTIVE 만 실어 보낸다), replace 로 탭을 다시 밀면 스택에 한 겹이 더 쌓인다.
    */
   async function switchFamily(nextFamilyId: string) {
     if (nextFamilyId !== familyId) {
       await selectFamily(nextFamilyId);
-      await queryClient.invalidateQueries();
+      queryClient.clear();
     }
-    router.replace('/(tabs)');
+    router.back();
   }
 
   return {
