@@ -66,6 +66,15 @@ export async function buildBookView(familyId: string, bookId: string, myMembersh
 }
 
 /**
+ * 그 달에 제출본이 있는 사람 수 — 홈의 "아래 숫자는 N명 기준" 의 N.
+ * 요약의 progress.submittedCount 와 같은 축(구성원 상태를 안 봄)이어야 한다.
+ * 홈의 사람별 목록은 현재 구성원만 보이므로 거기서 세면 나간 사람의 제출본이 빠져 요약과 갈린다 (F-BOOK-02).
+ */
+export function countSubmittedEntries(bookId: string) {
+  return prisma.memberEntry.count({ where: { bookId, status: 'SUBMITTED' } });
+}
+
+/**
  * 기록을 시작한 뒤에 고정비 항목이 추가됐다면 줄을 채워 넣는다.
  * 삭제된 항목의 줄은 지우지 않는다 — 이미 금액을 적었을 수 있고,
  * 그 달에 실제로 나간 돈이라는 사실은 항목을 지운다고 사라지지 않는다.
@@ -310,18 +319,36 @@ export async function buildMonthSummary(familyId: string, yearMonth: string) {
   ]);
 
   const submitted = (book?.entries ?? []).filter((entry) => entry.status === 'SUBMITTED');
-  const submittedByMembership = new Map(submitted.map((entry) => [entry.membershipId, entry]));
+  const submittedIds = new Set(submitted.map((entry) => entry.membershipId));
 
-  const perMember = memberships.map((membership) => {
-    const entry = submittedByMembership.get(membership.id);
-    return {
-      membershipId: membership.id,
-      displayName: membership.displayName,
-      submitted: Boolean(entry),
-      note: entry?.note ?? null,
-      ...entrySummary(entry?.lines ?? []),
-    };
-  });
+  // ★ 집계의 축은 구성원 상태가 아니라 그 달의 제출본이다 (하드룰 6 · F-FAM-08).
+  //   나간 사람의 제출본을 빼면 그 사람이 나가는 순간 지난달 합계가 줄어든다 — 실제 삭제와 같은 결과다.
+  //   사람별 = 그 달에 제출본이 있는 사람 전부 + 현재 구성원 중 미제출자. 그래야 사람별 합이 총계다.
+  //   "제출본이 있는 사람"에는 나간 사람(LEFT)뿐 아니라 나갔다가 다시 신청해 대기 중인 사람(PENDING)도 든다.
+  //   하드룰 8 은 PENDING 을 정원에서 빼라고 하지만 그건 아직 한 줄도 안 낸 사람 얘기다 — 이 제출본은
+  //   ACTIVE 이던 달의 기록이라 빼면 하드룰 6 이 깨지고 제출 수가 정원을 넘는다. 여기서는 6 이 이긴다.
+  const perMember = [
+    ...submitted.map((entry) => ({
+      sortOrder: entry.membership.sortOrder,
+      membershipId: entry.membershipId,
+      displayName: entry.membership.displayName,
+      submitted: true,
+      note: entry.note,
+      ...entrySummary(entry.lines),
+    })),
+    ...memberships
+      .filter((membership) => !submittedIds.has(membership.id))
+      .map((membership) => ({
+        sortOrder: membership.sortOrder,
+        membershipId: membership.id,
+        displayName: membership.displayName,
+        submitted: false,
+        note: null,
+        ...entrySummary([]),
+      })),
+  ]
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map(({ sortOrder: _order, ...row }) => row);
 
   const allLines = submitted.flatMap((entry) =>
     entry.lines.map((line) => ({ ...line, displayName: entry.membership.displayName })),
@@ -350,7 +377,9 @@ export async function buildMonthSummary(familyId: string, yearMonth: string) {
     /** 숫자가 몇 명 기준인지 — 앱이 "엄마가 아직 안 적었어요" 배너를 그리는 근거 */
     progress: {
       submittedCount: submitted.length,
-      memberCount: memberships.length,
+      // 정원 = 현재 구성원 + 그 달에 제출본이 있는 비활성(LEFT·PENDING) 사람.
+      // "N명 기준"의 N 이 숫자에 들어간 사람 수와 같아야 한다
+      memberCount: perMember.length,
       pendingMembers: perMember
         .filter((m) => !m.submitted)
         .map((m) => ({ membershipId: m.membershipId, displayName: m.displayName })),
@@ -417,19 +446,19 @@ export async function buildMonthSummary(familyId: string, yearMonth: string) {
  * 거짓 그래프가 된다. 없는 건 없는 대로 두는 게 맞다.
  */
 export async function buildTrend(familyId: string, months: number) {
-  const memberCount = await prisma.membership.count({ where: { familyId, ...ACTIVE_MEMBER } });
-
-  const books = await prisma.monthlyBook.findMany({
-    where: { familyId },
-    orderBy: { yearMonth: 'desc' },
-    take: months,
-    include: {
-      entries: {
-        where: { status: 'SUBMITTED', membership: ACTIVE_MEMBER },
-        include: { lines: true },
+  const [activeMembers, books] = await Promise.all([
+    prisma.membership.findMany({ where: { familyId, ...ACTIVE_MEMBER }, select: { id: true } }),
+    prisma.monthlyBook.findMany({
+      where: { familyId },
+      orderBy: { yearMonth: 'desc' },
+      take: months,
+      include: {
+        // 나간 사람의 제출본도 센다 — 요약과 같은 축이다 (하드룰 6 · F-FAM-08). 빼면 나가는 순간 과거 점이 내려앉는다
+        entries: { where: { status: 'SUBMITTED' }, include: { lines: true } },
       },
-    },
-  });
+    }),
+  ]);
+  const activeIds = new Set(activeMembers.map((m) => m.id));
 
   return books
     .filter((book) => book.entries.length > 0)
@@ -452,7 +481,9 @@ export async function buildTrend(familyId: string, months: number) {
         ...totals,
         surplus: totals.income - totals.fixedTotal - totals.extraTotal - totals.settlementTotal,
         submittedCount: book.entries.length,
-        memberCount,
+        // 정원 = 현재 구성원 + 그 달에 제출본이 있는 비활성 사람 (요약의 memberCount 와 같은 규칙 — 위 주석)
+        memberCount:
+          activeIds.size + book.entries.filter((e) => !activeIds.has(e.membershipId)).length,
       };
     })
     .reverse(); // 오래된 달이 왼쪽에 오게

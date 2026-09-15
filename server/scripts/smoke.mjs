@@ -513,6 +513,13 @@ async function main() {
   );
   check('F-FAM-08 일반 멤버는 남을 못 내보낸다', kickByMember.status === 403, kickByMember.body);
 
+  // 나가기 전 숫자를 적어 둔다 — 나간 뒤에도 같아야 한다 (하드룰 6 · F-FAM-08)
+  const summaryPathThisMonth = `/families/${dad.familyId}/books/${thisMonth}/summary`;
+  const beforeKickSummary = (await call('GET', summaryPathThisMonth, { token: dad.token })).body;
+  const beforeKickTrend = (
+    await call('GET', `/families/${dad.familyId}/trend?months=2`, { token: dad.token })
+  ).body.months?.find((m) => m.yearMonth === thisMonth);
+
   const kick = await call('DELETE', `/families/${dad.familyId}/members/${momMembership.id}`, {
     token: dad.token,
   });
@@ -525,20 +532,65 @@ async function main() {
     token: dad.token,
   });
   check(
+    '★ F-BOOK-02 홈이 말하는 "N명 기준"도 요약과 같은 축이다 — 나간 사람의 제출본을 센다',
+    afterKick.body.submittedCount === 2,
+    { submittedCount: afterKick.body.submittedCount, members: afterKick.body.members.length },
+  );
+  check(
     '★ F-BOOK-04 남은 사람만으로 장부가 완성된다',
     afterKick.body.book.status === 'COMPLETE' && afterKick.body.members.length === 1,
     { status: afterKick.body.book.status, members: afterKick.body.members.length },
   );
 
-  const afterKickSummary = await call(
-    'GET',
-    `/families/${dad.familyId}/books/${thisMonth}/summary`,
-    { token: dad.token },
+  const afterKickSummary = await call('GET', summaryPathThisMonth, { token: dad.token });
+  const afterKickTrend = (
+    await call('GET', `/families/${dad.familyId}/trend?months=2`, { token: dad.token })
+  ).body.months?.find((m) => m.yearMonth === thisMonth);
+  const pickTotals = (s) => ({
+    income: s.totals?.income,
+    fixedTotal: s.totals?.fixedTotal,
+    extraTotal: s.totals?.extraTotal,
+    extraIncomeTotal: s.totals?.extraIncomeTotal,
+    settlementTotal: s.totals?.settlementTotal,
+    surplus: s.totals?.surplus,
+    byCategory: s.byCategory,
+    changes: s.changes?.length,
+  });
+  check(
+    '★ F-BOOK-02 나간 사람이 그 달에 낸 기록은 요약 합계에 그대로 남는다 (하드룰 6)',
+    beforeKickSummary.totals !== undefined &&
+      JSON.stringify(pickTotals(afterKickSummary.body)) ===
+        JSON.stringify(pickTotals(beforeKickSummary)),
+    { before: pickTotals(beforeKickSummary), after: pickTotals(afterKickSummary.body) },
+  );
+  const momRow = afterKickSummary.body.perMember?.find((m) => m.membershipId === momMembership.id);
+  check(
+    '★ F-BOOK-02 그 달에 낸 사람은 나갔어도 사람별에 남는다 — 사람별 합이 총계여야 한다',
+    momRow?.submitted === true &&
+      afterKickSummary.body.perMember.reduce((sum, m) => sum + m.income, 0) ===
+        afterKickSummary.body.totals.income,
+    afterKickSummary.body.perMember,
   );
   check(
-    'F-FAM-08 나간 사람은 요약에서도 빠진다',
-    afterKickSummary.body.perMember.length === 1,
-    afterKickSummary.body.perMember,
+    '★ F-BOOK-02 정원은 현재 구성원 + 그 달에 낸 나간 사람 — 미제출자에는 나간 사람이 안 들어간다',
+    // perMember.length 와 비교하면 서버가 그렇게 만들어 주므로 늘 참이다 — 값으로 못 박는다
+    afterKickSummary.body.progress.memberCount === 2 &&
+      afterKickSummary.body.progress.memberCount === beforeKickSummary.progress.memberCount &&
+      !afterKickSummary.body.progress.pendingMembers.some(
+        (m) => m.membershipId === momMembership.id,
+      ),
+    afterKickSummary.body.progress,
+  );
+  check(
+    '★ F-BOOK-03 추이의 그 달 점도 안 내려앉는다',
+    // 둘 다 없으면 undefined === undefined 로 조용히 통과한다 — 점이 실제로 잡혔는지부터 본다
+    beforeKickTrend !== undefined &&
+      afterKickTrend !== undefined &&
+      afterKickTrend.income === beforeKickTrend.income &&
+      afterKickTrend.surplus === beforeKickTrend.surplus &&
+      afterKickTrend.submittedCount === beforeKickTrend.submittedCount &&
+      afterKickTrend.memberCount === beforeKickTrend.memberCount,
+    { before: beforeKickTrend, after: afterKickTrend },
   );
 
   // 되돌린다 — 이 스크립트는 몇 번이고 다시 돌 수 있어야 한다
@@ -560,6 +612,18 @@ async function main() {
     '★ F-FAM-04 대기 중인 사람은 장부 정원에 안 들어간다',
     stillOne.body.members.length === 1 && stillOne.body.book.status === 'COMPLETE',
     { members: stillOne.body.members.length, status: stillOne.body.book.status },
+  );
+  // 재참여 대기(PENDING) 중이라도 그 달에 낸 기록은 요약에 그대로다 — 하드룰 8 이 아니라 6 의 자리 (F-BOOK-02)
+  const pendingSummary = (await call('GET', summaryPathThisMonth, { token: dad.token })).body;
+  const pendingMomRow = pendingSummary.perMember?.find((m) => m.membershipId === momMembership.id);
+  check(
+    '★ F-BOOK-02 다시 신청해 대기 중인 사람도 그 달에 낸 기록은 요약에 남는다',
+    pendingMomRow?.submitted === true &&
+      pendingSummary.progress.memberCount === 2 &&
+      pendingSummary.progress.memberCount === beforeKickSummary.progress.memberCount &&
+      !pendingSummary.progress.pendingMembers.some((m) => m.membershipId === momMembership.id) &&
+      pendingSummary.totals.income === beforeKickSummary.totals.income,
+    { progress: pendingSummary.progress, mom: pendingMomRow },
   );
 
   const momRequests = await call('GET', `/families/${dad.familyId}/join-requests`, {

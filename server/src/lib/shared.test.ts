@@ -169,7 +169,7 @@ describe('공유 상수', () => {
 
   it('★ 가계부를 볼 수 있는 멤버십은 ACTIVE 하나뿐이다 (하드룰 8)', () => {
     // 코드를 맞힌 것만으로는 PENDING 이고, 내보낸 사람은 LEFT 로 남는다.
-    // 정원 · 목록 · 권한이 전부 ACTIVE_MEMBER 하나만 봐야 어긋나지 않는다
+    // 정원 · 목록 · 권한이 전부 ACTIVE_MEMBER 하나만 봐야 어긋나지 않는다 — 단, 이미 제출본이 있는 달의 집계는 예외 (F-BOOK-02 · 하드룰 8)
     expect(ACTIVE_MEMBER).toEqual({ status: 'ACTIVE' });
     expect(MEMBERSHIP_STATUSES).toEqual(['PENDING', 'ACTIVE', 'LEFT']);
   });
