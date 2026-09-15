@@ -24,9 +24,11 @@ export function useMe() {
     setRefreshing(true);
     try {
       await refreshMe();
-    } catch {
-      // 일부러 삼킨다. 보여주는 값은 이미 세션에 있어 실패해도 화면이 비지 않고,
-      // 당겨서 새로고침은 안 되면 한 번 더 당기면 되는 동작이라 붙일 자리가 없다.
+    } catch (caught) {
+      // 조용히 넘기면 "가족 이름이 그대로네" 를 최신으로 읽는다 — 이 화면에서 당기는 이유가
+      // 남이 바꾼 가족 이름을 보려는 것이라 실패가 안 보이면 틀린 값을 믿게 된다.
+      // 다른 화면은 useQuery 가 있어 QueryError 카드가 뜨는데 여기는 그 자리가 없다.
+      Alert.alert(MESSAGES.actionFailed, errorMessage(caught, MESSAGES.actionFailedBody));
     } finally {
       setRefreshing(false);
     }

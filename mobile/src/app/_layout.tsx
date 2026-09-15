@@ -1,3 +1,4 @@
+// 기능: F-SES-04 F-SES-05
 import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';

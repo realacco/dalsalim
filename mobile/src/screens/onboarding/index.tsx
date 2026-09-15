@@ -142,7 +142,7 @@ export default function OnboardingScreen() {
         내 정보로 보낸다 — 같은 버튼을 세 화면에 복사해 두지 않기 위해서다 (F-SES-06).
       */}
       <Pressable onPress={() => router.push('/me')}>
-        <Muted style={{ textAlign: 'center' }}>내 정보</Muted>
+        <Muted style={{ textAlign: 'center' }}>내 정보 · 로그아웃</Muted>
       </Pressable>
     </SafeAreaView>
   );
