@@ -1,4 +1,4 @@
-// 기능: F-FAM-01 F-FAM-03
+// 기능: F-FAM-01 F-FAM-03 F-SES-06
 import { useState } from 'react';
 import { Keyboard, Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -20,7 +20,7 @@ export default function OnboardingScreen() {
   const { space } = useTheme();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { me, refreshMe, selectFamily, signOut } = useSession();
+  const { me, refreshMe, selectFamily } = useSession();
 
   const [mode, setMode] = useState<Mode>('create');
   const [familyName, setFamilyName] = useState('');
@@ -137,9 +137,12 @@ export default function OnboardingScreen() {
 
       <View style={{ flex: 1 }} />
 
-      {/* 토큰이 비면 앱 셸이 로그인으로 보낸다 */}
-      <Pressable onPress={() => void signOut()}>
-        <Muted style={{ textAlign: 'center' }}>다른 계정으로 로그인</Muted>
+      {/*
+        가족을 아직 안 만든 사람에게는 여기가 유일한 출구다. 로그아웃을 여기 따로 두는 대신
+        내 정보로 보낸다 — 같은 버튼을 세 화면에 복사해 두지 않기 위해서다 (F-SES-06).
+      */}
+      <Pressable onPress={() => router.push('/me')}>
+        <Muted style={{ textAlign: 'center' }}>내 정보</Muted>
       </Pressable>
     </SafeAreaView>
   );

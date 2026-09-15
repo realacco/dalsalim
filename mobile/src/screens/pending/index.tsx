@@ -1,4 +1,4 @@
-// 기능: F-FAM-04
+// 기능: F-FAM-04 F-SES-06
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -26,7 +26,7 @@ export default function PendingScreen() {
   const { space } = useTheme();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { me, refreshMe, selectFamily, signOut } = useSession();
+  const { refreshMe, selectFamily } = useSession();
 
   /**
    * 확인 버튼이 스스로 상태를 가진다.
@@ -179,16 +179,11 @@ export default function PendingScreen() {
 
         <View style={{ flex: 1 }} />
 
-        <Card style={{ gap: space.md }}>
-          <Text style={styles.cardTitle}>계정</Text>
-          <Muted>{me?.user.nickname}</Muted>
-          <Button
-            label="로그아웃"
-            variant="ghost"
-            // 토큰이 비면 앱 셸이 로그인으로 보낸다
-            onPress={() => void signOut()}
-          />
-        </Card>
+        {/*
+          로그아웃 버튼을 여기 따로 두지 않는다. 이 화면에는 탭 바가 없어서 예전에는
+          나갈 길이 여기뿐이었는데, 이제 내 정보 화면이 그 자리를 맡는다 (F-SES-06).
+        */}
+        <Button label="내 정보" variant="ghost" onPress={() => router.push('/me')} />
       </ScrollView>
     </SafeAreaView>
   );
