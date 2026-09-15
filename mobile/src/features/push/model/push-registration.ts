@@ -182,14 +182,23 @@ export function useNotificationTap() {
       router.replace('/(tabs)');
     };
 
+    /*
+      둘 다 떠 있는 Promise 다. open() 안의 selectFamily 는 secure-store·네트워크를 타서 던질 수 있는데,
+      잡지 않으면 알림을 눌렀는데 가족도 안 바뀌고 홈으로도 안 가면서 단서가 한 줄도 안 남는다.
+      이 파일의 다른 실패(토큰·권한)와 같은 결로 로그에 남긴다 — 사용자에게 띄울 것은 없다.
+    */
+    const warn = (caught: unknown) => console.warn('[push] 알림을 열지 못했어요', caught);
+
     // 마지막 응답은 OS 가 계속 들고 있다 — 처리했으면 지워야 다음 실행에서 또 가족을 옮기지 않는다
-    void Notifications.getLastNotificationResponseAsync().then(async (response) => {
-      if (!response) return;
-      await Notifications.clearLastNotificationResponseAsync();
-      await open(response);
-    });
+    void Notifications.getLastNotificationResponseAsync()
+      .then(async (response) => {
+        if (!response) return;
+        await Notifications.clearLastNotificationResponseAsync();
+        await open(response);
+      })
+      .catch(warn);
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      void open(response);
+      void open(response).catch(warn);
     });
     return () => subscription.remove();
   }, [userId, router, queryClient]);
