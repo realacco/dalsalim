@@ -1716,6 +1716,142 @@ async function main() {
     settleCleaned.lines?.map((l) => l.kind),
   );
 
+  console.log('\n[가족 없애기]');
+  // 스모크네를 건드리면 안 되므로 이 절은 자기 가족을 따로 만들어 쓰고 마지막에 없앤다.
+  const LONER = '스모크외톨이';
+  const LONER_FAMILY = '외톨이네';
+  const COMPANION = '스모크곁님';
+  const lonerToken = await login(LONER);
+
+  // 지난 실행이 중간에 끊겼으면 가족이 남아 있다. 있으면 비우고 없앤 뒤에 시작한다
+  for (const stale of (await call('GET', '/me', { token: lonerToken })).body.memberships?.filter(
+    (m) => m.family.name === LONER_FAMILY,
+  ) ?? []) {
+    const detail = await call('GET', `/families/${stale.family.id}`, { token: lonerToken });
+    for (const other of detail.body.members?.filter((m) => !m.isMe) ?? []) {
+      await call('DELETE', `/families/${stale.family.id}/members/${other.id}`, {
+        token: lonerToken,
+      });
+    }
+    await call('DELETE', `/families/${stale.family.id}`, { token: lonerToken });
+  }
+
+  const lonerFamily = await call('POST', '/families', {
+    token: lonerToken,
+    body: { name: LONER_FAMILY, displayName: '외톨이' },
+  });
+  const lonerFamilyId = lonerFamily.body.family?.id;
+  const lonerInviteCode = lonerFamily.body.family?.inviteCode;
+  check('F-FAM-11 (준비) 혼자인 가족을 만든다', lonerFamily.status === 200, lonerFamily.body);
+
+  const lonerMe = await call('GET', `/families/${lonerFamilyId}`, { token: lonerToken });
+  check(
+    'F-FAM-11 가족 상세에 없앨 때 사라지는 것의 수가 실린다',
+    typeof lonerMe.body.contents?.months === 'number' &&
+      typeof lonerMe.body.contents?.fixedExpenses === 'number',
+    lonerMe.body.contents,
+  );
+
+  // ★ 여기가 이 절의 핵심이다. 막지 않으면 초대코드만 살아 있는 유령 가족이 남고,
+  //   그 코드로 들어온 사람은 승인해줄 가족장이 없어 영원히 대기한다
+  const lonerMembershipId = lonerMe.body.myMembershipId;
+  const soloLeave = await call(
+    'DELETE',
+    `/families/${lonerFamilyId}/members/${lonerMembershipId}`,
+    {
+      token: lonerToken,
+    },
+  );
+  check(
+    '★ F-FAM-11 혼자 남은 가족장은 나갈 수 없다 — 없애는 것이다',
+    soloLeave.status === 400 && soloLeave.body.code === 'LAST_OWNER_MUST_DELETE',
+    soloLeave.body,
+  );
+
+  // 구성원이 하나 늘면 없애기가 막히고, 나가기는 넘기라는 쪽으로 바뀐다
+  const companionToken = await login(COMPANION);
+  await call('POST', '/families/join', {
+    token: companionToken,
+    body: { inviteCode: lonerInviteCode, displayName: '곁님' },
+  });
+  // 파일 위의 approve() 헬퍼는 main() 안에서 같은 이름의 상수에 가려진다 — 여기서는 직접 부른다
+  const lonerRequests = await call('GET', `/families/${lonerFamilyId}/join-requests`, {
+    token: lonerToken,
+  });
+  const companionRequestId = lonerRequests.body.requests?.find((r) => r.displayName === '곁님')?.id;
+  const companionApproved = await call(
+    'POST',
+    `/families/${lonerFamilyId}/join-requests/${companionRequestId}/approve`,
+    { token: lonerToken },
+  );
+  check(
+    'F-FAM-11 (준비) 한 사람을 승인해 둘이 된다',
+    companionApproved.status === 200,
+    companionApproved.body,
+  );
+
+  const deleteWithMembers = await call('DELETE', `/families/${lonerFamilyId}`, {
+    token: lonerToken,
+  });
+  check(
+    '★ F-FAM-11 구성원이 남아 있으면 없앨 수 없다',
+    deleteWithMembers.status === 400 && deleteWithMembers.body.code === 'MEMBERS_REMAIN',
+    deleteWithMembers.body,
+  );
+
+  const deleteByMember = await call('DELETE', `/families/${lonerFamilyId}`, {
+    token: companionToken,
+  });
+  check(
+    '★ F-FAM-11 가족장이 아니면 없앨 수 없다',
+    deleteByMember.status === 403 && deleteByMember.body.code === 'OWNER_ONLY',
+    deleteByMember.body,
+  );
+
+  const twoLeave = await call('DELETE', `/families/${lonerFamilyId}/members/${lonerMembershipId}`, {
+    token: lonerToken,
+  });
+  check(
+    'F-FAM-11 사람이 있을 때는 넘기라고 한다 — 없애라가 아니라',
+    twoLeave.status === 400 && twoLeave.body.code === 'TRANSFER_OWNER_FIRST',
+    twoLeave.body,
+  );
+
+  // 다시 혼자로 만들고 없앤다
+  const companionMembershipId = (
+    await call('GET', `/families/${lonerFamilyId}`, { token: lonerToken })
+  ).body.members?.find((m) => !m.isMe)?.id;
+  await call('DELETE', `/families/${lonerFamilyId}/members/${companionMembershipId}`, {
+    token: lonerToken,
+  });
+
+  const familyGone = await call('DELETE', `/families/${lonerFamilyId}`, { token: lonerToken });
+  check('★ F-FAM-11 혼자 남은 가족장은 가족을 없앤다', familyGone.status === 200, familyGone.body);
+
+  const goneForOwner = await call('GET', `/families/${lonerFamilyId}`, { token: lonerToken });
+  check(
+    '★ F-FAM-11 없앤 가족은 만든 사람도 못 본다',
+    goneForOwner.status === 403,
+    goneForOwner.body,
+  );
+
+  const meAfterDelete = await call('GET', '/me', { token: lonerToken });
+  check(
+    'F-FAM-11 없앤 가족은 내 가족 목록에서 사라진다',
+    !meAfterDelete.body.memberships?.some((m) => m.family.id === lonerFamilyId),
+    meAfterDelete.body.memberships?.map((m) => m.family.name),
+  );
+
+  const codeAfterDelete = await call('POST', '/families/join', {
+    token: companionToken,
+    body: { inviteCode: lonerInviteCode, displayName: '곁님' },
+  });
+  check(
+    '★ F-FAM-11 없앤 가족의 초대코드는 안 통한다',
+    codeAfterDelete.status === 404 && codeAfterDelete.body.code === 'INVITE_CODE_NOT_FOUND',
+    codeAfterDelete.body,
+  );
+
   console.log('\n[레이트리밋]');
   // 초대코드를 계속 찍어보는 걸 막는다. 이 검사는 그 사람의 한도를 소진하므로 맨 마지막에 둔다.
   const attacker = await call('POST', '/auth/dev', { body: { name: '침입자' } });
