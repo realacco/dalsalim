@@ -7,7 +7,7 @@ vi.mock('react-native', () => ({ Platform: { OS: 'android' } }));
 
 import { ApiError } from '@/shared/api/client';
 import { MESSAGES } from '@/shared/config/messages';
-import { errorMessage } from './errors';
+import { errorMessage, isSessionExpired } from './errors';
 
 /**
  * 서버가 준 문장과 폴백 문장 중 무엇을 보여줄지 가르는 **유일한 지점**이다.
@@ -54,5 +54,26 @@ describe('errorMessage — 서버 문장과 폴백 사이의 갈림길', () => {
     // 빈 문장을 그대로 보여주면 화면에 아무것도 안 뜬다 — 빈 화면과 같은 실수다
     const caught = new ApiError(500, 'INTERNAL', '');
     expect(errorMessage(caught, MESSAGES.loadFailed)).toBe(MESSAGES.loadFailed);
+  });
+});
+
+describe('isSessionExpired() — 실패를 보여줄지 말지 가르는 스위치', () => {
+  it('401 이면 세션이 끊긴 것이다', () => {
+    expect(isSessionExpired(new ApiError(401, 'UNAUTHORIZED', '다시 로그인해주세요.'))).toBe(true);
+  });
+
+  it('서버에 못 닿은 것은 아니다 — 여기가 새면 서버가 꺼졌을 때 알림이 통째로 사라진다', () => {
+    expect(isSessionExpired(new ApiError(0, 'NETWORK', MESSAGES.network))).toBe(false);
+  });
+
+  it('다른 실패는 그대로 보여준다', () => {
+    expect(isSessionExpired(new ApiError(403, 'OWNER_ONLY', '가족장만 할 수 있어요.'))).toBe(false);
+    expect(isSessionExpired(new ApiError(500, 'INTERNAL', ''))).toBe(false);
+  });
+
+  it('ApiError 가 아니면 판정하지 않는다', () => {
+    expect(isSessionExpired(new TypeError('undefined is not a function'))).toBe(false);
+    expect(isSessionExpired('401')).toBe(false);
+    expect(isSessionExpired(null)).toBe(false);
   });
 });

@@ -1,9 +1,10 @@
-// 기능: F-FAM-02 F-FAM-06 F-FAM-07 F-FAM-08 F-FAM-09 F-SES-04
-import { Pressable, RefreshControl, ScrollView, Text } from 'react-native';
+// 기능: F-FAM-02 F-FAM-06 F-FAM-07 F-FAM-08 F-FAM-09 F-SES-06
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
-import { BuildInfo, Button, Card, Loading, Muted, QueryError } from '@/shared/ui';
+import { Button, Card, Loading, Muted, QueryError } from '@/shared/ui';
 import { confirm } from '@/shared/lib/confirm';
 
 import { useFamily } from './model/use-family';
@@ -11,12 +12,13 @@ import { JoinRequestsCard } from './ui/join-requests-card';
 import { MembersCard } from './ui/members-card';
 
 /**
- * 가족 화면 — 초대코드 · 참여 요청 · 구성원 · 계정.
+ * 가족 화면 — 초대코드 · 참여 요청 · 구성원. 계정 쪽 일은 내 정보로 옮겼다 (F-SES-06).
  * 상태와 서버 통신은 useFamily 에, 카드 둘은 ui/ 에 있다. 여기는 배치만 한다.
  */
 export default function FamilyScreen() {
   const styles = useStyles();
   const { space } = useTheme();
+  const router = useRouter();
   const f = useFamily();
 
   return (
@@ -29,7 +31,20 @@ export default function FamilyScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={f.isFetching} onRefresh={f.refetch} />}
       >
-        <Text style={styles.title}>{f.family?.name ?? '가족'}</Text>
+        <View style={styles.header}>
+          {/*
+            가족 이름은 20자까지 받는 사용자 입력이라 「내 정보」를 밀어낼 수 있다.
+            줄어드는 쪽은 이름이다 — 진입점이 화면 밖으로 나가면 이 탭에서는 내 정보로
+            갈 길이 아예 없어진다 (승인 대기·온보딩과 달리 여기는 진입점이 하나뿐이다).
+          */}
+          <Text style={styles.title} numberOfLines={1}>
+            {f.family?.name ?? '가족'}
+          </Text>
+          {/* 탭을 늘리지 않는다 — 계정 쪽 일은 한 달에 몇 번이라 헤더에 한 줄이면 된다 */}
+          <Pressable onPress={() => router.push('/me')} hitSlop={12} style={styles.myPageTap}>
+            <Text style={styles.myPage}>내 정보</Text>
+          </Pressable>
+        </View>
 
         {f.isLoading ? <Loading /> : null}
         {f.isError ? <QueryError error={f.error} onRetry={f.refetch} /> : null}
@@ -86,46 +101,6 @@ export default function FamilyScreen() {
             />
           </>
         ) : null}
-
-        {f.me && f.me.memberships.length > 1 ? (
-          <Card style={{ gap: space.md }}>
-            <Text style={styles.cardTitle}>가족 바꾸기</Text>
-            {f.me.memberships.map((membership) => (
-              <Pressable
-                key={membership.id}
-                onPress={() => f.switchFamily(membership.family.id)}
-                style={[
-                  styles.familyRow,
-                  membership.family.id === f.familyId && styles.familyRowActive,
-                ]}
-              >
-                <Text style={styles.memberName}>{membership.family.name}</Text>
-                <Muted>{membership.displayName}</Muted>
-              </Pressable>
-            ))}
-          </Card>
-        ) : null}
-
-        <Card style={{ gap: space.md }}>
-          <Text style={styles.cardTitle}>계정</Text>
-          <Muted>{f.me?.user.nickname}</Muted>
-          <Button
-            label="로그아웃"
-            variant="ghost"
-            onPress={() =>
-              confirm({
-                title: '로그아웃',
-                body: '이 기기에서 나갈까요?',
-                confirmLabel: '로그아웃',
-                destructive: true,
-                onConfirm: f.signOut,
-              })
-            }
-          />
-        </Card>
-
-        {/* 지금 이 폰이 어느 번들을 보고 있는지. OTA 가 닿았는지 가리는 유일한 창구다 */}
-        <BuildInfo />
       </ScrollView>
     </SafeAreaView>
   );
@@ -134,12 +109,16 @@ export default function FamilyScreen() {
 const useStyles = makeStyles((t) => ({
   screen: { flex: 1, backgroundColor: t.colors.bg },
   content: { padding: t.space.lg, gap: t.space.lg, paddingBottom: t.space.xxl },
-  title: {
-    ...t.font.title,
-    fontWeight: t.weight.heavy,
-    color: t.colors.ink,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: t.space.md,
     paddingHorizontal: t.space.xs,
   },
+  title: { ...t.font.title, fontWeight: t.weight.heavy, color: t.colors.ink, flexShrink: 1 },
+  myPageTap: { flexShrink: 0 },
+  myPage: { ...t.font.body, fontWeight: t.weight.semibold, color: t.colors.primary },
   cardTitle: { ...t.font.bodyLg, fontWeight: t.weight.bold, color: t.colors.ink },
 
   codeBox: {
@@ -151,15 +130,4 @@ const useStyles = makeStyles((t) => ({
   },
   code: { ...t.font.code, fontWeight: t.weight.heavy, color: t.colors.ink },
   copyHint: { ...t.font.caption, color: t.colors.inkFaint },
-
-  memberName: { ...t.font.body, fontWeight: t.weight.bold, color: t.colors.ink },
-
-  familyRow: {
-    padding: t.space.md,
-    borderRadius: t.radius.md,
-    borderWidth: t.border.hairline,
-    borderColor: t.colors.line,
-    gap: t.space.xxs,
-  },
-  familyRowActive: { borderColor: t.colors.primary, backgroundColor: t.colors.primarySoft },
 }));

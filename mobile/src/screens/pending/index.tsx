@@ -1,4 +1,4 @@
-// 기능: F-FAM-04
+// 기능: F-FAM-04 F-SES-06
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -12,7 +12,7 @@ import { Button, Card, Loading, Muted, Notice, QueryError } from '@/shared/ui';
 import { formatClock } from '@/shared/lib/format';
 import { MESSAGES } from '@/shared/config/messages';
 import { confirm } from '@/shared/lib/confirm';
-import { errorMessage } from '@/shared/lib/errors';
+import { errorMessage, isSessionExpired } from '@/shared/lib/errors';
 
 /**
  * 초대코드를 넣고 가족장의 승인을 기다리는 동안 머무는 화면.
@@ -26,7 +26,7 @@ export default function PendingScreen() {
   const { space } = useTheme();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { me, refreshMe, selectFamily, signOut } = useSession();
+  const { refreshMe, selectFamily } = useSession();
 
   /**
    * 확인 버튼이 스스로 상태를 가진다.
@@ -56,6 +56,13 @@ export default function PendingScreen() {
       if (joined) {
         await selectFamily(joined.family.id);
         queryClient.clear();
+        /*
+          이 확인은 10초마다 뒤에서도 돈다. 그 사이 이 화면 위에 다른 화면(내 정보)이
+          얹혀 있으면 replace 가 그 자리만 바꿔 승인 대기가 스택에 남고, 뒤로가기하면
+          방금 승인된 사람에게 "거절됐거나 이미 처리된 요청" 이 뜬다 — 이 파일이
+          위에서 막아둔 바로 그 화면이다. 먼저 비우고 간다 (앱 셸의 로그아웃과 같은 모양).
+        */
+        if (router.canDismiss()) router.dismissAll();
         router.replace('/(tabs)');
         return true;
       }
@@ -102,8 +109,10 @@ export default function PendingScreen() {
       await pending.refetch();
       router.replace('/onboarding');
     },
-    onError: (caught) =>
-      Alert.alert(MESSAGES.actionFailed, errorMessage(caught, MESSAGES.actionFailedBody)),
+    onError: (caught) => {
+      if (isSessionExpired(caught)) return;
+      Alert.alert(MESSAGES.actionFailed, errorMessage(caught, MESSAGES.actionFailedBody));
+    },
   });
 
   const request = pending.data?.[0];
@@ -179,16 +188,13 @@ export default function PendingScreen() {
 
         <View style={{ flex: 1 }} />
 
-        <Card style={{ gap: space.md }}>
-          <Text style={styles.cardTitle}>계정</Text>
-          <Muted>{me?.user.nickname}</Muted>
-          <Button
-            label="로그아웃"
-            variant="ghost"
-            // 토큰이 비면 앱 셸이 로그인으로 보낸다
-            onPress={() => void signOut()}
-          />
-        </Card>
+        {/*
+          로그아웃 버튼을 여기 따로 두지 않는다. 이 화면에는 탭 바가 없어서 예전에는
+          나갈 길이 여기뿐이었는데, 이제 내 정보 화면이 그 자리를 맡는다 (F-SES-06).
+          문구에 「로그아웃」을 남겨 둔 건 **원래 그 버튼이 있던 자리**이기 때문이다 —
+          나가려던 사람이 「내 정보」만 보고 출구를 못 알아보면 이 화면에 갇힌다.
+        */}
+        <Button label="내 정보 · 로그아웃" variant="ghost" onPress={() => router.push('/me')} />
       </ScrollView>
     </SafeAreaView>
   );

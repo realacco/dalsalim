@@ -17,7 +17,7 @@ import {
 } from '@/entities/family';
 import { useSession } from '@/entities/session';
 import { MESSAGES } from '@/shared/config/messages';
-import { errorMessage } from '@/shared/lib/errors';
+import { errorMessage, isSessionExpired } from '@/shared/lib/errors';
 
 /**
  * 가족 화면의 상태 조립. 화면은 여기서 받은 것을 그리기만 한다.
@@ -28,7 +28,7 @@ import { errorMessage } from '@/shared/lib/errors';
 export function useFamily() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { me, familyId, signOut, refreshMe, selectFamily } = useSession();
+  const { familyId, refreshMe, selectFamily } = useSession();
 
   const [copied, setCopied] = useState(false);
 
@@ -53,8 +53,10 @@ export function useFamily() {
     enabled: Boolean(familyId) && iAmOwner,
   });
 
-  const failed = (caught: unknown) =>
+  const failed = (caught: unknown) => {
+    if (isSessionExpired(caught)) return;
     Alert.alert(MESSAGES.actionFailed, errorMessage(caught, MESSAGES.actionFailedBody));
+  };
 
   /** 구성원이 바뀌면 장부의 완성 판정도 바뀐다. 가족·요청·장부 캐시를 같이 비운다. */
   function refetchAll() {
@@ -121,14 +123,7 @@ export function useFamily() {
     setTimeout(() => setCopied(false), 1600);
   }
 
-  function switchFamily(nextFamilyId: string) {
-    void selectFamily(nextFamilyId);
-    void queryClient.invalidateQueries();
-  }
-
   return {
-    me,
-    familyId,
     family: detail.data?.family ?? null,
     members,
     myMembership,
@@ -162,8 +157,5 @@ export function useFamily() {
     handOver: (membershipId: string) => handOver.mutate(membershipId),
     remove: (membershipId: string) => remove.mutate(membershipId),
     leave: () => myMembership && leave.mutate(myMembership.id),
-    switchFamily,
-    // 토큰이 비면 앱 셸이 로그인으로 보낸다
-    signOut: () => void signOut(),
   };
 }
