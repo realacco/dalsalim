@@ -55,6 +55,20 @@ describe('F-FAM-10 Expo 전송 결과 가르기', () => {
     await expect(sendViaExpo([message('ExponentPushToken[a]')])).rejects.toThrow('503');
   });
 
+  it('★ 표가 보낸 통수보다 많아도 던지지 않는다 — 여기서 터지면 스케줄러가 못 닿은 줄 알고 매분 다시 보낸다', async () => {
+    expoAnswers({
+      data: [
+        { status: 'error', details: { error: 'DeviceNotRegistered' } },
+        { status: 'error', details: { error: 'InvalidCredentials' } },
+      ],
+    });
+
+    const result = await sendViaExpo([message('ExponentPushToken[a]')]);
+
+    expect(result.dead).toEqual(['ExponentPushToken[a]']);
+    expect(result.failed).toEqual([]);
+  });
+
   it('100통씩 끊어 보낸다 — Expo 가 한 번에 받는 최대', async () => {
     const fetchMock = expoAnswers({ data: Array.from({ length: 100 }, () => ({ status: 'ok' })) });
     await sendViaExpo(Array.from({ length: 150 }, (_, i) => message(`ExponentPushToken[${i}]`)));

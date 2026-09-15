@@ -93,7 +93,14 @@ export const sendViaExpo: PushSender = async (messages) => {
     }
     parsed.data.forEach((ticket, index) => {
       if (ticket.status !== 'error') return;
-      const to = chunk[index].to;
+      /*
+        Expo 는 보낸 통수만큼 표를 돌려주지만, 어긋났을 때 `chunk[index].to` 가 터지면
+        그 TypeError 가 이 함수 밖으로 던져진다 — 스케줄러는 그걸 "Expo 에 못 닿음" 으로 읽어
+        표시를 안 적고 날이 바뀔 때까지 매분 다시 보낸다. 이미 받은 사람에게 진짜 푸시가 계속 간다.
+        표가 남아돌면 짝이 없는 것이니 버린다. 위에서 정한 "받고 거절한 것은 던지지 않는다" 와 같은 결이다
+      */
+      const to = chunk[index]?.to;
+      if (!to) return;
       if (ticket.details?.error === 'DeviceNotRegistered') dead.push(to);
       else failed.push({ to, error: ticket.details?.error ?? ticket.message ?? 'unknown' });
     });
