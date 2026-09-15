@@ -1,3 +1,6 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
 import { afterEach, describe, it, expect, vi } from 'vitest';
 
 import {
@@ -13,6 +16,7 @@ import { effectiveDay as serverEffectiveDay } from '../../server/src/lib/schedul
 
 import { needsReason as appNeedsReason } from '../../mobile/src/entities/entry/model/reason';
 import { shortMonthHint as appShortMonthHint } from '../../mobile/src/entities/family/model/settlement';
+import { palettes } from '../../mobile/src/shared/config/theme';
 import { settlementDelta as appSettlementDelta } from '../../mobile/src/entities/entry/model/settlement';
 import { defaultSettles as appDefaultSettles } from '../../mobile/src/entities/fixed-expense/model/settles';
 import {
@@ -200,5 +204,25 @@ describe('정산일 말일 보정 — 서버 규칙과 앱 안내 문턱이 같�
       const clamped = serverEffectiveDay(day, 28) !== day;
       expect(appShortMonthHint(day) !== null, `${day}일`).toBe(clamped);
     }
+  });
+});
+
+/**
+ * 알림 아이콘 색은 app.json(네이티브 매니페스트)과 theme.ts 양쪽에 같은 값으로 산다.
+ * 매니페스트가 TS 토큰을 못 읽어 두 곳이 될 수밖에 없는데, 토큰만 바꾸면 알림 아이콘 색이
+ * 조용히 낡는다 — 그 갈라짐을 잡는 자동 장치가 이것 하나다. (app.config.js 주석 참조)
+ */
+describe('알림 아이콘 색 — app.json 과 theme 토큰이 같다', () => {
+  it('expo-notifications 플러그인의 color 가 light primary 다', async () => {
+    const appJson = JSON.parse(
+      await readFile(join(import.meta.dirname, '../../mobile/app.json'), 'utf8'),
+    ) as { expo: { plugins: (string | [string, { color?: string }])[] } };
+
+    const plugin = appJson.expo.plugins.find(
+      (entry): entry is [string, { color?: string }] =>
+        Array.isArray(entry) && entry[0] === 'expo-notifications',
+    );
+
+    expect(plugin?.[1].color).toBe(palettes.light.primary);
   });
 });
