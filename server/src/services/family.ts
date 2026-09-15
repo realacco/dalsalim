@@ -1,8 +1,9 @@
-// 기능: F-FAM-01 F-FAM-02 F-FAM-03 F-FAM-04 F-FAM-05 F-FAM-06 F-FAM-07 F-FAM-08 F-FAM-09
+// 기능: F-FAM-01 F-FAM-02 F-FAM-03 F-FAM-04 F-FAM-05 F-FAM-06 F-FAM-07 F-FAM-08 F-FAM-09 F-FAM-10
 import type { Membership } from '@prisma/client';
 
 import { prisma } from '../lib/db.js';
 import { fail } from '../lib/http.js';
+import { type Settlement, isSettlementDue, localParts } from '../lib/schedule.js';
 import { ACTIVE_MEMBER, randomInviteCode } from '../lib/shared.js';
 import { refreshBookStatus } from './book.js';
 
@@ -157,6 +158,31 @@ export async function rotateInviteCode(familyId: string) {
 
 export function renameMember(membershipId: string, displayName: string) {
   return prisma.membership.update({ where: { id: membershipId }, data: { displayName } });
+}
+
+/**
+ * 정산일 저장 (F-FAM-10). null 이면 안 받기.
+ *
+ * 오늘이 그 날이고 시각이 이미 지난 값으로 정하면 "이번 달은 보냈다"로 적어 둔다 —
+ * 저장 버튼을 누르자마자 알림이 튀어나오는 것은 알림이 아니라 놀람이다. 아직 안 지난 값이면
+ * 표시를 지워 이번 달에 제대로 온다.
+ */
+export function updateMemberSettlement(
+  membershipId: string,
+  settlement: Settlement | null,
+  now: Date = new Date(),
+) {
+  const fields = {
+    settlementDay: settlement?.day ?? null,
+    settlementHour: settlement?.hour ?? null,
+    settlementMinute: settlement?.minute ?? null,
+  };
+  const local = localParts(now);
+  const alreadyPassedToday = isSettlementDue({ ...fields, settlementNotifiedFor: null }, local);
+  return prisma.membership.update({
+    where: { id: membershipId },
+    data: { ...fields, settlementNotifiedFor: alreadyPassedToday ? local.yearMonth : null },
+  });
 }
 
 /**

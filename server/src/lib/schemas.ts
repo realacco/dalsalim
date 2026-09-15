@@ -29,3 +29,28 @@ export const description = z
   .nullable()
   .optional()
   .transform((value) => (value === undefined ? undefined : value || null));
+
+/**
+ * 정산일 알림 (F-FAM-10). 날짜·시각은 한 덩어리다 — 셋을 같이 보내거나 null 로 지운다.
+ * 반쪽만 저장되는 상태를 만들지 않으려고 낱개 optional 이 아니라 객체 하나로 받는다.
+ */
+export const settlement = z
+  .object({
+    day: z
+      .number()
+      .int()
+      .min(1, '정산일은 1일부터 31일 사이예요.')
+      .max(31, '정산일은 1일부터 31일 사이예요.'),
+    hour: z
+      .number()
+      .int()
+      .min(0, '시각은 0시부터 23시 사이예요.')
+      .max(23, '시각은 0시부터 23시 사이예요.'),
+    minute: z.number().int().min(0, '분은 0부터 59 사이예요.').max(59, '분은 0부터 59 사이예요.'),
+  })
+  .nullable();
+
+/** Expo 푸시 토큰. 다른 모양은 우리 서버가 보낼 수 없는 주소다 */
+export const pushToken = z
+  .string()
+  .regex(/^Expo(nent)?PushToken\[[^\]]+\]$/, '알림을 받을 기기 정보가 올바르지 않아요.');

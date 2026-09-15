@@ -60,6 +60,12 @@ export const env = {
    * ?? 가 아니라 || 다 — .env.example 의 GIT_SHA="" 가 빈 문자열로 들어오고, 빈 값은 없는 것이다.
    */
   gitSha: process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_SHA || null,
+
+  /**
+   * Expo Push Service 접근 토큰 (F-FAM-10). 없어도 보내진다 — Expo 계정의 "push security" 를
+   * 켰을 때만 필요하다. 빈 문자열은 없는 것 (gitSha 와 같은 이유로 ||).
+   */
+  expoAccessToken: process.env.EXPO_ACCESS_TOKEN || null,
 } as const;
 
 export const kakaoConfigured = env.kakao.restApiKey.length > 0;

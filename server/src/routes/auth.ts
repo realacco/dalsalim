@@ -1,4 +1,4 @@
-// 기능: F-SES-01 F-SES-02 F-SES-03
+// 기능: F-SES-01 F-SES-02 F-SES-03 F-FAM-10
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
@@ -6,6 +6,7 @@ import { env, kakaoConfigured } from '../env.js';
 import { prisma } from '../lib/db.js';
 import { fetchKakaoProfile, issueToken, requireUser } from '../lib/auth.js';
 import { fail } from '../lib/http.js';
+import { settlementOf } from '../lib/schedule.js';
 
 /**
  * 카카오 로그인은 앱이 아니라 서버가 주도한다.
@@ -163,6 +164,7 @@ export async function authRoutes(app: FastifyInstance) {
         id: m.id,
         role: m.role,
         displayName: m.displayName,
+        settlement: settlementOf(m),
         family: { id: m.family.id, name: m.family.name, inviteCode: m.family.inviteCode },
       })),
     };
