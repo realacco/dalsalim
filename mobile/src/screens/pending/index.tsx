@@ -12,7 +12,7 @@ import { Button, Card, Loading, Muted, Notice, QueryError } from '@/shared/ui';
 import { formatClock } from '@/shared/lib/format';
 import { MESSAGES } from '@/shared/config/messages';
 import { confirm } from '@/shared/lib/confirm';
-import { errorMessage } from '@/shared/lib/errors';
+import { errorMessage, isSessionExpired } from '@/shared/lib/errors';
 
 /**
  * 초대코드를 넣고 가족장의 승인을 기다리는 동안 머무는 화면.
@@ -109,8 +109,10 @@ export default function PendingScreen() {
       await pending.refetch();
       router.replace('/onboarding');
     },
-    onError: (caught) =>
-      Alert.alert(MESSAGES.actionFailed, errorMessage(caught, MESSAGES.actionFailedBody)),
+    onError: (caught) => {
+      if (isSessionExpired(caught)) return;
+      Alert.alert(MESSAGES.actionFailed, errorMessage(caught, MESSAGES.actionFailedBody));
+    },
   });
 
   const request = pending.data?.[0];
