@@ -201,7 +201,8 @@ export async function deleteFamily(familyId: string, myMembershipId: string) {
     },
   });
 
-  // 가족이 있는 것은 requireOwner 가 이미 봤다. 안 지워졌으면 남은 사람이 있다는 뜻이다
+  // 가족이 있는 것은 requireOwner 가 이미 봤다. 안 지워졌으면 남은 사람이 있다는 뜻이다 —
+  // 다른 기기에서 방금 없앤 경우도 여기로 오지만, 어느 쪽이든 결과는 "없어졌다"라 문구만 다르다
   if (count === 0) throw fail('MEMBERS_REMAIN');
 }
 
