@@ -69,6 +69,26 @@ export function effectiveDay(day: number, daysInMonth: number): number {
 }
 
 /**
+ * 정산일을 바꿔 저장할 때 "이번 달에 보냈다" 표시를 어떻게 이어갈지.
+ *
+ *  - 이미 이번 달에 받았고 새 정산일도 **오늘**이면 표시를 둔다 — 아침에 받고 저녁으로 옮겼다고 또 오면 안 된다
+ *  - 오늘이 새 정산일이고 시각이 이미 지났으면 이번 달은 보낸 것으로 적는다 — 저장하자마자 튀어나오는 건 놀람이다
+ *  - 그 밖에는 지운다 — 5일에 받은 사람이 25일로 옮기면 25일에 다시 온다. 날을 옮긴 건 다시 받겠다는 뜻이다
+ */
+export function carriedNotifiedFor(
+  previous: string | null,
+  fields: SettlementFields,
+  now: LocalParts,
+): string | null {
+  const settlement = settlementOf(fields);
+  if (!settlement) return null;
+  const sameDayAlreadyNotified =
+    previous === now.yearMonth && effectiveDay(settlement.day, now.daysInMonth) === now.day;
+  if (sameDayAlreadyNotified) return previous;
+  return isSettlementDue({ ...fields, settlementNotifiedFor: null }, now) ? now.yearMonth : null;
+}
+
+/**
  * 지금 보낼 때인가.
  *
  * 오늘이 정산일(말일 보정)이고 · 정한 시각이 **지났고** · 이번 달에 아직 안 보냈으면 참이다.

@@ -77,7 +77,7 @@ export async function familyRoutes(app: FastifyInstance) {
     let updated = mine;
     if (body.displayName !== undefined) updated = await renameMember(mine.id, body.displayName);
     if (body.settlement !== undefined)
-      updated = await updateMemberSettlement(mine.id, body.settlement);
+      updated = await updateMemberSettlement(mine, body.settlement);
     return {
       membership: {
         id: updated.id,

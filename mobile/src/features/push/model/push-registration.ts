@@ -51,7 +51,9 @@ async function fetchExpoToken(): Promise<string | null> {
       projectId ? { projectId } : undefined,
     );
     return data;
-  } catch {
+  } catch (caught) {
+    // Expo Go 면 정상이지만, FCM 키가 잘못 얹힌 빌드도 같은 길로 떨어진다 — 이유는 로그에 남긴다
+    console.warn('[push] 토큰을 못 받았어요', caught);
     return null;
   }
 }

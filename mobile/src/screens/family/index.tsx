@@ -123,6 +123,7 @@ export default function FamilyScreen() {
           <Button
             label="로그아웃"
             variant="ghost"
+            loading={f.signingOut}
             onPress={() =>
               confirm({
                 title: '로그아웃',

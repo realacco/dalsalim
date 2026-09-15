@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { effectiveDay, isSettlementDue, localParts, settlementOf } from './schedule.js';
+import {
+  carriedNotifiedFor,
+  effectiveDay,
+  isSettlementDue,
+  localParts,
+  settlementOf,
+} from './schedule.js';
 
 const setting = (day: number | null, hour = 9, minute = 0, notifiedFor: string | null = null) => ({
   settlementDay: day,
@@ -58,6 +64,40 @@ describe('★ F-FAM-10 isSettlementDue — 지금 보낼 때인가', () => {
 
   it('정하지 않았으면 안 보낸다', () => {
     expect(isSettlementDue(setting(null), feb28)).toBe(false);
+  });
+});
+
+describe('★ F-FAM-10 carriedNotifiedFor — 정산일을 바꿀 때 "보냈다" 표시', () => {
+  // 2030-02-28 09:30 KST
+  const feb28 = localParts(new Date('2030-02-28T00:30:00Z'));
+  const fields = (day: number, hour: number) => ({
+    settlementDay: day,
+    settlementHour: hour,
+    settlementMinute: 0,
+  });
+
+  it('★ 이미 받은 날 안에서 시각만 늦추면 다시 안 온다', () => {
+    expect(carriedNotifiedFor('2030-02', fields(28, 21), feb28)).toBe('2030-02');
+    expect(carriedNotifiedFor('2030-02', fields(31, 21), feb28)).toBe('2030-02'); // 말일 보정도 같은 날
+  });
+
+  it('다른 날로 옮기면 그 날에 다시 온다', () => {
+    expect(carriedNotifiedFor('2030-02', fields(5, 9), feb28)).toBeNull();
+  });
+
+  it('오늘로 정했는데 시각이 이미 지났으면 이번 달은 보낸 것으로 적는다', () => {
+    expect(carriedNotifiedFor(null, fields(28, 9), feb28)).toBe('2030-02');
+    expect(carriedNotifiedFor(null, fields(28, 10), feb28)).toBeNull();
+  });
+
+  it('지우면 표시도 없다', () => {
+    expect(
+      carriedNotifiedFor(
+        '2030-02',
+        { settlementDay: null, settlementHour: null, settlementMinute: null },
+        feb28,
+      ),
+    ).toBeNull();
   });
 });
 

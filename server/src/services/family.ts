@@ -3,7 +3,7 @@ import type { Membership } from '@prisma/client';
 
 import { prisma } from '../lib/db.js';
 import { fail } from '../lib/http.js';
-import { type Settlement, isSettlementDue, localParts } from '../lib/schedule.js';
+import { type Settlement, carriedNotifiedFor, localParts } from '../lib/schedule.js';
 import { ACTIVE_MEMBER, randomInviteCode } from '../lib/shared.js';
 import { refreshBookStatus } from './book.js';
 
@@ -162,13 +162,11 @@ export function renameMember(membershipId: string, displayName: string) {
 
 /**
  * 정산일 저장 (F-FAM-10). null 이면 안 받기.
- *
- * 오늘이 그 날이고 시각이 이미 지난 값으로 정하면 "이번 달은 보냈다"로 적어 둔다 —
- * 저장 버튼을 누르자마자 알림이 튀어나오는 것은 알림이 아니라 놀람이다. 아직 안 지난 값이면
- * 표시를 지워 이번 달에 제대로 온다.
+ * "이번 달에 보냈다" 표시를 어떻게 이어갈지는 lib/schedule 의 carriedNotifiedFor 가 정한다 —
+ * 판정 규칙은 그 파일 한 곳에만 둔다.
  */
 export function updateMemberSettlement(
-  membershipId: string,
+  mine: Pick<Membership, 'id' | 'settlementNotifiedFor'>,
   settlement: Settlement | null,
   now: Date = new Date(),
 ) {
@@ -177,11 +175,16 @@ export function updateMemberSettlement(
     settlementHour: settlement?.hour ?? null,
     settlementMinute: settlement?.minute ?? null,
   };
-  const local = localParts(now);
-  const alreadyPassedToday = isSettlementDue({ ...fields, settlementNotifiedFor: null }, local);
   return prisma.membership.update({
-    where: { id: membershipId },
-    data: { ...fields, settlementNotifiedFor: alreadyPassedToday ? local.yearMonth : null },
+    where: { id: mine.id },
+    data: {
+      ...fields,
+      settlementNotifiedFor: carriedNotifiedFor(
+        mine.settlementNotifiedFor,
+        fields,
+        localParts(now),
+      ),
+    },
   });
 }
 
