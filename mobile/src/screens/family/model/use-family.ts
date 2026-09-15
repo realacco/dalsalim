@@ -7,6 +7,7 @@ import * as Clipboard from 'expo-clipboard';
 import { bookKeys } from '@/entities/book';
 import {
   approveJoinRequest,
+  deleteFamily,
   familyKeys,
   fetchFamily,
   fetchJoinRequests,
@@ -22,7 +23,7 @@ import { errorMessage } from '@/shared/lib/errors';
 /**
  * 가족 화면의 상태 조립. 화면은 여기서 받은 것을 그리기만 한다.
  *
- * 조회 2 + 동작 6 이라 화면에 두면 JSX 보다 통신 코드가 길어진다 (CLAUDE.md 분리 기준: 3개 초과).
+ * 조회 2 + 동작 7 이라 화면에 두면 JSX 보다 통신 코드가 길어진다 (CLAUDE.md 분리 기준: 3개 초과).
  * 동작이 실패하면 전부 같은 알림을 띄운다 — 버튼 하나짜리 동작의 실패 표현 규칙.
  */
 export function useFamily() {
@@ -97,20 +98,32 @@ export function useFamily() {
     onError: failed,
   });
 
-  /** 나가면 이 가족의 화면에 더 있을 이유가 없다. 다른 가족이 있으면 그쪽으로, 없으면 처음으로. */
+  /** 이 가족을 떠난 뒤 갈 곳. 다른 가족이 있으면 그쪽으로, 없으면 처음으로. 나가기와 없애기가 같다 */
+  async function afterLeavingFamily() {
+    queryClient.clear();
+    const next = await refreshMe();
+    const other = next?.memberships[0];
+    if (other) {
+      await selectFamily(other.family.id);
+      router.replace('/(tabs)');
+    } else {
+      router.replace('/onboarding');
+    }
+  }
+
   const leave = useMutation({
     mutationFn: (membershipId: string) => removeMember(familyId as string, membershipId),
-    onSuccess: async () => {
-      queryClient.clear();
-      const next = await refreshMe();
-      const other = next?.memberships[0];
-      if (other) {
-        await selectFamily(other.family.id);
-        router.replace('/(tabs)');
-      } else {
-        router.replace('/onboarding');
-      }
-    },
+    onSuccess: afterLeavingFamily,
+    onError: failed,
+  });
+
+  /**
+   * 가족 없애기 (F-FAM-11) — 구성원이 나 하나뿐일 때만 버튼이 보인다.
+   * 혼자인 가족장은 나갈 수가 없다. 나가면 초대코드만 살아 있는 가족이 남기 때문이다.
+   */
+  const removeFamily = useMutation({
+    mutationFn: () => deleteFamily(familyId as string),
+    onSuccess: afterLeavingFamily,
     onError: failed,
   });
 
@@ -134,6 +147,11 @@ export function useFamily() {
     myMembership,
     iAmOwner,
     others,
+    /**
+     * 가족장이 나가려면 먼저 할 일이 있다 — 남은 사람이 있으면 넘기고, 나 혼자면 없앤다 (F-FAM-11).
+     * 배타적인 두 갈래라 boolean 둘로 내려보내면 어긋날 수 있어 하나로 정한다.
+     */
+    ownerExit: iAmOwner ? (others.length > 0 ? ('handover' as const) : ('delete' as const)) : null,
     requests: joinRequests.data ?? [],
 
     isLoading: detail.isLoading,
@@ -150,6 +168,7 @@ export function useFamily() {
       remove.isPending ||
       handOver.isPending ||
       leave.isPending ||
+      removeFamily.isPending ||
       approve.isPending ||
       reject.isPending,
     rotating: rotate.isPending,
@@ -162,6 +181,8 @@ export function useFamily() {
     handOver: (membershipId: string) => handOver.mutate(membershipId),
     remove: (membershipId: string) => remove.mutate(membershipId),
     leave: () => myMembership && leave.mutate(myMembership.id),
+    deleteFamily: () => removeFamily.mutate(),
+    contents: detail.data?.contents ?? null,
     switchFamily,
     // 토큰이 비면 앱 셸이 로그인으로 보낸다
     signOut: () => void signOut(),
