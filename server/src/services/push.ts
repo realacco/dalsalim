@@ -91,6 +91,14 @@ export const sendViaExpo: PushSender = async (messages) => {
       failed.push(...chunk.map(({ to }) => ({ to, error })));
       continue;
     }
+    /*
+      표가 모자라면 짝을 못 찾은 통들이 dead 도 failed 도 아닌 채 성공으로 지나가고
+      settlementNotifiedFor 는 적힌다 — 그 달 알림을 못 받은 사람이 어디에도 안 남는다.
+      Expo 가 실제로 그러지는 않지만, 그렇게 되는 날 단서가 이 한 줄뿐이다
+    */
+    if (parsed.data.length !== chunk.length) {
+      console.warn(`[push] Expo 가 ${chunk.length}통에 표 ${parsed.data.length}장을 돌려줬어요`);
+    }
     parsed.data.forEach((ticket, index) => {
       if (ticket.status !== 'error') return;
       /*
