@@ -58,6 +58,12 @@ type ExpoPushResponse = { data?: ExpoTicket[]; errors?: { code?: string; message
  * Expo Push Service 로 보낸다. Expo 가 FCM(안드로이드) · APNs(iOS) 에 넘긴다.
  * 표(ticket)의 오류를 둘로 가른다 — DeviceNotRegistered 는 토큰을 지울 근거(dead), 나머지는 로그에 남길 것(failed).
  * 어느 쪽도 다시 보내지 않는다. 같은 달엔 한 번뿐이고, 설정 문제는 사람이 고쳐야 다음 달에 간다.
+ *
+ * 실패의 결이 둘이라 다르게 다룬다.
+ *  - **Expo 가 받고 거절한 것** (4xx · 200 에 errors 만) — 우리 요청이 틀린 것이라 다시 보내도 같다.
+ *    그 청크 전부를 failed 로 눕히고 계속 간다. 던지면 스케줄러가 날이 바뀔 때까지 1분마다 같은 요청을 한다.
+ *  - **Expo 에 못 닿은 것** (5xx · 타임아웃 · 네트워크) — 던진다. 표시가 안 적히고 다음 틱에 다시 시도한다.
+ *    잠깐의 장애라면 그게 맞고, 종일 이어지면 종일 다시 시도한다 — 한 달에 한 번 오는 알림은 안 오는 쪽이 더 나쁘다.
  */
 export const sendViaExpo: PushSender = async (messages) => {
   const dead: string[] = [];
@@ -77,11 +83,13 @@ export const sendViaExpo: PushSender = async (messages) => {
         chunk.map((message) => ({ ...message, sound: 'default', channelId: 'default' })),
       ),
     });
-    if (!response.ok) throw new Error(`Expo push 응답 ${response.status}`);
+    if (response.status >= 500) throw new Error(`Expo push 응답 ${response.status}`);
 
-    const parsed = (await response.json()) as ExpoPushResponse;
-    if (!Array.isArray(parsed.data)) {
-      throw new Error(`Expo push 거절: ${JSON.stringify(parsed.errors ?? parsed)}`);
+    const parsed = (await response.json().catch(() => ({}))) as ExpoPushResponse;
+    if (!response.ok || !Array.isArray(parsed.data)) {
+      const error = parsed.errors?.[0]?.code ?? `HTTP ${response.status}`;
+      failed.push(...chunk.map(({ to }) => ({ to, error })));
+      continue;
     }
     parsed.data.forEach((ticket, index) => {
       if (ticket.status !== 'error') return;

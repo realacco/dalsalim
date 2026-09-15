@@ -35,12 +35,22 @@ describe('F-FAM-10 Expo 전송 결과 가르기', () => {
     ]);
   });
 
-  it('요청 전체가 거절되면(errors 만 있는 200) 던진다 — 조용히 "보냈다" 가 되면 안 된다', async () => {
+  it('Expo 가 요청 전체를 거절하면(errors 만 있는 200) 그 청크 전부가 failed — 다시 보내도 같은 답이라 던지지 않는다', async () => {
     expoAnswers({ errors: [{ code: 'PUSH_TOO_MANY_EXPERIENCE_IDS', message: '...' }] });
-    await expect(sendViaExpo([message('ExponentPushToken[a]')])).rejects.toThrow('거절');
+    const result = await sendViaExpo(['a', 'b'].map((to) => message(`ExponentPushToken[${to}]`)));
+    expect(result.failed.map((f) => f.error)).toEqual([
+      'PUSH_TOO_MANY_EXPERIENCE_IDS',
+      'PUSH_TOO_MANY_EXPERIENCE_IDS',
+    ]);
   });
 
-  it('HTTP 오류도 던진다', async () => {
+  it('4xx 도 같다 — 자격 증명이 틀린 채로 날이 바뀔 때까지 매분 두드리면 안 된다', async () => {
+    expoAnswers({ errors: [{ code: 'UNAUTHORIZED' }] }, 401);
+    const result = await sendViaExpo([message('ExponentPushToken[a]')]);
+    expect(result.failed).toEqual([{ to: 'ExponentPushToken[a]', error: 'UNAUTHORIZED' }]);
+  });
+
+  it('★ 5xx 는 던진다 — 표시를 안 적어야 다음 틱에 다시 간다. 잠깐 죽은 Expo 때문에 한 달 알림을 잃지 않는다', async () => {
     expoAnswers({}, 503);
     await expect(sendViaExpo([message('ExponentPushToken[a]')])).rejects.toThrow('503');
   });

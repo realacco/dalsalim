@@ -220,6 +220,10 @@ export async function removeMember(familyId: string, mine: Membership, targetId:
  *
  * 뺀 뒤에는 그 가족의 장부 상태를 다시 계산해야 한다. 안 그러면 "완성"에 필요한
  * 인원수가 줄었는데도 장부가 계속 진행 중으로 남는다.
+ *
+ * 정산일(F-FAM-10)은 지우지 않는다. 재참여는 이 행이 PENDING 으로 돌아오는 것이라 승인되면 예전 정산일이
+ * 그대로 살아난다 — 잘못 내보냈다 되돌린 사람이 알림을 다시 켜야 한다면 그게 더 이상하다.
+ * LEFT 인 동안 안 가는 건 스케줄러의 ACTIVE_MEMBER 필터가 맡는다.
  */
 export async function deactivateMember(familyId: string, membershipId: string) {
   await prisma.membership.update({

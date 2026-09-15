@@ -1764,7 +1764,7 @@ async function main() {
     body: {},
   });
   check(
-    'F-FAM-07 빈 본문은 거절한다',
+    'F-FAM-10 빈 본문은 거절한다',
     emptyPatch.status === 400 && emptyPatch.body.code === 'VALIDATION',
     emptyPatch.body,
   );

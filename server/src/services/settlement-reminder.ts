@@ -22,6 +22,8 @@ export function settlementReminderBody(familyName: string): string {
  * 반대로 먼저 적으면 "보냈다고 적고 못 보낸" 쪽이 되는데, 한 달에 한 번 오는 알림은 안 오는 쪽이 더 나쁘다.
  * 같은 이유로 서버 복제본은 하나여야 한다 (Railway 1개). 둘이 같은 틱을 돌면 둘 다 보낸다.
  * 토큰이 100개를 넘어 청크가 여럿일 때 뒤 청크가 실패하면 앞 청크 수신자는 다음 틱에 한 번 더 받는다 — 같은 한계다.
+ * Expo 에 못 닿는 상태가 이어지면 (5xx · 네트워크) 날이 바뀔 때까지 매분 다시 시도하고 매분 error 로그가 남는다 —
+ * 그게 "보내는 쪽이 살아나면 그날 안에는 간다" 의 값이다. Expo 가 받고 거절한 것은 push.ts 가 던지지 않고 failed 로 눕힌다.
  */
 export async function runSettlementReminders({
   now = new Date(),
