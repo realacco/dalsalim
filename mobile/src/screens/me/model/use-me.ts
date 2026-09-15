@@ -39,8 +39,10 @@ export function useMe() {
    * 캐시에 남고, 바꾼 직후 한 프레임 동안 아까 보던 숫자가 비친다.
    * 가족 나가기(use-family)와 승인 확인(pending)도 같은 이유로 clear() 를 쓴다.
    *
-   * 돌아가는 곳은 back() 이다 — 가족 목록이 비지 않는 사람은 가족 탭에서만 여기 올 수 있고
-   * (/me 는 ACTIVE 만 실어 보낸다), replace 로 탭을 다시 밀면 스택에 한 겹이 더 쌓인다.
+   * 돌아가는 곳은 back() 이다. replace 로 탭을 다시 밀면 이미 아래 깔린 탭 위에 한 겹이
+   * 더 쌓인다. 목록은 /me 가 ACTIVE 만 실어 보내므로 거의 항상 가족 탭에서 온 사람만 채워져
+   * 있는데, 승인 대기 화면에서 들어와 당겨서 새로고침하는 사이 승인이 나면 대기 화면으로
+   * 돌아간다 — 그 화면이 빈 목록을 보고 스스로 탭으로 보내므로 막히지는 않는다.
    */
   async function switchFamily(nextFamilyId: string) {
     if (nextFamilyId !== familyId) {
