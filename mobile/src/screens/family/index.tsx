@@ -32,9 +32,16 @@ export default function FamilyScreen() {
         refreshControl={<RefreshControl refreshing={f.isFetching} onRefresh={f.refetch} />}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>{f.family?.name ?? '가족'}</Text>
+          {/*
+            가족 이름은 20자까지 받는 사용자 입력이라 「내 정보」를 밀어낼 수 있다.
+            줄어드는 쪽은 이름이다 — 진입점이 화면 밖으로 나가면 이 탭에서는 내 정보로
+            갈 길이 아예 없어진다 (승인 대기·온보딩과 달리 여기는 진입점이 하나뿐이다).
+          */}
+          <Text style={styles.title} numberOfLines={1}>
+            {f.family?.name ?? '가족'}
+          </Text>
           {/* 탭을 늘리지 않는다 — 계정 쪽 일은 한 달에 몇 번이라 헤더에 한 줄이면 된다 */}
-          <Pressable onPress={() => router.push('/me')} hitSlop={12}>
+          <Pressable onPress={() => router.push('/me')} hitSlop={12} style={styles.myPageTap}>
             <Text style={styles.myPage}>내 정보</Text>
           </Pressable>
         </View>
@@ -106,9 +113,11 @@ const useStyles = makeStyles((t) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: t.space.md,
     paddingHorizontal: t.space.xs,
   },
-  title: { ...t.font.title, fontWeight: t.weight.heavy, color: t.colors.ink },
+  title: { ...t.font.title, fontWeight: t.weight.heavy, color: t.colors.ink, flexShrink: 1 },
+  myPageTap: { flexShrink: 0 },
   myPage: { ...t.font.body, fontWeight: t.weight.semibold, color: t.colors.primary },
   cardTitle: { ...t.font.bodyLg, fontWeight: t.weight.bold, color: t.colors.ink },
 

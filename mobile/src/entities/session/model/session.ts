@@ -66,13 +66,19 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   signOut: async () => {
-    try {
-      await SecureStore.deleteItemAsync(TOKEN_KEY);
-      await SecureStore.deleteItemAsync(FAMILY_KEY);
-    } catch {
-      // 저장소에서 지우기가 실패해도 메모리는 비운다 (F-SES-04).
-      // 로그아웃을 눌렀는데 그대로 있는 것이 가장 나쁘다.
-    }
+    /*
+      둘을 따로 시도한다. 하나를 await 로 이어 붙이면 앞의 것이 던질 때 뒤의 것이
+      아예 안 돌아 기억된 가족 id 만 남는다 — 서로 의존이 없는 두 삭제다.
+
+      실패해도 메모리는 비우고 로그인으로 보낸다 (F-SES-04) — 로그아웃을 눌렀는데
+      그대로 있는 것이 가장 나쁘다. ⚠️ 다만 이건 이번 실행에서만이다.
+      토큰이 저장소에 남으면 다음 실행의 hydrate() 가 그걸 읽어 세션을 되살린다.
+      SecureStore 삭제가 실패하는 길이 사실상 없어 여기까지만 감당한다.
+    */
+    await Promise.allSettled([
+      SecureStore.deleteItemAsync(TOKEN_KEY),
+      SecureStore.deleteItemAsync(FAMILY_KEY),
+    ]);
     setAuthToken(null);
     set({ token: null, me: null, familyId: null });
   },
