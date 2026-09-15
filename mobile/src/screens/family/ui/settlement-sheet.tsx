@@ -72,7 +72,6 @@ export function SettlementSheet({
                   styles.content,
                   { paddingBottom: insets.bottom + space.lg },
                 ]}
-                keyboardShouldPersistTaps="handled"
               >
                 <Text style={styles.preview}>{formatSettlement(draft)}</Text>
                 {hint ? <Muted>{hint}</Muted> : null}

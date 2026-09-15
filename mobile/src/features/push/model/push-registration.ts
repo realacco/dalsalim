@@ -33,7 +33,13 @@ Notifications.setNotificationHandler({
 
 const CHANNEL_ID = 'default';
 
-/** 이 세션에서 서버에 올린 토큰. 로그아웃 때 무를 것 */
+/**
+ * 이 세션에서 서버에 올린 토큰. 로그아웃 때 무를 것.
+ *
+ * 보안 규칙의 "토큰은 expo-secure-store 에만 · 전역 변수 금지" 는 **세션 토큰**을 겨냥한 줄이다.
+ * 여기 있는 것은 사람의 자격이 아니라 **기기 주소**라(서버도 로그에 싣는다) 그 규칙의 대상이 아니다.
+ * 훔쳐도 이 폰에 알림을 보낼 수 있을 뿐 가계부는 안 열린다.
+ */
 let registeredToken: string | null = null;
 
 /** iOS 는 Apple 개발자 계정이 있어야 푸시가 된다 — 지금은 안드로이드 실기기만 (정의서) */
