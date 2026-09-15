@@ -60,6 +60,18 @@ export const env = {
    * ?? 가 아니라 || 다 — .env.example 의 GIT_SHA="" 가 빈 문자열로 들어오고, 빈 값은 없는 것이다.
    */
   gitSha: process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_SHA || null,
+
+  /**
+   * Expo Push Service 접근 토큰 (F-FAM-10). 없어도 보내진다 — Expo 계정의 "push security" 를
+   * 켰을 때만 필요하다. 빈 문자열은 없는 것 (gitSha 와 같은 이유로 ||).
+   */
+  expoAccessToken: process.env.EXPO_ACCESS_TOKEN || null,
+
+  /**
+   * 정산일 알림 스케줄러 (F-FAM-10). 기본은 켜짐 — 운영에서 빼먹으면 알림이 안 오는 쪽이 더 나쁘다.
+   * 로컬 두 대를 같은 DB 에 붙이거나 CI 처럼 exp.host 에 닿으면 안 되는 곳에서만 끈다.
+   */
+  remindersEnabled: process.env.REMINDERS_ENABLED !== 'false',
 } as const;
 
 export const kakaoConfigured = env.kakao.restApiKey.length > 0;

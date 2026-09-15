@@ -422,6 +422,54 @@ Environment variables ... loaded from the "preview" environment on EAS: EXPO_PUB
 
 ---
 
+## 푸시 알림 (F-FAM-10)
+
+정산일 알림은 **서버가 보내는 진짜 푸시**다 — 서버 → Expo Push Service → FCM → 폰.
+안드로이드 폰에 알림을 꽂는 길은 FCM 하나뿐이라 Firebase 프로젝트가 필요하다.
+쓰는 건 Cloud Messaging 하나고, 우리 데이터는 Firebase 에 올라가지 않는다 (토큰과 문구 한 줄만 지나간다).
+
+```
+정산일 저장 ──▶ 앱이 알림 권한을 묻고 토큰을 PUT /me/push-token 으로 올린다
+서버 스케줄러 (1분마다) ──▶ 오늘이 정산일이고 시각이 지난 구성원 ──▶ exp.host 로 보낸다
+```
+
+### 한 번만 하면 되는 것
+
+1. **Firebase 프로젝트** — console.firebase.google.com → 프로젝트 추가 → 안드로이드 앱 추가.
+   패키지명은 `app.json` 의 `android.package` (`com.dalsalim.app`). `google-services.json` 을 받는다.
+2. **앱에 넣기** — `mobile/google-services.json` 에 둔다. **gitignore 대상**이다 (공개 저장소).
+   EAS 빌드에는 파일 환경변수로 올린다 — `mobile/app.config.js` 가 이 변수를 읽는다.
+   ```bash
+   cd mobile
+   eas env:create --scope project --name GOOGLE_SERVICES_JSON --type file \
+     --value ./google-services.json --visibility secret \
+     --environment preview --environment production
+   ```
+3. **서버가 보낼 수 있게 (FCM V1 키)** — Firebase 콘솔 → 프로젝트 설정 → 서비스 계정 →
+   *새 비공개 키 생성* → 받은 JSON 을 EAS 에 올린다.
+   ```bash
+   eas credentials --platform android      # 프로필 → Google Service Account → FCM V1 → 키 업로드
+   ```
+   Expo Push Service 가 이 키로 FCM 에 넘긴다. 서버(Railway)에는 아무것도 안 넣는다.
+4. **APK 재빌드** — 네이티브 모듈(`expo-notifications`)이 들어갔으므로 `eas build --profile preview` 를 다시 돈다.
+   Expo Go 에서는 토큰이 안 나온다 (SDK 53 부터 안드로이드 Expo Go 는 원격 푸시가 빠졌다) — 정산일은 저장되고 알림만 못 받는다.
+
+### 확인
+
+- 가족 탭 → 내 정산일 → 정하기 → 권한 허용. 서버 DB 의 `PushToken` 에 행이 생긴다.
+- 실제 발송은 정한 시각에 온다. 바로 보고 싶으면 expo.dev 의 **Push notifications tool** 에 그 토큰을 넣어 한 통 보내본다.
+- 서버 로그에 `정산일 알림을 보냈어요` 가 찍힌다. 스케줄러 로직 자체는 스모크가 시각을 바꿔 가며 검증한다.
+  일부 기기에 못 갔으면 `정산일 알림이 일부 기기에 못 갔어요` 경고에 Expo 의 오류 이름이 붙는다 —
+  `InvalidCredentials` · `MismatchSenderId` 는 3번(FCM V1 키)이 틀린 것이다.
+- 같은 DB 에 서버를 둘 띄우면 둘 다 보낸다. 로컬에서 그런 상황이면 `REMINDERS_ENABLED=false` 로 한쪽을 끈다.
+- `EXPO_ACCESS_TOKEN` 은 expo.dev 에서 *Enhanced push security* 를 켰을 때만 필요하다 (`server/.env.example`).
+
+### 안 하는 것
+
+- **iOS** — Apple 개발자 계정이 있어야 APNs 가 된다. 지금은 안드로이드 APK 만 배포하므로 iOS 는 토큰 등록을 시도하지 않는다.
+
+---
+
 ## 배포 (Railway)
 
 서버와 Postgres 를 **한 프로젝트에** 둔다. 대시보드가 하나고, 내부 네트워크로 붙고,

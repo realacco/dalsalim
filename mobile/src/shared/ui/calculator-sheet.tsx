@@ -1,7 +1,7 @@
 // 기능: F-ENT-09
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Animated, Keyboard, Modal, Text, View } from 'react-native';
-import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
@@ -19,14 +19,9 @@ import {
   result,
 } from '@/shared/lib/calc';
 import { formatWon } from '@/shared/lib/format';
-import {
-  DRAG_CANCEL_X,
-  DRAG_START_SLOP,
-  dragOffset,
-  shouldDismiss,
-} from '@/shared/lib/sheet-gesture';
 import { Button } from './button';
 import { PressableScale } from './pressable-scale';
+import { useSheetDrag } from './use-sheet-drag';
 
 /**
  * 금액 계산기.
@@ -39,8 +34,8 @@ import { PressableScale } from './pressable-scale';
  * selectTextOnFocus 로 첫 글자가 덮인 것(실사용 후기 8번). 여기서는 둘 다 성립하지 않는다.
  *
  * 시트를 다루는 함정(모달 안 제스처 뿌리 · 다음 프레임 닫기 · 드라이버 끄기)은
- * screens/fixed-expenses/ui/fixed-expense-sheet 가 먼저 겪었다. 주석의 근거는 거기 있다.
- * 세 번째 시트가 생기면 이 껍데기를 공용으로 올린다 (재사용 3회 규칙).
+ * screens/fixed-expenses/ui/fixed-expense-sheet 가 먼저 겪었고, 세 번째 시트(정산일)가 생기면서
+ * 그 껍데기를 `use-sheet-drag` 로 올렸다 (재사용 3회 규칙). 주석의 근거는 거기 있다.
  */
 export function CalculatorSheet({
   visible,
@@ -56,15 +51,9 @@ export function CalculatorSheet({
   onConfirm: (value: number, expression: string) => void;
 }) {
   const styles = useStyles();
-  const { motion, space } = useTheme();
+  const { space } = useTheme();
   const insets = useSafeAreaInsets();
   const [state, setState] = useState<CalcState>(() => initialState(initial));
-
-  const translateY = useRef(new Animated.Value(0)).current;
-  const onCancelRef = useRef(onCancel);
-  useEffect(() => {
-    onCancelRef.current = onCancel;
-  }, [onCancel]);
 
   // 열리는 순간에만 그때의 금액에서 새로 시작한다. 지난번에 계산하다 만 것이 남으면 안 된다.
   // `initial` 을 의존성으로 걸지 않는다 — 떠 있는 동안 부모의 값이 바뀌면 치던 수식이 통째로
@@ -82,46 +71,7 @@ export function CalculatorSheet({
     if (visible) Keyboard.dismiss();
   }, [visible]);
 
-  // 끌어내리다 만 위치가 다음에 열 때까지 남으면 안 된다. 그려지기 전에 되돌린다
-  useLayoutEffect(() => {
-    if (visible) translateY.setValue(0);
-  }, [visible, translateY]);
-
-  const dismiss = useCallback(() => {
-    // 제스처가 정리를 끝내기 전에 Modal 을 뜯으면 다음에 열었을 때 터치가 한동안 안 먹는다
-    requestAnimationFrame(() => onCancelRef.current());
-  }, []);
-
-  const settle = useCallback(() => {
-    Animated.spring(translateY, {
-      // 네이티브 드라이버를 일부러 안 쓴다. 켜면 위 setValue 가 다리를 건너는 비동기 요청이 되고,
-      // 끌어 닫은 뒤 다시 열 때 시트가 내려간 채로 열린다 (#22)
-      useNativeDriver: false,
-      toValue: 0,
-      ...motion.spring,
-    }).start();
-  }, [translateY, motion.spring]);
-
-  const drag = useMemo(
-    () =>
-      Gesture.Pan()
-        // gesture-handler 콜백은 기본이 워클릿이라, JS 전용인 Animated.setValue 를 부르면 터진다
-        .runOnJS(true)
-        .activeOffsetY(DRAG_START_SLOP)
-        .failOffsetX([-DRAG_CANCEL_X, DRAG_CANCEL_X])
-        .onStart(() => translateY.stopAnimation())
-        .onUpdate((event) => translateY.setValue(dragOffset(event.translationY)))
-        .onEnd((event, success) => {
-          // 잡힌 뒤 뺏겼을 때도 onEnd 가 온다. 안 가르면 놓지도 않은 시트가 닫힌다
-          if (!success) return;
-          if (shouldDismiss(event.translationY, event.velocityY)) dismiss();
-          else settle();
-        })
-        .onFinalize((_event, success) => {
-          if (!success) settle();
-        }),
-    [translateY, settle, dismiss],
-  );
+  const { translateY, drag } = useSheetDrag(visible, onCancel);
 
   const value = result(state);
   const expression = formatExpression(state);

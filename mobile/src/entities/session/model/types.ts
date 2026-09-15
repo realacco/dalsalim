@@ -1,4 +1,4 @@
-import type { Role } from '@/shared/model/types';
+import type { Role, Settlement } from '@/shared/model/types';
 
 export type Me = {
   user: { id: string; nickname: string; profileImageUrl: string | null; isDev: boolean };
@@ -6,6 +6,9 @@ export type Me = {
     id: string;
     role: Role;
     displayName: string;
+    settlement: Settlement | null;
+    /** 이번 달 알림이 이미 갔거나 (지난 시각으로 정해) 건너뛴 달 `YYYY-MM`. 없으면 null */
+    settlementNotifiedFor: string | null;
     family: { id: string; name: string; inviteCode: string };
   }[];
 };
