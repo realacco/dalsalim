@@ -171,9 +171,16 @@ export async function countFamilyContents(familyId: string) {
     // 기록이 한 줄이라도 있는 달만 센다. MonthlyBook 은 getOrCreateBook() 이
     // 그 달을 열어보기만 해도 만들어지므로, 그냥 세면 "열어본 달"이 나와
     // 아무것도 안 적은 사람에게 "기록한 달 3개월이 지워져요" 라고 겁을 준다.
-    // 구성원 상태는 보지 않는다 — 나간 사람이 제출한 달은 요약·추이에 그대로 나오므로
+    // 한 줄이라도 금액을 적은 달만 센다. MonthlyBook 은 그 달을 열어보기만 해도 생기고
+    // (getOrCreateBook), MemberEntry 는 위저드를 열기만 해도 프리필과 함께 생기므로
+    // (openMyEntry) 둘 중 어느 것을 세도 "기록한 달"이 아니라 "열어본 달"이 나온다.
+    // 확인창이 숫자를 보여주는 이유는 한 번 더 생각하게 하려는 것이지 부풀리려는 게 아니다.
+    //
+    // 구성원 상태는 보지 않는다 — 나간 사람이 적은 달도 요약·추이에 그대로 나오므로
     // (하드룰 8 의 예외) 화면에 보이는 숫자가 맞다
-    prisma.monthlyBook.count({ where: { familyId, entries: { some: {} } } }),
+    prisma.monthlyBook.count({
+      where: { familyId, entries: { some: { lines: { some: { actualAmount: { not: null } } } } } },
+    }),
     // 고정비는 반대다. 목록이 ACTIVE 구성원의 active 항목만 보여주므로(listFixedExpensesByMember)
     // 같은 조건으로 센다 — 확인할 길이 없는 숫자는 "한 번 더 생각하게" 하지 못한다
     prisma.fixedExpense.count({ where: { familyId, active: true, membership: ACTIVE_MEMBER } }),

@@ -1762,12 +1762,28 @@ async function main() {
     lonerAfterPeek.body.contents,
   );
 
-  await call('POST', `/families/${lonerFamilyId}/books/${thisMonth}/my-entry`, {
+  // 위저드를 열면 프리필 줄과 함께 MemberEntry 가 생긴다. 그것도 "기록한 달"이 아니다 —
+  // 금액을 한 줄이라도 적어야 잡힌다
+  const lonerEntry = (
+    await call('POST', `/families/${lonerFamilyId}/books/${thisMonth}/my-entry`, {
+      token: lonerToken,
+    })
+  ).body.entry;
+  const lonerAfterOpen = await call('GET', `/families/${lonerFamilyId}`, { token: lonerToken });
+  check(
+    '★ F-FAM-11 위저드를 열기만 한 달도 "기록한 달"에 안 든다',
+    lonerAfterOpen.body.contents?.months === 0,
+    lonerAfterOpen.body.contents,
+  );
+
+  const lonerIncome = lonerEntry?.lines?.find((l) => l.kind === 'INCOME');
+  await call('PATCH', `/entries/${lonerEntry?.id}/lines/${lonerIncome?.id}`, {
     token: lonerToken,
+    body: { actualAmount: 1_000_000 },
   });
   const lonerAfterEntry = await call('GET', `/families/${lonerFamilyId}`, { token: lonerToken });
   check(
-    'F-FAM-11 기록을 시작하면 그 달이 잡힌다',
+    'F-FAM-11 한 줄이라도 금액을 적으면 그 달이 잡힌다',
     lonerAfterEntry.body.contents?.months === 1,
     lonerAfterEntry.body.contents,
   );
