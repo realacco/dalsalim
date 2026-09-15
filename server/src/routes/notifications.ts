@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
 import { env } from '../env.js';
-import { requireUser } from '../lib/auth.js';
+import { requireMembership, requireUser } from '../lib/auth.js';
 import { pushToken } from '../lib/schemas.js';
 import { type PushMessage, registerPushToken, removePushToken } from '../services/push.js';
 import { runSettlementReminders } from '../services/settlement-reminder.js';
@@ -38,15 +38,17 @@ export async function notificationRoutes(app: FastifyInstance) {
    */
   if (env.devLogin) {
     app.post('/dev/reminders/run', async (request) => {
-      await requireUser(request);
+      const user = await requireUser(request);
+      // 가족을 필수로 받고 소속까지 본다 — 안 좁히면 같은 DB 의 다른 가족 표시를 덮는다 (서비스 주석 참조).
+      // 부르는 쪽의 성실함에 맡기면 언젠가 빠뜨린다
       const { now, familyId } = z
-        .object({ now: z.iso.datetime().optional(), familyId: z.string().optional() })
+        .object({ now: z.iso.datetime().optional(), familyId: z.string() })
         .parse(request.body);
+      await requireMembership(user.id, familyId);
 
       const sent: PushMessage[] = [];
       const result = await runSettlementReminders({
         now: now ? new Date(now) : new Date(),
-        // 부르는 쪽이 가족을 좁힌다 — 안 좁히면 같은 DB 의 다른 가족 표시까지 덮는다 (서비스 주석 참조)
         familyId,
         send: async (messages) => {
           sent.push(...messages);
