@@ -2,6 +2,7 @@
 export {
   disablePushForThisDevice,
   enablePushForThisDevice,
+  useNotificationTap,
   usePushRegistration,
 } from './model/push-registration';
 export { type PushState, usePushStore } from './model/push-store';

@@ -1,6 +1,8 @@
 // 기능: F-FAM-10
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
@@ -79,7 +81,7 @@ async function resolvePushState(ask: boolean): Promise<PushState> {
   if (!token) return 'unavailable';
 
   try {
-    await registerPushToken(token, 'android');
+    await registerPushToken(token, Platform.OS === 'ios' ? 'ios' : 'android');
   } catch {
     return 'failed';
   }
@@ -117,4 +119,37 @@ export function usePushRegistration() {
     if (!userId) return;
     void enablePushForThisDevice({ ask: false });
   }, [userId]);
+}
+
+/**
+ * 알림을 누르면 **그 가족의 홈**으로 간다. 서버가 data.familyId 를 실어 보내는 이유가 이것이다 —
+ * 두 가족에 속한 사람이 다른 가족을 보고 있다가 눌러도 정산일인 가족이 열려야 한다.
+ * 앱이 꺼져 있다가 알림으로 켜진 경우는 마지막 응답을 한 번 읽어서 같은 길로 보낸다.
+ */
+export function useNotificationTap() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const userId = useSession((state) => state.me?.user.id ?? null);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const open = async (response: Notifications.NotificationResponse | null) => {
+      const familyId = response?.notification.request.content.data?.familyId;
+      if (typeof familyId !== 'string') return;
+      const session = useSession.getState();
+      if (!session.me?.memberships.some((m) => m.family.id === familyId)) return;
+      if (session.familyId !== familyId) {
+        await session.selectFamily(familyId);
+        void queryClient.invalidateQueries();
+      }
+      router.replace('/(tabs)');
+    };
+
+    void Notifications.getLastNotificationResponseAsync().then(open);
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      void open(response);
+    });
+    return () => subscription.remove();
+  }, [userId, router, queryClient]);
 }

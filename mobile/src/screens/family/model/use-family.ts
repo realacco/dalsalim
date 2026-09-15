@@ -219,6 +219,9 @@ export function useFamily() {
       setSettlementError(null);
     },
     saveSettlement: () => settlementDraft && saveSettlement.mutate(settlementDraft),
-    clearSettlement: () => saveSettlement.mutate(null),
+    clearSettlement: () => {
+      setSettlementError(null);
+      saveSettlement.mutate(null);
+    },
   };
 }

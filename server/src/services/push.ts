@@ -38,6 +38,8 @@ export async function removeDeadTokens(tokens: string[]) {
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 /** Expo 가 한 번에 받는 최대 */
 const EXPO_CHUNK = 100;
+/** 스케줄러가 1분마다 돌고 겹침을 막으므로, 한 전송이 이보다 오래 매달리면 틱이 통째로 밀린다 */
+const EXPO_TIMEOUT_MS = 10_000;
 
 type ExpoTicket = { status: 'ok' | 'error'; details?: { error?: string } };
 
@@ -52,6 +54,7 @@ export const sendViaExpo: PushSender = async (messages) => {
     const chunk = messages.slice(start, start + EXPO_CHUNK);
     const response = await fetch(EXPO_PUSH_URL, {
       method: 'POST',
+      signal: AbortSignal.timeout(EXPO_TIMEOUT_MS),
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
