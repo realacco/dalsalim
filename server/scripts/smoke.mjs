@@ -1870,6 +1870,29 @@ async function main() {
     clearSettlement.status === 200 && clearSettlement.body.membership?.settlement === null,
     clearSettlement.body,
   );
+  // 정산일은 지우되 "이번 달에 보냈다" 표시는 남긴다. 지우면 안 받기 → 같은 날 다시 정하기로
+  // 그 달 알림이 두 번 간다 — [바꾸기] 로 시각만 옮길 때는 안 오는데 경로가 다르다고 오면 안 된다
+  // 위 thisMonth 는 서버 로컬 시간이다. 표시는 한국 시간 기준이라 월말·월초에 갈릴 수 있어 따로 잰다
+  const seoulMonth = seoulNow.toISOString().slice(0, 7);
+  check(
+    '★ F-FAM-10 안 받기를 해도 이번 달에 보냈다는 표시는 남는다',
+    clearSettlement.body.membership?.settlementNotifiedFor === seoulMonth,
+    clearSettlement.body.membership,
+  );
+  const resetToday = await call('PATCH', `/families/${dad.familyId}/me`, {
+    token: dad.token,
+    body: { settlement: { day: seoulNow.getUTCDate(), hour: 23, minute: 30 } },
+  });
+  check(
+    '★ F-FAM-10 안 받기를 거쳐 같은 날 다시 정해도 그 달엔 안 온다',
+    resetToday.body.membership?.settlementNotifiedFor === seoulMonth,
+    resetToday.body.membership,
+  );
+  // 되돌린다 — 아래 검사들은 정산일이 없는 상태에서 시작한다
+  await call('PATCH', `/families/${dad.familyId}/me`, {
+    token: dad.token,
+    body: { settlement: null },
+  });
   const apr = await runAt('2030-04-30T00:30:00Z');
   check(
     'F-FAM-10 정산일이 없으면 안 보낸다',

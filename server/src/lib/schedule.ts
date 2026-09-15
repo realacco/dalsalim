@@ -76,6 +76,10 @@ export function effectiveDay(day: number, daysInMonth: number): number {
  *    둘을 가르려면 칸이 하나 더 필요한데, 다른 날로 옮기면 오는 것으로 충분해 그만한 값이 아니다
  *  - 오늘이 새 정산일이고 시각이 이미 지났으면 이번 달은 보낸 것으로 적는다 — 저장하자마자 튀어나오는 건 놀람이다
  *  - 그 밖에는 지운다 — 5일에 받은 사람이 25일로 옮기면 25일에 다시 온다. 날을 옮긴 건 다시 받겠다는 뜻이다
+ *  - **안 받기(`null`)는 표시를 건드리지 않는다.** 정산일이 없으면 어차피 안 읽히는 값이라 지워서 얻는 것이 없고,
+ *    지우면 「안 받기 → 같은 날 다시 정하기」로 그 달 알림이 두 번 간다. 위의 첫 줄이 막으려던 바로 그 일이
+ *    한 단계를 거쳤다는 이유로 뚫리는 셈이다. 정의서도 같은 축이다 — 기기가 하나도 없어도 보낸 것으로 적고,
+ *    나갔다 다시 승인돼도 표시가 남아 승인되자마자 튀어나오지 않는다. 지난 달 표시는 어차피 이번 달 판정에 안 걸린다
  */
 export function carriedNotifiedFor(
   previous: string | null,
@@ -83,7 +87,7 @@ export function carriedNotifiedFor(
   now: LocalParts,
 ): string | null {
   const settlement = settlementOf(fields);
-  if (!settlement) return null;
+  if (!settlement) return previous;
   const sameDayAlreadyNotified =
     previous === now.yearMonth && effectiveDay(settlement.day, now.daysInMonth) === now.day;
   if (sameDayAlreadyNotified) return previous;

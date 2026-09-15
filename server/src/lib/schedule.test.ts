@@ -90,14 +90,19 @@ describe('★ F-FAM-10 carriedNotifiedFor — 정산일을 바꿀 때 "보냈다
     expect(carriedNotifiedFor(null, fields(28, 10), feb28)).toBeNull();
   });
 
-  it('지우면 표시도 없다', () => {
-    expect(
-      carriedNotifiedFor(
-        '2030-02',
-        { settlementDay: null, settlementHour: null, settlementMinute: null },
-        feb28,
-      ),
-    ).toBeNull();
+  const cleared = { settlementDay: null, settlementHour: null, settlementMinute: null };
+
+  it('★ 안 받기를 해도 이번 달에 보냈다는 표시는 남는다', () => {
+    // 정의서 — 기기가 없어도 · 나갔다 돌아와도 표시는 남는다. 상태가 바뀌었다고 그 달이 되살아나지 않는다
+    expect(carriedNotifiedFor('2030-02', cleared, feb28)).toBe('2030-02');
+    expect(carriedNotifiedFor(null, cleared, feb28)).toBeNull();
+  });
+
+  it('★ 안 받기를 거쳐 같은 날 다시 정해도 그 달엔 안 온다', () => {
+    // 09:30 에 받은 사람이 안 받기를 눌렀다가 같은 날 21:00 으로 다시 정하는 길.
+    // [바꾸기] 로 시각만 옮기면 안 오는데 이 길로는 오면, 같은 일이 경로에 따라 갈린다
+    const afterClear = carriedNotifiedFor('2030-02', cleared, feb28);
+    expect(carriedNotifiedFor(afterClear, fields(28, 21), feb28)).toBe('2030-02');
   });
 });
 
