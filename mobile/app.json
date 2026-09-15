@@ -14,7 +14,7 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png",
-        "backgroundColor": "#F4F5FA"
+        "backgroundColor": "#1D1F28"
       },
       "backgroundColor": "#F4F5FA",
       "versionCode": 2
@@ -34,9 +34,10 @@
           "resizeMode": "contain",
           "backgroundColor": "#F4F5FA",
           "dark": {
-            "image": "./assets/splash-icon.png",
+            "image": "./assets/splash-icon-dark.png",
             "backgroundColor": "#14151B"
-          }
+          },
+          "imageWidth": 200
         }
       ]
     ],
