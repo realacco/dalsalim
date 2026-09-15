@@ -1875,7 +1875,7 @@ async function main() {
   const goneForOwner = await call('GET', `/families/${lonerFamilyId}`, { token: lonerToken });
   check(
     '★ F-FAM-11 없앤 가족은 만든 사람도 못 본다',
-    goneForOwner.status === 403,
+    goneForOwner.status === 403 && goneForOwner.body.code === 'NOT_MEMBER',
     goneForOwner.body,
   );
 
