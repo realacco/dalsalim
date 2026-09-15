@@ -43,7 +43,8 @@ export async function runSettlementReminders({
       to: token,
       title: '달살림',
       body: settlementReminderBody(m.family.name),
-      data: { familyId: m.family.id, yearMonth: local.yearMonth },
+      // 앱은 familyId 만 읽는다. 밖으로 나가는 것은 CLAUDE.md 보안 규칙의 예외 목록 넷뿐이다
+      data: { familyId: m.family.id },
     })),
   );
 
