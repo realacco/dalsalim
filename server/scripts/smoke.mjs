@@ -354,6 +354,17 @@ async function main() {
 
   const health = await call('GET', '/health');
   check('서버 살아 있음', health.status === 200, health.body);
+  check(
+    '/health 의 sha 는 null 이거나 7자 해시다 — 빈 문자열이 새면 안 된다',
+    health.body.sha === null || /^[0-9a-f]{7}$/.test(health.body.sha),
+    health.body,
+  );
+  const nowhere = await call('GET', '/nowhere');
+  check(
+    '없는 주소도 { code, message } 로 답한다',
+    nowhere.status === 404 && nowhere.body.code === 'NOT_FOUND',
+    nowhere.body,
+  );
 
   await bootstrap();
   await resetMonth([OWNER, MEMBER]);

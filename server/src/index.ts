@@ -70,7 +70,17 @@ app.setErrorHandler((error, _request, reply) => {
   return reply.status(500).send({ code: 'INTERNAL', message: messageFor('INTERNAL') });
 });
 
-app.get('/health', async () => ({ ok: true, kakao: kakaoConfigured, devLogin: env.devLogin }));
+// 없는 경로도 { code, message } 로 답한다 — Fastify 기본 404 는 영어라 화면에 그대로 뜬다
+app.setNotFoundHandler(() => {
+  throw fail('NOT_FOUND');
+});
+
+app.get('/health', async () => ({
+  ok: true,
+  kakao: kakaoConfigured,
+  devLogin: env.devLogin,
+  sha: env.gitSha?.slice(0, 7) ?? null,
+}));
 
 await app.register(authRoutes);
 await app.register(familyRoutes);

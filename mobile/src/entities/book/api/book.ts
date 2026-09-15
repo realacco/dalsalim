@@ -1,4 +1,5 @@
 import { api } from '@/shared/api/client';
+import { withEmptyBlocks } from '../model/summary-blocks';
 import type { BookView, MonthSummary, TrendPoint } from '../model/types';
 
 export const bookKeys = {
@@ -14,8 +15,11 @@ export function fetchBook(familyId: string, yearMonth: string) {
   return api<BookView>(`/families/${familyId}/books/${yearMonth}`);
 }
 
-export function fetchMonthSummary(familyId: string, yearMonth: string) {
-  return api<MonthSummary>(`/families/${familyId}/books/${yearMonth}/summary`);
+export async function fetchMonthSummary(familyId: string, yearMonth: string) {
+  // 옛 서버 응답에 없는 목록 블록을 받친다 — 이유는 withEmptyBlocks 에
+  return withEmptyBlocks(
+    await api<MonthSummary>(`/families/${familyId}/books/${yearMonth}/summary`),
+  );
 }
 
 /** 장부 상태 재계산 (복구용) */
