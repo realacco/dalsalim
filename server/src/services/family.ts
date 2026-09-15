@@ -193,7 +193,14 @@ export async function countFamilyContents(familyId: string) {
 export async function deleteFamily(familyId: string, myMembershipId: string) {
   // 세고 나서 지우면 그 사이에 승인이 하나 끼어들 수 있다 (가족장이 두 기기를 쓸 때).
   // 이 가드는 위의 예외를 떠받치는 유일한 장치라 뚫리면 남의 과거 기록이 Cascade 로 사라지므로,
-  // "나 말고 ACTIVE 가 없을 때만 지운다"를 한 문장에 넣어 틈을 없앤다.
+  // "나 말고 ACTIVE 가 없을 때만 지운다"를 한 문장에 넣어 틈을 실질적으로 없앴다.
+  //
+  // ⚠️ 완전히 닫힌 것은 아니다. READ COMMITTED 에서 이 where 의 서브질의는 문장 시작 시점
+  // 스냅샷을 보므로, 그 뒤에 커밋된 승인은 못 본다. 남는 경로는 하나 —
+  // 가족장이 한 기기에서 나갔던 사람(과거 제출본이 있다)의 재참여를 승인하는 바로 그 순간
+  // 다른 기기에서 없애면, 갓 ACTIVE 가 된 그 사람의 기록까지 지워진다.
+  // 닫으려면 승인 쪽에서도 Family 행을 잠가 두 경로를 같은 자물쇠에 묶어야 하는데,
+  // 본인이 두 기기로 동시에 조작해야 하는 폭이라 승인 경로에 값을 치를 이유가 없다.
   const { count } = await prisma.family.deleteMany({
     where: {
       id: familyId,
@@ -201,8 +208,9 @@ export async function deleteFamily(familyId: string, myMembershipId: string) {
     },
   });
 
-  // 가족이 있는 것은 requireOwner 가 이미 봤다. 안 지워졌으면 남은 사람이 있다는 뜻이다 —
-  // 다른 기기에서 방금 없앤 경우도 여기로 오지만, 어느 쪽이든 결과는 "없어졌다"라 문구만 다르다
+  // 가족이 있는 것은 requireOwner 가 이미 봤다. 안 지워졌으면 남은 사람이 있다는 뜻이다.
+  // 다른 기기에서 방금 없앤 경우도 여기로 오는데, 그때는 이 문구가 사실과 어긋난다
+  // ("아직 구성원이 남아 있어요"). 도달 폭이 거의 없고 다음 조회가 NOT_MEMBER 로 정리한다
   if (count === 0) throw fail('MEMBERS_REMAIN');
 }
 
