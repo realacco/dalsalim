@@ -50,6 +50,11 @@ describe('F-FAM-10 Expo 전송 결과 가르기', () => {
     expect(result.failed).toEqual([{ to: 'ExponentPushToken[a]', error: 'UNAUTHORIZED' }]);
   });
 
+  it('★ 429 는 4xx 여도 던진다 — 요청이 틀린 게 아니라 잠깐 빨랐던 것이라 다음 틱이면 통과한다', async () => {
+    expoAnswers({ errors: [{ code: 'TOO_MANY_REQUESTS' }] }, 429);
+    await expect(sendViaExpo([message('ExponentPushToken[a]')])).rejects.toThrow('429');
+  });
+
   it('★ 5xx 는 던진다 — 표시를 안 적어야 다음 틱에 다시 간다. 잠깐 죽은 Expo 때문에 한 달 알림을 잃지 않는다', async () => {
     expoAnswers({}, 503);
     await expect(sendViaExpo([message('ExponentPushToken[a]')])).rejects.toThrow('503');

@@ -92,7 +92,14 @@ export const sendViaExpo: PushSender = async (messages) => {
         chunk.map((message) => ({ ...message, sound: 'default', channelId: 'default' })),
       ),
     });
-    if (response.status >= 500) throw new Error(`Expo push 응답 ${response.status}`);
+    /*
+      429 는 4xx 인데도 못 닿은 쪽에 세운다. 나머지 4xx 를 눕히는 근거는 "우리 요청이 틀린 것이라
+      다시 보내도 같다" 인데, rate limit 은 요청이 틀린 게 아니라 잠깐 빨랐던 것이라 다음 틱이면 통과한다.
+      그 근거가 성립하지 않는 유일한 4xx 다
+    */
+    if (response.status >= 500 || response.status === 429) {
+      throw new Error(`Expo push 응답 ${response.status}`);
+    }
 
     const parsed = (await response.json().catch(() => ({}))) as ExpoPushResponse;
     if (!response.ok || !Array.isArray(parsed.data)) {
