@@ -168,9 +168,6 @@ export function getFamilyWithMembers(familyId: string) {
  */
 export async function countFamilyContents(familyId: string) {
   const [months, fixedExpenses] = await Promise.all([
-    // 기록이 한 줄이라도 있는 달만 센다. MonthlyBook 은 getOrCreateBook() 이
-    // 그 달을 열어보기만 해도 만들어지므로, 그냥 세면 "열어본 달"이 나와
-    // 아무것도 안 적은 사람에게 "기록한 달 3개월이 지워져요" 라고 겁을 준다.
     // 한 줄이라도 금액을 적은 달만 센다. MonthlyBook 은 그 달을 열어보기만 해도 생기고
     // (getOrCreateBook), MemberEntry 는 위저드를 열기만 해도 프리필과 함께 생기므로
     // (openMyEntry) 둘 중 어느 것을 세도 "기록한 달"이 아니라 "열어본 달"이 나온다.
