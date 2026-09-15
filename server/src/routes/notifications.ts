@@ -39,11 +39,15 @@ export async function notificationRoutes(app: FastifyInstance) {
   if (env.devLogin) {
     app.post('/dev/reminders/run', async (request) => {
       await requireUser(request);
-      const { now } = z.object({ now: z.iso.datetime().optional() }).parse(request.body);
+      const { now, familyId } = z
+        .object({ now: z.iso.datetime().optional(), familyId: z.string().optional() })
+        .parse(request.body);
 
       const sent: PushMessage[] = [];
       const result = await runSettlementReminders({
         now: now ? new Date(now) : new Date(),
+        // 부르는 쪽이 가족을 좁힌다 — 안 좁히면 같은 DB 의 다른 가족 표시까지 덮는다 (서비스 주석 참조)
+        familyId,
         send: async (messages) => {
           sent.push(...messages);
           return { dead: [], failed: [], shortTickets: 0 };

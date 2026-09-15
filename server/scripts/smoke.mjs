@@ -1810,7 +1810,13 @@ async function main() {
   );
 
   // 스케줄러를 시각을 바꿔 가며 돌려본다 — 2030-02-28 09:30 KST. 2월은 28일까지다
-  const runAt = (now) => call('POST', '/dev/reminders/run', { token: dad.token, body: { now } });
+  // 가족을 좁혀 부른다. 안 좁히면 로컬 DB 의 다른 가족(시드 · 개발자 본인)에게도
+  // "2030-06 엔 보냈다" 가 박혀 그 사람의 진짜 알림이 그 달 내내 막힌다
+  const runAt = (now) =>
+    call('POST', '/dev/reminders/run', {
+      token: dad.token,
+      body: { now, familyId: dad.familyId },
+    });
   const feb = await runAt('2030-02-28T00:30:00Z');
   const febMine = feb.body.notified?.find((n) => n.membershipId === dadMembership.id);
   check(

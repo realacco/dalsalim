@@ -28,11 +28,18 @@ export function settlementReminderBody(familyName: string): string {
 export async function runSettlementReminders({
   now = new Date(),
   send = sendViaExpo,
-}: { now?: Date; send?: PushSender } = {}) {
+  familyId,
+}: { now?: Date; send?: PushSender; familyId?: string } = {}) {
   const local = localParts(now);
 
+  /*
+    familyId 는 **개발용 라우트만** 넘긴다. 진짜 스케줄러는 안 넘겨 DB 전체를 돈다.
+    시각을 미래로 돌려보는 것이 이 표시를 진짜로 적기 때문에, 좁히지 않으면 로컬 스모크가
+    같은 DB 의 다른 가족(시드 · 개발자 본인)에게도 "그 달엔 보냈다" 를 박아
+    그 사람의 진짜 알림을 그 달 내내 막는다. 증상이 "안 오는 것" 이라 눈치채기도 어렵다
+  */
   const candidates = await prisma.membership.findMany({
-    where: { ...ACTIVE_MEMBER, settlementDay: { not: null } },
+    where: { ...ACTIVE_MEMBER, settlementDay: { not: null }, ...(familyId ? { familyId } : {}) },
     include: {
       family: { select: { id: true, name: true } },
       user: { select: { pushTokens: { select: { token: true } } } },
