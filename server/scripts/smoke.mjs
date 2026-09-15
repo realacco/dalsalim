@@ -1846,6 +1846,47 @@ async function main() {
     !apr.body.notified?.some((n) => n.membershipId === dadMembership.id),
     apr.body,
   );
+  // 나간 사람은 정산일이 남아 있어도 대상이 아니다 (하드룰 8 · 6). ACTIVE_MEMBER 필터가 유일한 방어선
+  const momMembershipId = familyForMom.body.myMembershipId;
+  await call('PATCH', `/families/${dad.familyId}/me`, {
+    token: mom.token,
+    body: { settlement: { day: 31, hour: 9, minute: 0 } },
+  });
+  const beforeLeave = await runAt('2030-05-31T00:30:00Z');
+  check(
+    'F-FAM-10 구성원일 때는 대상이다',
+    beforeLeave.body.notified?.some((n) => n.membershipId === momMembershipId),
+    beforeLeave.body,
+  );
+  await call('DELETE', `/families/${dad.familyId}/members/${momMembershipId}`, {
+    token: dad.token,
+  });
+  const afterLeave = await runAt('2030-06-30T00:30:00Z');
+  check(
+    '★ F-FAM-10 나간 사람은 정산일이 남아 있어도 알림 대상이 아니다',
+    !afterLeave.body.notified?.some((n) => n.membershipId === momMembershipId),
+    afterLeave.body,
+  );
+  // 되돌린다 — 다음 검사와 다음 실행이 같은 가족을 쓴다
+  await call('POST', '/families/join', {
+    token: mom.token,
+    body: { inviteCode: familyForMom.body.family.inviteCode, displayName: MEMBER },
+  });
+  const momRejoinRequests = await call('GET', `/families/${dad.familyId}/join-requests`, {
+    token: dad.token,
+  });
+  const momRejoin = momRejoinRequests.body.requests?.find((r) => r.displayName === MEMBER);
+  const reapproved = await call(
+    'POST',
+    `/families/${dad.familyId}/join-requests/${momRejoin?.id}/approve`,
+    { token: dad.token },
+  );
+  check('F-FAM-10 (정리) 나간 사람을 다시 승인한다', reapproved.status === 200, reapproved.body);
+  await call('PATCH', `/families/${dad.familyId}/me`, {
+    token: mom.token,
+    body: { settlement: null },
+  });
+
   const unregister = await call('DELETE', '/me/push-token', {
     token: dad.token,
     body: { token: dadDevice },

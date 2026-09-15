@@ -17,6 +17,10 @@ export function settlementReminderBody(familyName: string): string {
  * 구성원(ACTIVE)만 본다 — PENDING · LEFT 는 정산일이 남아 있어도 대상이 아니다 (하드룰 8).
  * 토큰이 하나도 없는 사람도 "보냈다"고 적는다. 안 적으면 같은 날 뒤늦게 기기를 등록하는 순간
  * 알림이 튀어나온다 — 정한 시각에 오는 것만이 알림이다.
+ *
+ * 표시는 **보낸 뒤에** 적는다. Expo 응답을 기다리다 프로세스가 죽으면 다음 틱에 한 번 더 갈 수 있다 —
+ * 반대로 먼저 적으면 "보냈다고 적고 못 보낸" 쪽이 되는데, 한 달에 한 번 오는 알림은 안 오는 쪽이 더 나쁘다.
+ * 같은 이유로 서버 복제본은 하나여야 한다 (Railway 1개). 둘이 같은 틱을 돌면 둘 다 보낸다.
  */
 export async function runSettlementReminders({
   now = new Date(),
