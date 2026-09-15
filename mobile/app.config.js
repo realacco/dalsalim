@@ -1,4 +1,3 @@
-/* eslint-disable */
 // app.json 을 그대로 쓰되, 저장소에 둘 수 없는 것 하나만 여기서 얹는다.
 //
 // google-services.json (FCM · F-FAM-10) 은 Firebase 프로젝트의 것이라 공개 저장소에 안 올린다.

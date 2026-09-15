@@ -18,7 +18,7 @@ import {
   updateMySettlement,
 } from '@/entities/family';
 import { useSession } from '@/entities/session';
-import { type PushState, disablePushForThisDevice, enablePushForThisDevice } from '@/features/push';
+import { disablePushForThisDevice, enablePushForThisDevice, usePushStore } from '@/features/push';
 import type { Settlement } from '@/shared/model/types';
 import { MESSAGES } from '@/shared/config/messages';
 import { errorMessage } from '@/shared/lib/errors';
@@ -39,7 +39,9 @@ export function useFamily() {
   /** 정산일 시트. draft 가 있으면 열려 있다 (F-FAM-10) */
   const [settlementDraft, setSettlementDraft] = useState<Settlement | null>(null);
   const [settlementError, setSettlementError] = useState<string | null>(null);
-  const [pushState, setPushState] = useState<PushState | null>(null);
+  /** 앱 전체의 값 — 앱을 켤 때의 조용한 재등록 결과도 여기로 온다 */
+  const pushState = usePushStore((state) => state.state);
+  const setPushState = usePushStore((state) => state.setState);
 
   const detail = useQuery({
     queryKey: familyKeys.detail(familyId),
@@ -135,7 +137,9 @@ export function useFamily() {
       setSettlementError(null);
       void queryClient.invalidateQueries({ queryKey: familyKeys.detail(familyId) });
       void refreshMe();
-      if (settlement) setPushState(await enablePushForThisDevice({ ask: true }));
+      // 안 받기로 했으면 "알림이 꺼져 있어요" 도 지운다 — 방금 끈 사람에게 켜라고 하지 않는다
+      if (settlement) await enablePushForThisDevice({ ask: true });
+      else setPushState(null);
     },
     onError: (caught) => setSettlementError(errorMessage(caught, MESSAGES.saveFailed)),
   });

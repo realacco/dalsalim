@@ -3,5 +3,5 @@ export {
   disablePushForThisDevice,
   enablePushForThisDevice,
   usePushRegistration,
-  type PushState,
 } from './model/push-registration';
+export { type PushState, usePushStore } from './model/push-store';

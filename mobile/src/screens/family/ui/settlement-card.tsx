@@ -48,6 +48,9 @@ export function SettlementCard({
       {pushState === 'unavailable' ? (
         <Notice>이 기기에서는 알림을 받을 수 없어요. 정산일은 저장돼요.</Notice>
       ) : null}
+      {pushState === 'failed' ? (
+        <Notice>알림 받을 기기를 등록하지 못했어요. 다음에 앱을 열 때 다시 해요.</Notice>
+      ) : null}
 
       <View style={styles.actions}>
         <Button
