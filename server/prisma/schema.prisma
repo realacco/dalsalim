@@ -24,6 +24,7 @@ model User {
   createdAt       DateTime @default(now())
 
   memberships Membership[]
+  pushTokens  PushToken[]
 }
 
 model Family {
@@ -38,13 +39,13 @@ model Family {
 }
 
 model Membership {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   familyId    String
   userId      String
   displayName String // 가족 안에서 불리는 이름 ("아빠")
   role        String // OWNER | MEMBER
-  sortOrder   Int      @default(0)
-  joinedAt    DateTime @default(now())
+  sortOrder   Int       @default(0)
+  joinedAt    DateTime  @default(now())
   /// PENDING | ACTIVE | LEFT
   ///
   ///  - PENDING: 초대코드를 넣었지만 가족장이 아직 승인하지 않은 사람.
@@ -52,10 +53,18 @@ model Membership {
   ///  - ACTIVE: 구성원.
   ///  - LEFT: 나갔거나 내보내진 사람. 실제로 지우지 않는 이유는 MemberEntry 가 Cascade 로
   ///    딸려 나가 과거 장부의 합계가 바뀌기 때문이다. 지난 기록은 그대로 두고 앞으로만 빼낸다.
-  status      String   @default("ACTIVE")
+  status      String    @default("ACTIVE")
   /// 참여를 요청한 시각. 가족장에게 "언제 요청했는지"를 보여준다.
   requestedAt DateTime?
   leftAt      DateTime?
+
+  /// 정산일 알림 (F-FAM-10). 날짜 1~31 · 시 0~23 · 분 0~59, 한국 시간. 셋 다 null 이면 안 받는다.
+  /// 구성원의 것이지 사용자의 것이 아니다 — 가족마다 정산일이 다를 수 있고, 가족 탭이 남의 것도 보여준다.
+  settlementDay         Int?
+  settlementHour        Int?
+  settlementMinute      Int?
+  /// 마지막으로 정산일 알림을 보낸 달 (YYYY-MM). 같은 달에 두 번 보내지 않기 위한 표시.
+  settlementNotifiedFor String?
 
   family        Family         @relation(fields: [familyId], references: [id], onDelete: Cascade)
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -160,4 +169,24 @@ model EntryLine {
 
   @@index([entryId])
   @@index([fixedExpenseId])
+}
+
+/// 알림을 받을 기기 (F-FAM-10). 사용자의 것이다 — 폰은 가족과 무관하게 사람에게 딸린다.
+/// 로그아웃하면 앱이 지우고, Expo 가 "이 기기는 없다"고 답해도 지운다.
+/// ★ 실제로 지운다 (하드룰 6 의 예외) — 기기 주소는 어느 달의 집계에도 한 줄도 안 들어간다. 지워도 바뀌는 숫자가 없다.
+/// 세션이 만료된(401) 폰은 못 지운다 — 인증이 없어 서버에 말할 수 없다. 그 폰은 알림을 받고 눌러 로그인하면
+/// 다시 등록되며 주인이 갈아끼워진다. 만료 자체가 드문 경로(90일)라 그대로 둔다.
+model PushToken {
+  id        String   @id @default(cuid())
+  userId    String
+  /// ExponentPushToken[...] — 기기마다 하나
+  token     String   @unique
+  /// android | ios
+  platform  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

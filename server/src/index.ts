@@ -13,6 +13,8 @@ import { joinRequestRoutes } from './routes/join-requests.js';
 import { fixedExpenseRoutes } from './routes/fixedExpenses.js';
 import { bookRoutes } from './routes/books.js';
 import { entryRoutes } from './routes/entries.js';
+import { notificationRoutes } from './routes/notifications.js';
+import { startSettlementScheduler } from './services/settlement-reminder.js';
 
 const app = Fastify({
   logger: { transport: { target: 'pino-pretty', options: { translateTime: 'HH:MM:ss' } } },
@@ -88,8 +90,13 @@ await app.register(joinRequestRoutes);
 await app.register(fixedExpenseRoutes);
 await app.register(bookRoutes);
 await app.register(entryRoutes);
+await app.register(notificationRoutes);
 
 await app.listen({ port: env.port, host: env.host });
+
+// 정산일 알림 (F-FAM-10). 별도 크론 없이 서버 안에서 1분마다 본다
+if (env.remindersEnabled) startSettlementScheduler(app.log);
+else app.log.warn('정산일 알림 스케줄러가 꺼져 있어요 (REMINDERS_ENABLED=false).');
 
 app.log.info(`달살림 서버 · ${env.publicBaseUrl}`);
 if (!kakaoConfigured) {

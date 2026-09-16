@@ -19,6 +19,9 @@ data-export*.json
 .env
 .env.local
 
+# Firebase (FCM) 설정 — 푸시 알림용. Firebase 프로젝트의 것이라 공개 저장소에 두지 않는다 (README 「푸시 알림」)
+mobile/google-services.json
+
 *.log
 npm-debug.*
 .DS_Store

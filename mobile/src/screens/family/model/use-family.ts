@@ -6,6 +6,7 @@ import * as Clipboard from 'expo-clipboard';
 
 import { bookKeys } from '@/entities/book';
 import {
+  DEFAULT_SETTLEMENT,
   approveJoinRequest,
   familyKeys,
   fetchFamily,
@@ -14,15 +15,20 @@ import {
   rejectJoinRequest,
   removeMember,
   transferOwner,
+  updateMySettlement,
+  passedMonthHint,
 } from '@/entities/family';
 import { useSession } from '@/entities/session';
+import { disablePushForThisDevice, enablePushForThisDevice, usePushStore } from '@/features/push';
+import type { Settlement } from '@/shared/model/types';
 import { MESSAGES } from '@/shared/config/messages';
 import { errorMessage } from '@/shared/lib/errors';
+import { currentYearMonth } from '@/shared/lib/format';
 
 /**
  * 가족 화면의 상태 조립. 화면은 여기서 받은 것을 그리기만 한다.
  *
- * 조회 2 + 동작 6 이라 화면에 두면 JSX 보다 통신 코드가 길어진다 (CLAUDE.md 분리 기준: 3개 초과).
+ * 조회 2 + 동작 7 이라 화면에 두면 JSX 보다 통신 코드가 길어진다 (CLAUDE.md 분리 기준: 3개 초과).
  * 동작이 실패하면 전부 같은 알림을 띄운다 — 버튼 하나짜리 동작의 실패 표현 규칙.
  */
 export function useFamily() {
@@ -32,6 +38,13 @@ export function useFamily() {
 
   const [copied, setCopied] = useState(false);
 
+  /** 정산일 시트. draft 가 있으면 열려 있다 (F-FAM-10) */
+  const [settlementDraft, setSettlementDraft] = useState<Settlement | null>(null);
+  const [settlementError, setSettlementError] = useState<string | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
+  /** 앱 전체의 값 — 앱을 켤 때의 조용한 재등록 결과도 여기로 온다 */
+  const pushState = usePushStore((state) => state.state);
+
   const detail = useQuery({
     queryKey: familyKeys.detail(familyId),
     queryFn: () => fetchFamily(familyId as string),
@@ -40,6 +53,8 @@ export function useFamily() {
 
   const members = detail.data?.members ?? [];
   const myMembership = members.find((m) => m.isMe);
+  /** "이번 달에 보냈다" 표시는 /me 에만 실린다 — 남의 것은 보여줄 일이 없다 */
+  const mySession = me?.memberships.find((m) => m.family.id === familyId);
   const iAmOwner = myMembership?.role === 'OWNER';
   const others = members.filter((m) => !m.isMe);
 
@@ -114,6 +129,24 @@ export function useFamily() {
     onError: failed,
   });
 
+  /**
+   * 정산일 저장 · 안 받기. 저장이 되고 나서 알림 권한을 묻는다 — 정산일을 정한 사람에게
+   * 묻는 것이 앱을 켜자마자 묻는 것보다 훨씬 덜 거절당한다. 권한 결과는 카드에 남긴다.
+   */
+  const saveSettlement = useMutation({
+    mutationFn: (settlement: Settlement | null) =>
+      updateMySettlement(familyId as string, settlement),
+    onSuccess: async (_membership, settlement) => {
+      setSettlementDraft(null);
+      setSettlementError(null);
+      void queryClient.invalidateQueries({ queryKey: familyKeys.detail(familyId) });
+      void refreshMe();
+      // 안 받기로 한 사람에게 "꺼져 있어요" 를 안 보이는 건 카드가 정산일 유무로 가른다 — 앱 전체 값은 안 건드린다
+      if (settlement) await enablePushForThisDevice({ ask: true });
+    },
+    onError: (caught) => setSettlementError(errorMessage(caught, MESSAGES.saveFailed)),
+  });
+
   async function copyCode() {
     if (!detail.data) return;
     await Clipboard.setStringAsync(detail.data.family.inviteCode);
@@ -163,7 +196,37 @@ export function useFamily() {
     remove: (membershipId: string) => remove.mutate(membershipId),
     leave: () => myMembership && leave.mutate(myMembership.id),
     switchFamily,
-    // 토큰이 비면 앱 셸이 로그인으로 보낸다
-    signOut: () => void signOut(),
+    // 토큰이 비면 앱 셸이 로그인으로 보낸다. 그 전에 이 기기의 알림 등록을 무른다 (F-FAM-10).
+    // 무르기가 실패하거나 느려도 로그아웃은 한다 — finally. 그동안 버튼은 도는 중으로 보인다
+    signingOut,
+    signOut: () => {
+      setSigningOut(true);
+      void disablePushForThisDevice().finally(signOut);
+    },
+
+    // 정산일 (F-FAM-10)
+    mySettlement: myMembership?.settlement ?? null,
+    settlementHint: passedMonthHint(mySession?.settlementNotifiedFor ?? null, currentYearMonth()),
+    settlementDraft,
+    settlementError,
+    savingSettlement: saveSettlement.isPending,
+    pushState,
+    openSettlement: () => {
+      setSettlementError(null);
+      setSettlementDraft(myMembership?.settlement ?? DEFAULT_SETTLEMENT);
+    },
+    editSettlement: (patch: Partial<Settlement>) =>
+      setSettlementDraft((draft) => (draft ? { ...draft, ...patch } : draft)),
+    closeSettlement: () => {
+      setSettlementDraft(null);
+      setSettlementError(null);
+    },
+    saveSettlement: () => settlementDraft && saveSettlement.mutate(settlementDraft),
+    /** 정산일은 있는데 아직 권한을 안 물은 기기(폰을 바꿨을 때) — 앱 안에서 바로 묻는다 */
+    enablePush: () => void enablePushForThisDevice({ ask: true }),
+    clearSettlement: () => {
+      setSettlementError(null);
+      saveSettlement.mutate(null);
+    },
   };
 }
