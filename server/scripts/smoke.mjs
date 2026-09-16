@@ -1912,6 +1912,246 @@ async function main() {
     codeAfterDelete.body,
   );
 
+  console.log('\n[정산일 알림]');
+  // 정산일은 구성원의 것이고, 남에게도 보인다 (F-FAM-10)
+  const setSettlement = await call('PATCH', `/families/${dad.familyId}/me`, {
+    token: dad.token,
+    body: { settlement: { day: 31, hour: 9, minute: 0 } },
+  });
+  check(
+    '★ F-FAM-10 정산일과 시각을 저장하면 그대로 돌려준다',
+    setSettlement.status === 200 &&
+      setSettlement.body.membership?.settlement?.day === 31 &&
+      setSettlement.body.membership.settlement.hour === 9 &&
+      setSettlement.body.membership.settlement.minute === 0,
+    setSettlement.body,
+  );
+  check(
+    '★ F-FAM-10 이름은 안 보냈으니 그대로다',
+    setSettlement.body.membership?.displayName === OWNER,
+    setSettlement.body,
+  );
+
+  const familyForMom = await call('GET', `/families/${dad.familyId}`, { token: mom.token });
+  check(
+    '★ F-FAM-10 구성원 목록에 남의 정산일이 보인다',
+    familyForMom.body.members?.find((m) => m.displayName === OWNER)?.settlement?.day === 31,
+    familyForMom.body.members,
+  );
+  const meWithSettlement = await call('GET', '/me', { token: dad.token });
+  check(
+    'F-FAM-10 /me 의 가족마다 내 정산일이 실린다',
+    meWithSettlement.body.memberships?.find((m) => m.family.id === dad.familyId)?.settlement
+      ?.hour === 9,
+    meWithSettlement.body.memberships,
+  );
+
+  const badDay = await call('PATCH', `/families/${dad.familyId}/me`, {
+    token: dad.token,
+    body: { settlement: { day: 32, hour: 9, minute: 0 } },
+  });
+  check(
+    'F-FAM-10 32일은 없다',
+    badDay.status === 400 && badDay.body.code === 'VALIDATION',
+    badDay.body,
+  );
+  const emptyPatch = await call('PATCH', `/families/${dad.familyId}/me`, {
+    token: dad.token,
+    body: {},
+  });
+  check(
+    'F-FAM-10 빈 본문은 거절한다',
+    emptyPatch.status === 400 && emptyPatch.body.code === 'VALIDATION',
+    emptyPatch.body,
+  );
+
+  // 승인 전에는 정산일을 정할 수 없다 (하드룰 8)
+  const waiterToken = await login('스모크알림대기');
+  const waiterJoin = await call('POST', '/families/join', {
+    token: waiterToken,
+    body: { inviteCode: familyForMom.body.family.inviteCode, displayName: '알림대기' },
+  });
+  const waiterSet = await call('PATCH', `/families/${dad.familyId}/me`, {
+    token: waiterToken,
+    body: { settlement: { day: 1, hour: 9, minute: 0 } },
+  });
+  check(
+    '★ F-FAM-10 승인 대기 중인 사람은 정산일을 정할 수 없다',
+    waiterSet.status === 403 && waiterSet.body.code === 'PENDING_APPROVAL',
+    waiterSet.body,
+  );
+  await call('DELETE', `/families/pending/${waiterJoin.body.membership?.id}`, {
+    token: waiterToken,
+  });
+
+  // 기기 등록
+  const dadDevice = 'ExponentPushToken[smoke-dad-device]';
+  const register = await call('PUT', '/me/push-token', {
+    token: dad.token,
+    body: { token: dadDevice, platform: 'android' },
+  });
+  check(
+    'F-FAM-10 기기를 등록한다',
+    register.status === 200 && register.body.ok === true,
+    register.body,
+  );
+  const badToken = await call('PUT', '/me/push-token', {
+    token: dad.token,
+    body: { token: 'not-a-token', platform: 'android' },
+  });
+  check(
+    'F-FAM-10 Expo 토큰 모양이 아니면 막는다',
+    badToken.body?.code === 'VALIDATION',
+    badToken.body,
+  );
+
+  // 스케줄러를 시각을 바꿔 가며 돌려본다 — 2030-02-28 09:30 KST. 2월은 28일까지다
+  // 가족을 좁혀 부른다. 안 좁히면 로컬 DB 의 다른 가족(시드 · 개발자 본인)에게도
+  // "2030-06 엔 보냈다" 가 박혀 그 사람의 진짜 알림이 그 달 내내 막힌다
+  const runAt = (now) =>
+    call('POST', '/dev/reminders/run', {
+      token: dad.token,
+      body: { now, familyId: dad.familyId },
+    });
+  const feb = await runAt('2030-02-28T00:30:00Z');
+  const febMine = feb.body.notified?.find((n) => n.membershipId === dadMembership.id);
+  check(
+    '★ F-FAM-10 31일로 정하면 2월엔 28일에 보낸다 — 등록한 기기로, 가족 이름을 붙여',
+    feb.status === 200 &&
+      febMine?.tokens === 1 &&
+      feb.body.messages?.some((m) => m.to === dadDevice && m.body.includes(FAMILY_NAME)),
+    feb.body,
+  );
+  const febAgain = await runAt('2030-02-28T00:45:00Z');
+  check(
+    '★ F-FAM-10 같은 달엔 다시 안 보낸다',
+    !febAgain.body.notified?.some((n) => n.membershipId === dadMembership.id),
+    febAgain.body,
+  );
+  const marEarly = await runAt('2030-03-30T23:30:00Z'); // 3월 31일 08:30 KST — 시각 전
+  check(
+    '★ F-FAM-10 시각 전이면 안 보낸다',
+    !marEarly.body.notified?.some((n) => n.membershipId === dadMembership.id),
+    marEarly.body,
+  );
+  const mar = await runAt('2030-03-31T00:00:00Z'); // 3월 31일 09:00 KST — 정각
+  check(
+    '★ F-FAM-10 다음 달엔 다시 보낸다 — 정각도 지난 것이다',
+    mar.body.notified?.some((n) => n.membershipId === dadMembership.id),
+    mar.body,
+  );
+
+  // "이번 달에 보냈다" 표시는 /me 에 실린다 — 카드가 "이번 달 알림은 지났어요" 를 말할 근거
+  const meAfterMar = await call('GET', '/me', { token: dad.token });
+  check(
+    'F-FAM-10 /me 에 이번 달 알림이 간 달이 실린다',
+    meAfterMar.body.memberships?.find((m) => m.family.id === dad.familyId)
+      ?.settlementNotifiedFor === '2030-03',
+    meAfterMar.body.memberships,
+  );
+  // 오늘 이미 지난 시각으로 정하면 이번 달은 보낸 것으로 적는다 — 저장하자마자 튀어나오면 놀람이다
+  const seoulNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const pastToday = await call('PATCH', `/families/${dad.familyId}/me`, {
+    token: dad.token,
+    body: { settlement: { day: seoulNow.getUTCDate(), hour: 0, minute: 0 } },
+  });
+  check(
+    '★ F-FAM-10 오늘 지난 시각으로 정하면 이번 달은 건너뛴 것으로 적힌다',
+    pastToday.status === 200 &&
+      pastToday.body.membership?.settlementNotifiedFor === seoulNow.toISOString().slice(0, 7),
+    pastToday.body,
+  );
+
+  // 안 받기 · 기기 해제
+  const clearSettlement = await call('PATCH', `/families/${dad.familyId}/me`, {
+    token: dad.token,
+    body: { settlement: null },
+  });
+  check(
+    '★ F-FAM-10 안 받기로 하면 정산일이 지워진다',
+    clearSettlement.status === 200 && clearSettlement.body.membership?.settlement === null,
+    clearSettlement.body,
+  );
+  // 정산일은 지우되 "이번 달에 보냈다" 표시는 남긴다. 지우면 안 받기 → 같은 날 다시 정하기로
+  // 그 달 알림이 두 번 간다 — [바꾸기] 로 시각만 옮길 때는 안 오는데 경로가 다르다고 오면 안 된다
+  // 위 thisMonth 는 서버 로컬 시간이다. 표시는 한국 시간 기준이라 월말·월초에 갈릴 수 있어 따로 잰다
+  const seoulMonth = seoulNow.toISOString().slice(0, 7);
+  check(
+    '★ F-FAM-10 안 받기를 해도 이번 달에 보냈다는 표시는 남는다',
+    clearSettlement.body.membership?.settlementNotifiedFor === seoulMonth,
+    clearSettlement.body.membership,
+  );
+  const resetToday = await call('PATCH', `/families/${dad.familyId}/me`, {
+    token: dad.token,
+    body: { settlement: { day: seoulNow.getUTCDate(), hour: 23, minute: 30 } },
+  });
+  check(
+    '★ F-FAM-10 안 받기를 거쳐 같은 날 다시 정해도 그 달엔 안 온다',
+    resetToday.body.membership?.settlementNotifiedFor === seoulMonth,
+    resetToday.body.membership,
+  );
+  // 되돌린다 — 아래 검사들은 정산일이 없는 상태에서 시작한다
+  await call('PATCH', `/families/${dad.familyId}/me`, {
+    token: dad.token,
+    body: { settlement: null },
+  });
+  const apr = await runAt('2030-04-30T00:30:00Z');
+  check(
+    'F-FAM-10 정산일이 없으면 안 보낸다',
+    !apr.body.notified?.some((n) => n.membershipId === dadMembership.id),
+    apr.body,
+  );
+  // 나간 사람은 정산일이 남아 있어도 대상이 아니다 (하드룰 8 · 6). ACTIVE_MEMBER 필터가 유일한 방어선
+  const momMembershipId = familyForMom.body.myMembershipId;
+  await call('PATCH', `/families/${dad.familyId}/me`, {
+    token: mom.token,
+    body: { settlement: { day: 31, hour: 9, minute: 0 } },
+  });
+  const beforeLeave = await runAt('2030-05-31T00:30:00Z');
+  check(
+    'F-FAM-10 구성원일 때는 대상이다',
+    beforeLeave.body.notified?.some((n) => n.membershipId === momMembershipId),
+    beforeLeave.body,
+  );
+  await call('DELETE', `/families/${dad.familyId}/members/${momMembershipId}`, {
+    token: dad.token,
+  });
+  const afterLeave = await runAt('2030-06-30T00:30:00Z');
+  check(
+    '★ F-FAM-10 나간 사람은 정산일이 남아 있어도 알림 대상이 아니다',
+    !afterLeave.body.notified?.some((n) => n.membershipId === momMembershipId),
+    afterLeave.body,
+  );
+  // 되돌린다 — 다음 검사와 다음 실행이 같은 가족을 쓴다
+  await call('POST', '/families/join', {
+    token: mom.token,
+    body: { inviteCode: familyForMom.body.family.inviteCode, displayName: MEMBER },
+  });
+  const momRejoinRequests = await call('GET', `/families/${dad.familyId}/join-requests`, {
+    token: dad.token,
+  });
+  const momRejoin = momRejoinRequests.body.requests?.find((r) => r.displayName === MEMBER);
+  const reapproved = await call(
+    'POST',
+    `/families/${dad.familyId}/join-requests/${momRejoin?.id}/approve`,
+    { token: dad.token },
+  );
+  check('F-FAM-10 (정리) 나간 사람을 다시 승인한다', reapproved.status === 200, reapproved.body);
+  await call('PATCH', `/families/${dad.familyId}/me`, {
+    token: mom.token,
+    body: { settlement: null },
+  });
+
+  const unregister = await call('DELETE', '/me/push-token', {
+    token: dad.token,
+    body: { token: dadDevice },
+  });
+  check(
+    'F-FAM-10 기기를 무른다',
+    unregister.status === 200 && unregister.body.ok === true,
+    unregister.body,
+  );
+
   console.log('\n[레이트리밋]');
   // 초대코드를 계속 찍어보는 걸 막는다. 이 검사는 그 사람의 한도를 소진하므로 맨 마지막에 둔다.
   const attacker = await call('POST', '/auth/dev', { body: { name: '침입자' } });

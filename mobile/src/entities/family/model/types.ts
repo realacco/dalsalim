@@ -1,4 +1,4 @@
-import type { Role } from '@/shared/model/types';
+import type { Role, Settlement } from '@/shared/model/types';
 
 export type Family = { id: string; name: string; inviteCode: string };
 
@@ -16,6 +16,8 @@ export type FamilyDetail = {
     nickname: string;
     profileImageUrl: string | null;
     isMe: boolean;
+    /** 남의 정산일도 보인다 — 언제쯤 적을지 서로 안다 (F-FAM-10) */
+    settlement: Settlement | null;
   }[];
 };
 

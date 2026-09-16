@@ -12,9 +12,8 @@
       "package": "com.dalsalim.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png",
-        "backgroundColor": "#F4F5FA"
+        "backgroundColor": "#1D1F28"
       },
       "backgroundColor": "#F4F5FA",
       "versionCode": 2
@@ -34,9 +33,27 @@
           "resizeMode": "contain",
           "backgroundColor": "#F4F5FA",
           "dark": {
-            "image": "./assets/splash-icon.png",
+            "image": "./assets/splash-icon-dark.png",
             "backgroundColor": "#14151B"
+          },
+          "imageWidth": 200,
+          "android": {
+            "image": "./assets/splash-icon-android.png",
+            "imageWidth": 200,
+            "backgroundColor": "#F4F5FA",
+            "dark": {
+              "image": "./assets/splash-icon-android.png",
+              "backgroundColor": "#14151B"
+            }
           }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#7B8CF4",
+          "defaultChannel": "default"
         }
       ]
     ],

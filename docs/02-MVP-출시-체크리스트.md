@@ -162,15 +162,20 @@ Railway 에 올라가 있고 Postgres 를 본다. `https://dalsalim-production.u
 
 - [ ] Expo 계정 + `eas.json` 작성
 - [ ] `eas build --platform android --profile preview` → APK (가족 내부 배포는 이걸로 충분)
-- [ ] **앱 아이콘 / 스플래시 실제 디자인** — 지금은 Expo 기본 이미지 그대로다
+- [ ] **앱 아이콘 / 스플래시 실제 디자인** — 에셋은 PR #46 으로 들어갔다("한 달 한 장" 아이콘 · 타일 + 워드마크 스플래시). APK 를 새로 떠서 실기기에서 보는 것이 남았다
 - [ ] `app.json`의 `version` / Android `versionCode` 정책 정하기
 - [ ] **실기기 테스트** — 지금까지 에뮬레이터에서만 확인했다
 - [ ] 작은 화면(폭 360dp)에서 위저드 버튼이 잘리는지
 - [ ] 시스템 글자 크기를 키웠을 때 레이아웃
 - [ ] (선택) `eas update` — JS 변경은 심사 없이 배포 가능. **MVP 단계에서 특히 유용하다**
 
-> 카카오를 REST OAuth로 붙였기 때문에 **네이티브 모듈이 없다.** `expo prebuild`도,
-> 22분짜리 Gradle 빌드도 필요 없다 (`docs/개발-노트.md` 참조 — 로컬 전용 문서다).
+> 카카오를 REST OAuth로 붙였기 때문에 `expo prebuild`도, 로컬 `android/` 폴더도,
+> 22분짜리 Gradle 빌드도 없다 — 빌드는 EAS 가 대신 뜬다 (`docs/개발-노트.md` 참조 — 로컬 전용 문서다).
+>
+> ⚠️ 다만 **「네이티브 모듈이 하나도 없다」는 더 이상 사실이 아니다.** 정산일 알림(`F-FAM-10`)이
+> `expo-notifications` · `expo-device` 를 들이고 `app.config.js` 가 `googleServicesFile` 을 얹는다.
+> **Expo Go 로는 원격 푸시 토큰이 안 나오므로** 알림을 확인하려면 Firebase 키를 넣어 preview APK 를
+> 다시 떠야 한다 (README 「푸시 알림」).
 
 ### iOS를 낼 거라면
 
@@ -186,10 +191,11 @@ Railway 에 올라가 있고 Postgres 를 본다. `https://dalsalim-production.u
 이 앱의 리텐션은 **월 1회**다. 알림이 없으면 그냥 잊는다. 기획서에서는 v0.2로 뒀지만,
 한 달만 써봐도 필요성이 판명될 항목이다.
 
-- [ ] 매달 1일(또는 급여일) "이번 달 기록 시작할까요?"
-- [ ] 가족이 제출했을 때 "아빠가 8월 기록을 마쳤어요. 이제 엄마만 남았어요"
+- [x] **정산일 알림** — 각자 정한 날·시각에 "정산일이에요. 이번 달 살림 적어볼까요?" (`F-FAM-10`, 2026-09-15).
+      월초가 아니라 각자의 정산일이 맞다. 서버가 보내는 진짜 푸시라 Firebase(FCM) 키가 필요하다 — README 「푸시 알림」
+- [ ] 가족이 제출했을 때 "아빠가 8월 기록을 마쳤어요" (`F-ENT-13`, 같은 기반 위에)
 
-`expo-notifications` + Expo Push Service로 별도 서버 없이 붙는다.
+`expo-notifications` + Expo Push Service. 서버 안에서 1분마다 도는 스케줄러가 보내고, 별도 큐·크론은 없다.
 
 ### 6-2. 토큰 만료 UX
 

@@ -15,3 +15,4 @@ export { QueryError } from './query-error';
 export { Divider, Row } from './row';
 export { ErrorText, Muted, SectionTitle } from './text';
 export { Toggle } from './toggle';
+export { useSheetDrag } from './use-sheet-drag';

@@ -1,4 +1,4 @@
-// 기능: F-FAM-01 F-FAM-02 F-FAM-03 F-FAM-04 F-FAM-05 F-FAM-06 F-FAM-07 F-FAM-08 F-FAM-09 F-FAM-11
+// 기능: F-FAM-01 F-FAM-02 F-FAM-03 F-FAM-04 F-FAM-05 F-FAM-06 F-FAM-07 F-FAM-08 F-FAM-09 F-FAM-10 F-FAM-11
 export type {
   Family,
   FamilyContents,
@@ -23,4 +23,16 @@ export {
   removeMember,
   transferOwner,
   updateMyDisplayName,
+  updateMySettlement,
 } from './api/family';
+export {
+  DEFAULT_SETTLEMENT,
+  SETTLEMENT_DAYS,
+  SETTLEMENT_HOURS,
+  SETTLEMENT_MINUTES,
+  formatHour,
+  formatSettlement,
+  formatTime,
+  passedMonthHint,
+  shortMonthHint,
+} from './model/settlement';
