@@ -1,4 +1,4 @@
-// 기능: F-SES-01 F-SES-02 F-SES-03 F-FAM-10
+// 기능: F-SES-01 F-SES-02 F-SES-03 F-SES-08 F-FAM-10
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
@@ -7,6 +7,7 @@ import { prisma } from '../lib/db.js';
 import { fetchKakaoProfile, issueToken, requireUser } from '../lib/auth.js';
 import { fail } from '../lib/http.js';
 import { settlementOf } from '../lib/schedule.js';
+import { deleteAccount } from '../services/user.js';
 
 /**
  * 카카오 로그인은 앱이 아니라 서버가 주도한다.
@@ -170,5 +171,15 @@ export async function authRoutes(app: FastifyInstance) {
         family: { id: m.family.id, name: m.family.name, inviteCode: m.family.inviteCode },
       })),
     };
+  });
+
+  /**
+   * 회원 탈퇴 (F-SES-08). 되돌릴 수 없고, 이어서 쓸 id 도 남지 않는다.
+   * 무엇을 지우고 무엇을 남기는지는 services/user 의 deleteAccount 에 있다.
+   */
+  app.delete('/me', async (request) => {
+    const user = await requireUser(request);
+    await deleteAccount(user.id);
+    return { ok: true };
   });
 }

@@ -2152,6 +2152,161 @@ async function main() {
     unregister.body,
   );
 
+  console.log('\n[탈퇴]');
+  // 스모크네를 건드리면 안 되므로 이 절도 자기 가족을 따로 만들어 쓰고 마지막에 없앤다.
+  const QUITTER = '스모크탈퇴원';
+  const QUIT_OWNER = '스모크탈퇴장';
+  const QUIT_FAMILY = '탈퇴네';
+
+  // 탈퇴는 계정을 지우므로 이름을 다시 쓰면 **새 사람**이 된다 — 지난 실행이 남긴 가족을
+  // 이 토큰으로는 못 본다. 그래서 정리는 가족장 쪽에서 한다
+  let quitOwnerToken = await login(QUIT_OWNER);
+  for (const stale of (
+    await call('GET', '/me', { token: quitOwnerToken })
+  ).body.memberships?.filter((m) => m.family.name === QUIT_FAMILY) ?? []) {
+    const detail = await call('GET', `/families/${stale.family.id}`, { token: quitOwnerToken });
+    for (const other of detail.body.members?.filter((m) => !m.isMe) ?? []) {
+      await call('DELETE', `/families/${stale.family.id}/members/${other.id}`, {
+        token: quitOwnerToken,
+      });
+    }
+    await call('DELETE', `/families/${stale.family.id}`, { token: quitOwnerToken });
+  }
+
+  const quitFamily = await call('POST', '/families', {
+    token: quitOwnerToken,
+    body: { name: QUIT_FAMILY, displayName: '탈퇴장' },
+  });
+  const quitFamilyId = quitFamily.body.family?.id;
+  const quitInviteCode = quitFamily.body.family?.inviteCode;
+  check('F-SES-08 (준비) 가족을 만든다', quitFamily.status === 200, quitFamily.body);
+
+  let quitterToken = await login(QUITTER);
+  await call('POST', '/families/join', {
+    token: quitterToken,
+    body: { inviteCode: quitInviteCode, displayName: '탈퇴원' },
+  });
+  const quitRequests = await call('GET', `/families/${quitFamilyId}/join-requests`, {
+    token: quitOwnerToken,
+  });
+  const quitterRequestId = quitRequests.body.requests?.find((r) => r.displayName === '탈퇴원')?.id;
+  await call('POST', `/families/${quitFamilyId}/join-requests/${quitterRequestId}/approve`, {
+    token: quitOwnerToken,
+  });
+
+  // 탈퇴할 사람이 이번 달에 한 줄 적고 제출한다. 이 숫자가 탈퇴 뒤에도 그대로여야 한다
+  const quitterEntry = (
+    await call('POST', `/families/${quitFamilyId}/books/${thisMonth}/my-entry`, {
+      token: quitterToken,
+    })
+  ).body.entry;
+  const quitterIncome = quitterEntry?.lines?.find((l) => l.kind === 'INCOME');
+  await call('PATCH', `/entries/${quitterEntry?.id}/lines/${quitterIncome?.id}`, {
+    token: quitterToken,
+    body: { actualAmount: 2_500_000 },
+  });
+  const quitterSubmit = await call('POST', `/entries/${quitterEntry?.id}/submit`, {
+    token: quitterToken,
+  });
+  check('F-SES-08 (준비) 탈퇴할 사람이 제출한다', quitterSubmit.status === 200, quitterSubmit.body);
+
+  const summaryPathQuit = `/families/${quitFamilyId}/books/${thisMonth}/summary`;
+  const beforeQuit = (await call('GET', summaryPathQuit, { token: quitOwnerToken })).body;
+
+  // ★ 가족장은 그냥 못 나간다. 탈퇴는 모든 가족에서 한꺼번에 나가는 것이라 한 가족만 걸려도 막는다
+  const ownerQuit = await call('DELETE', '/me', { token: quitOwnerToken });
+  check(
+    '★ F-SES-08 가족장은 넘기기 전에는 탈퇴할 수 없다',
+    ownerQuit.status === 400 && ownerQuit.body.code === 'TRANSFER_OWNER_FIRST',
+    ownerQuit.body,
+  );
+
+  const quit = await call('DELETE', '/me', { token: quitterToken });
+  check('F-SES-08 일반 구성원은 탈퇴한다', quit.status === 200 && quit.body.ok === true, quit.body);
+
+  // 토큰은 90일짜리라 계정을 지워도 살아 있다. 신원이 지워진 행으로는 아무것도 못 해야 한다
+  const zombie = await call('GET', '/me', { token: quitterToken });
+  check(
+    '★ F-SES-08 탈퇴한 계정의 토큰은 더 이상 안 통한다',
+    zombie.status === 401 && zombie.body.code === 'USER_GONE',
+    zombie.body,
+  );
+
+  // ★ 이 절의 핵심 — 하드룰 6. 기록을 지웠다면 여기서 합계가 줄어든다
+  const afterQuit = (await call('GET', summaryPathQuit, { token: quitOwnerToken })).body;
+  check(
+    '★ F-SES-08 탈퇴해도 그 달의 가족 합계가 그대로다 (하드룰 6)',
+    afterQuit.totals?.income === beforeQuit.totals?.income &&
+      afterQuit.perMember?.length === beforeQuit.perMember?.length,
+    { before: beforeQuit.totals?.income, after: afterQuit.totals?.income },
+  );
+
+  const membersAfterQuit = await call('GET', `/families/${quitFamilyId}`, {
+    token: quitOwnerToken,
+  });
+  check(
+    'F-SES-08 탈퇴한 사람은 구성원 목록에서 빠진다',
+    membersAfterQuit.body.members?.length === 1,
+    membersAfterQuit.body.members?.map((m) => m.displayName),
+  );
+
+  // 같은 이름으로 다시 로그인하면 devKey 가 지워져 있어 **새 사용자**가 만들어진다.
+  // 가족에 돌아가려면 초대코드부터 다시 밟는다 (하드룰 8)
+  quitterToken = await login(QUITTER);
+  const reborn = await call('GET', '/me', { token: quitterToken });
+  check(
+    '★ F-SES-08 탈퇴 뒤 같은 이름으로 로그인하면 가족이 없는 새 사람이다',
+    reborn.status === 200 && reborn.body.memberships?.length === 0,
+    reborn.body.memberships,
+  );
+
+  const quitRejoin = await call('POST', '/families/join', {
+    token: quitterToken,
+    body: { inviteCode: quitInviteCode, displayName: '탈퇴원' },
+  });
+  check(
+    '★ F-SES-08 재참여는 다시 승인을 받는다 (하드룰 8)',
+    quitRejoin.status === 200 && quitRejoin.body.membership?.status === 'PENDING',
+    quitRejoin.body.membership,
+  );
+
+  // 승인 전 요청은 매달린 기록이 없으므로 탈퇴가 지운다 — 가족장 목록에 이름 없는 줄이 남으면 안 된다
+  await call('DELETE', '/me', { token: quitterToken });
+  const requestsAfter = await call('GET', `/families/${quitFamilyId}/join-requests`, {
+    token: quitOwnerToken,
+  });
+  check(
+    '★ F-SES-08 탈퇴하면 승인 대기 중이던 요청도 지워진다',
+    requestsAfter.body.requests?.length === 0,
+    requestsAfter.body.requests,
+  );
+
+  // 이제 가족장 혼자다. 나가기와 같은 갈래로 막힌다 — 가족을 먼저 없애야 한다 (F-FAM-11)
+  const soloOwnerQuit = await call('DELETE', '/me', { token: quitOwnerToken });
+  check(
+    '★ F-SES-08 혼자인 가족장은 가족을 먼저 없애야 탈퇴할 수 있다',
+    soloOwnerQuit.status === 400 && soloOwnerQuit.body.code === 'LAST_OWNER_MUST_DELETE',
+    soloOwnerQuit.body,
+  );
+
+  await call('DELETE', `/families/${quitFamilyId}`, { token: quitOwnerToken });
+  const finalQuit = await call('DELETE', '/me', { token: quitOwnerToken });
+  check(
+    'F-SES-08 가족을 없앤 뒤에는 탈퇴된다',
+    finalQuit.status === 200 && finalQuit.body.ok === true,
+    finalQuit.body,
+  );
+
+  // 다음 실행이 깨끗한 이름으로 시작하도록 토큰을 새로 받아 둔다
+  quitOwnerToken = await login(QUIT_OWNER);
+
+  const deletePage = await call('GET', '/account/delete');
+  check(
+    'F-SES-08 계정 삭제 안내 페이지가 로그인 없이 열린다',
+    deletePage.status === 200 && String(deletePage.body).includes('탈퇴하기'),
+    deletePage.status,
+  );
+
   console.log('\n[레이트리밋]');
   // 초대코드를 계속 찍어보는 걸 막는다. 이 검사는 그 사람의 한도를 소진하므로 맨 마지막에 둔다.
   const attacker = await call('POST', '/auth/dev', { body: { name: '침입자' } });

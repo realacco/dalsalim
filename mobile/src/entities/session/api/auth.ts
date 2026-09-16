@@ -31,3 +31,13 @@ export async function devLogin(name: string) {
   });
   return token;
 }
+
+/**
+ * 회원 탈퇴 (F-SES-08). 되돌릴 수 없다.
+ *
+ * 성공하면 이 토큰은 더 이상 아무에게도 닿지 않는다 — 호출한 쪽이 바로 세션을 비워야 한다.
+ * 가족장이면 서버가 막는다 (넘기거나 가족을 없앤 뒤에야 된다).
+ */
+export function deleteAccount() {
+  return api<{ ok: true }>('/me', { method: 'DELETE' });
+}

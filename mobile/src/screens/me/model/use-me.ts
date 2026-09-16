@@ -3,7 +3,7 @@ import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { useSession } from '@/entities/session';
+import { deleteAccount, useSession } from '@/entities/session';
 import { disablePushForThisDevice } from '@/features/push';
 import { MESSAGES } from '@/shared/config/messages';
 import { errorMessage, isSessionExpired } from '@/shared/lib/errors';
@@ -21,6 +21,8 @@ export function useMe() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   async function refresh() {
     setRefreshing(true);
@@ -66,6 +68,33 @@ export function useMe() {
     router.back();
   }
 
+  /**
+   * 회원 탈퇴 (F-SES-08).
+   *
+   * 알림 등록을 **먼저** 무른다 — 탈퇴하고 나면 이 토큰이 막혀서(lib/auth 의 탈퇴 계정 검사)
+   * 무를 수가 없다. 서버도 PushToken 을 지우지만, 앱 안에 남는 등록 상태는 여기서만 지워진다.
+   * 무르기 실패가 탈퇴를 막지는 않는다 — 알림 하나 때문에 계정을 못 지우면 안 된다.
+   *
+   * 실패는 인라인이다. 가족장이면 서버가 「먼저 넘겨주세요」로 막는데, 그 문장은 덮고
+   * 사라지면 안 되는 종류다 — 다음에 할 일이 거기 적혀 있다.
+   */
+  async function removeAccount() {
+    setDeleting(true);
+    setDeleteError(null);
+
+    try {
+      await disablePushForThisDevice().catch(() => {});
+      await deleteAccount();
+    } catch (caught) {
+      setDeleting(false);
+      setDeleteError(errorMessage(caught, MESSAGES.deleteAccountFailed));
+      return;
+    }
+
+    // 토큰이 비면 앱 셸이 로그인으로 보낸다. 여기서 화면이 사라지므로 deleting 은 안 되돌린다
+    await signOut();
+  }
+
   return {
     nickname: me?.user.nickname ?? '',
     families: me?.memberships ?? [],
@@ -75,6 +104,10 @@ export function useMe() {
     refresh: () => void refresh(),
     switchFamily: (nextFamilyId: string) => void switchFamily(nextFamilyId),
     signingOut,
+    deleting,
+    deleteError,
+    /** 탈퇴 (F-SES-08). 되돌릴 수 없다 — 확인 다이얼로그는 화면이 띄운다 */
+    removeAccount: () => void removeAccount(),
     /*
       토큰이 비면 앱 셸이 로그인으로 보낸다. 그 전에 이 기기의 알림 등록을 무른다 (F-FAM-10) —
       안 무르면 로그아웃한 폰에 다음 정산일 알림이 그대로 온다.

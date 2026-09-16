@@ -72,6 +72,15 @@ export const env = {
    * 로컬 두 대를 같은 DB 에 붙이거나 CI 처럼 exp.host 에 닿으면 안 되는 곳에서만 끈다.
    */
   remindersEnabled: process.env.REMINDERS_ENABLED !== 'false',
+
+  /**
+   * 계정 삭제 안내 페이지(F-SES-08)의 문의 창구.
+   *
+   * 기본값을 안 둔다 — 공개 저장소라 메일 주소를 코드에 박을 수 없고, 아무 주소나 박아두면
+   * 심사가 눌러봤을 때 닿지 않는 쪽이 더 나쁘다. 안 넣으면 페이지가 그 문단을 아예 안 그린다.
+   * ★ 스토어에 올리기 전에는 반드시 넣는다 — 앱을 이미 지운 사람에게는 이 길뿐이다.
+   */
+  supportEmail: process.env.SUPPORT_EMAIL || null,
 } as const;
 
 export const kakaoConfigured = env.kakao.restApiKey.length > 0;

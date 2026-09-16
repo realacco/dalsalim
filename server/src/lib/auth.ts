@@ -46,6 +46,11 @@ export async function requireUser(request: FastifyRequest) {
   const user = await prisma.user.findUnique({ where: { id: sub } });
   if (!user) throw fail('USER_GONE');
 
+  // 탈퇴한 계정 (F-SES-08). 행은 남지만 — 가족 장부의 기록이 매달려 있어 못 지운다 —
+  // 그 행은 더 이상 사람이 아니다. 발급된 토큰이 90일 동안 유효하므로 여기서 끊지 않으면
+  // 탈퇴 직후에도 그 토큰이 계속 통한다. 신원이 둘 다 없으면 로그인할 길이 없는 행이다.
+  if (user.kakaoId === null && user.devKey === null) throw fail('USER_GONE');
+
   return user;
 }
 

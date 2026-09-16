@@ -14,6 +14,7 @@ import { fixedExpenseRoutes } from './routes/fixedExpenses.js';
 import { bookRoutes } from './routes/books.js';
 import { entryRoutes } from './routes/entries.js';
 import { notificationRoutes } from './routes/notifications.js';
+import { accountRoutes } from './routes/account.js';
 import { startSettlementScheduler } from './services/settlement-reminder.js';
 
 const app = Fastify({
@@ -91,6 +92,7 @@ await app.register(fixedExpenseRoutes);
 await app.register(bookRoutes);
 await app.register(entryRoutes);
 await app.register(notificationRoutes);
+await app.register(accountRoutes);
 
 await app.listen({ port: env.port, host: env.host });
 

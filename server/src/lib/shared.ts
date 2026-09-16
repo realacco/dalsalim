@@ -61,6 +61,14 @@ export type MembershipStatus = (typeof MEMBERSHIP_STATUSES)[number];
  */
 export const ACTIVE_MEMBER = { status: 'ACTIVE' } as const;
 
+/**
+ * 탈퇴한 계정에 남기는 이름 (F-SES-08). `User` 행은 남지만 사람을 가리키지 않는다 —
+ * 가족 장부의 기록이 이 행에 매달려 있어서 지울 수 없을 뿐이다.
+ * 가족 구성원 목록에는 이 이름이 안 뜬다. 거기 뜨는 건 `Membership.displayName`("아빠")이고,
+ * 그건 카카오에서 온 게 아니라 가족이 붙인 이름이다.
+ */
+export const DELETED_NICKNAME = '탈퇴한 사용자';
+
 /** 'YYYY-MM' 형식인지 */
 export function isYearMonth(value: string): boolean {
   return /^\d{4}-(0[1-9]|1[0-2])$/.test(value);

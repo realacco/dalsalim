@@ -1,10 +1,10 @@
-// 기능: F-SES-06 F-SES-04
+// 기능: F-SES-06 F-SES-04 F-SES-08
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
-import { BuildInfo, Button, Card, Muted } from '@/shared/ui';
+import { BuildInfo, Button, Card, ErrorText, Muted } from '@/shared/ui';
 import { confirm } from '@/shared/lib/confirm';
 
 import { useMe } from './model/use-me';
@@ -85,6 +85,29 @@ export default function MeScreen() {
             }
           />
         </Card>
+
+        {/*
+          탈퇴는 「앱 정보」 카드 밖, 맨 아래에 둔다 (F-SES-08). 로그아웃과 나란히 두면
+          같은 무게로 읽히는데 하나는 되돌릴 수 있고 하나는 못 되돌린다.
+        */}
+        <View style={styles.danger}>
+          <Button
+            label="탈퇴하기"
+            variant="ghost"
+            loading={m.deleting}
+            onPress={() =>
+              confirm({
+                title: '탈퇴하기',
+                body: '계정이 지워지고 되돌릴 수 없어요. 가족 장부에 적은 기록은 남아요 — 다른 가족의 지난 달 합계가 바뀌지 않도록요.',
+                confirmLabel: '탈퇴하기',
+                destructive: true,
+                onConfirm: m.removeAccount,
+              })
+            }
+          />
+          {/* 가족장이면 서버가 「먼저 넘겨주세요」로 막는다. 그 문장이 곧 다음 할 일이라 남겨둔다 */}
+          {m.deleteError ? <ErrorText>{m.deleteError}</ErrorText> : null}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -105,6 +128,8 @@ const useStyles = makeStyles((t) => ({
   title: { ...t.font.bodyLg, fontWeight: t.weight.heavy, color: t.colors.ink },
 
   content: { padding: t.space.lg, gap: t.space.lg, paddingBottom: t.space.xxl },
+  /** 카드들과 한 칸 더 떨어뜨린다 — 되돌릴 수 없는 동작이라 같은 무게로 읽히면 안 된다 */
+  danger: { gap: t.space.sm, marginTop: t.space.md },
   cardTitle: { ...t.font.bodyLg, fontWeight: t.weight.bold, color: t.colors.ink },
   nickname: { ...t.font.display, fontWeight: t.weight.heavy, color: t.colors.ink },
 
