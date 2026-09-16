@@ -1,4 +1,4 @@
-// 기능: F-FAM-01 F-FAM-02 F-FAM-03 F-FAM-04 F-FAM-05 F-FAM-06 F-FAM-07 F-FAM-08 F-FAM-09 F-FAM-10
+// 기능: F-FAM-01 F-FAM-02 F-FAM-03 F-FAM-04 F-FAM-05 F-FAM-06 F-FAM-07 F-FAM-08 F-FAM-09 F-FAM-10 F-FAM-11
 import type { Membership } from '@prisma/client';
 
 import { prisma } from '../lib/db.js';
@@ -46,6 +46,20 @@ export async function requestJoin(userId: string, inviteCode: string, displayNam
   const existing = family.memberships.find((m) => m.userId === userId);
   if (existing?.status === 'ACTIVE') throw fail('ALREADY_MEMBER');
   if (existing?.status === 'PENDING') throw fail('ALREADY_REQUESTED');
+
+  // 승인해줄 가족장이 없는 가족 — 들어가봐야 영원히 대기다.
+  // F-FAM-11 이전에 혼자 남은 가족장이 나가서 생긴 가족이 여기 걸린다 (지금은 그 길도 막혀 있다).
+  //
+  // "ACTIVE 가 하나라도 있나"가 아니라 가족장을 찾는 이유: 지금은 둘이 같지만
+  // (가족장은 넘기지 않고는 못 나간다) F-SES-08 탈퇴가 User 를 지우면 Membership 이
+  // Cascade 로 따라가, 구성원은 남고 가족장만 없는 가족이 생길 수 있다.
+  // 막으려는 것은 "사람이 없다"가 아니라 "승인할 사람이 없다"이므로 그쪽을 본다.
+  //
+  // 내 상태(ALREADY_*)를 먼저 보는 이유: 그 가족에 이미 들어와 있는 사람에게는
+  // 가족장이 있고 없고가 답이 아니다. 나에 대한 답을 먼저 주고, 가족 얘기는 그다음이다.
+  if (!family.memberships.some((m) => m.status === ACTIVE_MEMBER.status && m.role === 'OWNER')) {
+    throw fail('FAMILY_ABANDONED');
+  }
 
   let membership: Membership;
   if (existing) {
@@ -148,6 +162,73 @@ export function getFamilyWithMembers(familyId: string) {
   });
 }
 
+/**
+ * 가족을 없앨 때 무엇이 사라지는지 세어 둔다 (F-FAM-11).
+ * 확인 다이얼로그가 "기록한 달 7개월 · 고정비 9개"로 읽는다 — "정말 삭제하시겠습니까"보다
+ * 숫자를 보여주는 쪽이 한 번 더 생각하게 만든다.
+ */
+export async function countFamilyContents(familyId: string) {
+  const [months, fixedExpenses] = await Promise.all([
+    // 한 줄이라도 금액을 적은 달만 센다. MonthlyBook 은 그 달을 열어보기만 해도 생기고
+    // (getOrCreateBook), MemberEntry 는 위저드를 열기만 해도 프리필과 함께 생기므로
+    // (openMyEntry) 둘 중 어느 것을 세도 "기록한 달"이 아니라 "열어본 달"이 나온다.
+    // 확인창이 숫자를 보여주는 이유는 한 번 더 생각하게 하려는 것이지 부풀리려는 게 아니다.
+    //
+    // 구성원 상태는 보지 않는다 — 나간 사람이 적은 달도 요약·추이에 그대로 나오므로
+    // (하드룰 8 의 예외) 화면에 보이는 숫자가 맞다
+    prisma.monthlyBook.count({
+      where: { familyId, entries: { some: { lines: { some: { actualAmount: { not: null } } } } } },
+    }),
+    // 고정비는 반대다. 목록이 ACTIVE 구성원의 active 항목만 보여주므로(listFixedExpensesByMember)
+    // 같은 조건으로 센다 — 확인할 길이 없는 숫자는 "한 번 더 생각하게" 하지 못한다
+    prisma.fixedExpense.count({ where: { familyId, active: true, membership: ACTIVE_MEMBER } }),
+  ]);
+
+  return { months, fixedExpenses };
+}
+
+/**
+ * 가족 없애기 (F-FAM-11) — 구성원이 나 하나뿐인 가족장만. 권한은 라우트의 requireOwner 가 본다.
+ *
+ * ★ 여기서는 **실제로 지운다** (하드룰 6 의 세 번째 예외).
+ *
+ * 앞의 두 예외(PENDING 취소 · DRAFT 삭제)는 「집계에 한 줄도 안 들어간 것」이 근거였다.
+ * 여기는 들어간 줄이 있는데도 지운다. 근거가 다르다 —
+ * **그 집계를 보는 사람이 지우려는 본인뿐이기 때문이다.** 하드룰 6 이 지키려는 것은
+ * "내 행동으로 남의 숫자가 바뀌지 않는다"인데, 구성원이 나 하나면 바뀔 남의 숫자가 없다.
+ * 나갔던 사람(LEFT)에게도 이 가족은 이미 안 보인다 — /me 가 ACTIVE 만 보기 때문이다.
+ * 초대코드로 되돌아올 수는 있지만 그건 내가 다시 승인해야 열리는 길이고(하드룰 8),
+ * 없애기는 그 승인을 할 사람 본인의 결정이다.
+ *
+ * soft delete 를 안 쓰는 이유는 탈퇴 때문이다. 행을 남기면 "가족을 없앴는데 내 가계부가
+ * 서버에 남아 있다"가 되고, 그러면 탈퇴도 반쪽이 된다.
+ * Family 를 지우면 MonthlyBook · MemberEntry · EntryLine · FixedExpense · Membership 이
+ * 스키마의 onDelete: Cascade 로 따라 사라진다.
+ */
+export async function deleteFamily(familyId: string, myMembershipId: string) {
+  // 세고 나서 지우면 그 사이에 승인이 하나 끼어들 수 있다 (가족장이 두 기기를 쓸 때).
+  // 이 가드는 위의 예외를 떠받치는 유일한 장치라 뚫리면 남의 과거 기록이 Cascade 로 사라지므로,
+  // "나 말고 ACTIVE 가 없을 때만 지운다"를 한 문장에 넣어 틈을 실질적으로 없앴다.
+  //
+  // ⚠️ 완전히 닫힌 것은 아니다. READ COMMITTED 에서 이 where 의 서브질의는 문장 시작 시점
+  // 스냅샷을 보므로, 그 뒤에 커밋된 승인은 못 본다. 남는 경로는 하나 —
+  // 가족장이 한 기기에서 나갔던 사람(과거 제출본이 있다)의 재참여를 승인하는 바로 그 순간
+  // 다른 기기에서 없애면, 갓 ACTIVE 가 된 그 사람의 기록까지 지워진다.
+  // 닫으려면 승인 쪽에서도 Family 행을 잠가 두 경로를 같은 자물쇠에 묶어야 하는데,
+  // 본인이 두 기기로 동시에 조작해야 하는 폭이라 승인 경로에 값을 치를 이유가 없다.
+  const { count } = await prisma.family.deleteMany({
+    where: {
+      id: familyId,
+      memberships: { none: { ...ACTIVE_MEMBER, id: { not: myMembershipId } } },
+    },
+  });
+
+  // 가족이 있는 것은 requireOwner 가 이미 봤다. 안 지워졌으면 남은 사람이 있다는 뜻이다.
+  // 다른 기기에서 방금 없앤 경우도 여기로 오는데, 그때는 이 문구가 사실과 어긋난다
+  // ("아직 구성원이 남아 있어요"). 도달 폭이 거의 없고 다음 조회가 NOT_MEMBER 로 정리한다
+  if (count === 0) throw fail('MEMBERS_REMAIN');
+}
+
 /** 초대코드 재발급 — 예전 코드를 아는 사람을 막고 싶을 때 */
 export async function rotateInviteCode(familyId: string) {
   return prisma.family.update({
@@ -204,8 +285,13 @@ export async function removeMember(familyId: string, mine: Membership, targetId:
     where: { familyId, ...ACTIVE_MEMBER },
   });
 
-  // 가족장이 그냥 나가면 주인 없는 가족이 남는다. 남은 사람이 있으면 먼저 넘겨야 한다.
-  if (target.role === 'OWNER' && activeCount > 1) throw fail('TRANSFER_OWNER_FIRST');
+  // 가족장은 그냥 못 나간다. 주인 없는 가족이 남기 때문인데, 남은 사람이 있고 없고에 따라
+  // 다음 할 일이 다르다 — 있으면 넘기고, 없으면 나가는 게 아니라 없애는 것이다 (F-FAM-11).
+  // 혼자인 가족장을 막지 않으면 초대코드만 살아 있는 가족이 남아, 그 코드로 들어온 사람이
+  // 승인해줄 가족장 없이 영원히 대기한다.
+  if (target.role === 'OWNER') {
+    throw fail(activeCount > 1 ? 'TRANSFER_OWNER_FIRST' : 'LAST_OWNER_MUST_DELETE');
+  }
 
   await deactivateMember(familyId, target.id);
   return target;

@@ -1,6 +1,11 @@
 import { Text, View } from 'react-native';
 
-import { type FamilyDetail, formatSettlement } from '@/entities/family';
+import {
+  contentsLine,
+  type FamilyContents,
+  type FamilyDetail,
+  formatSettlement,
+} from '@/entities/family';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Button, Card, Divider, Muted } from '@/shared/ui';
 import { confirm } from '@/shared/lib/confirm';
@@ -10,23 +15,30 @@ type Member = FamilyDetail['members'][number];
 /** 구성원 목록. 가족장만 남을 다룰 수 있고, 되돌리기 어려운 동작은 항상 확인을 받는다. */
 export function MembersCard({
   members,
+  familyName,
+  contents,
   iAmOwner,
   canLeave,
-  ownerMustHandOverFirst,
+  ownerExit,
   busy,
   onHandOver,
   onRemove,
   onLeave,
+  onDeleteFamily,
 }: {
   members: Member[];
+  familyName: string;
+  /** 없앨 때 사라지는 것의 수. 확인 다이얼로그가 세어 보여준다 (F-FAM-11) */
+  contents: FamilyContents | null;
   iAmOwner: boolean;
   canLeave: boolean;
-  /** 가족장인데 다른 구성원이 남아 있으면 먼저 넘겨야 나갈 수 있다 */
-  ownerMustHandOverFirst: boolean;
+  /** 가족장이 나가기 전에 할 일. 남은 사람이 있으면 넘기고, 나 혼자면 없앤다 (F-FAM-11) */
+  ownerExit: 'handover' | 'delete' | null;
   busy: boolean;
   onHandOver: (membershipId: string) => void;
   onRemove: (membershipId: string) => void;
   onLeave: () => void;
+  onDeleteFamily: () => void;
 }) {
   const styles = useStyles();
   const { space } = useTheme();
@@ -92,13 +104,34 @@ export function MembersCard({
       <Divider />
 
       {/*
-        가족장이 그냥 나가면 주인 없는 가족이 남는다. 서버가 막지만,
-        버튼을 눌러보고 나서 알게 되면 늦으므로 여기서 먼저 안내한다.
+        가족장은 그냥 못 나간다. 주인 없는 가족이 남기 때문인데, 남은 사람이 있고 없고에 따라
+        할 일이 다르다 — 있으면 넘기고, 나 혼자면 나가는 게 아니라 없애는 것이다 (F-FAM-11).
+        서버가 막지만 버튼을 눌러보고 나서 알게 되면 늦으므로 여기서 먼저 갈라 보여준다.
       */}
-      {ownerMustHandOverFirst ? (
+      {ownerExit === 'handover' ? (
         <Muted>
           가족장은 바로 나갈 수 없어요. 위에서 다른 구성원에게 가족장을 넘긴 뒤에 나갈 수 있어요.
         </Muted>
+      ) : ownerExit === 'delete' ? (
+        <View style={{ gap: space.sm }}>
+          <Muted>구성원이 나 혼자예요. 나가는 대신 가족을 없앨 수 있어요.</Muted>
+          <Button
+            label="가족 없애기"
+            variant="ghost"
+            disabled={busy}
+            onPress={() =>
+              confirm({
+                title: '가족 없애기',
+                // "정말 삭제하시겠습니까" 보다 세어 보여주는 쪽이 한 번 더 생각하게 만든다
+                // 가족 이름 뒤에 이/가 를 붙이지 않는다 — "김씨네가" 와 "우리집이" 로 갈린다
+                body: `${familyName} 가족이 사라지고 되돌릴 수 없어요.${contentsLine(contents)}\n초대코드도 못 쓰게 돼요.`,
+                confirmLabel: '없애기',
+                destructive: true,
+                onConfirm: onDeleteFamily,
+              })
+            }
+          />
+        </View>
       ) : (
         <Button
           label="가족에서 나가기"
