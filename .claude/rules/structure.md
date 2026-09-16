@@ -18,7 +18,8 @@ server/src/
 - **임포트 방향은 위에서 아래로만**: `routes → services → lib`.
   services가 routes를 임포트하거나, **라우트끼리 서로 임포트하는 것 금지.**
 - **`services/` 끼리 서로 임포트하는 것은 한 방향만.** 지금은 `entry → book`(제출하면 완성 판정을
-  다시 한다) · `family → book`(구성원이 바뀌면 정원이 바뀐다) 둘뿐이고 `book` 은 아무도 안 부른다.
+  다시 한다) · `family → book`(구성원이 바뀌면 정원이 바뀐다) · `settlement-reminder → push`(보낼 사람을
+  고른 뒤 전송만 맡긴다) 셋이고 `book` · `push` 는 다른 서비스를 안 부른다.
   **원이 생기면 둘 다가 쓰는 조각을 `lib/`로 내린다** — 서로 임포트하는 두 파일은 어느 쪽이 더 아래인지
   말할 수 없고, 나중에 누가 파일 맨 위에서 상대 함수를 쓰는 순간 "함수가 아니다"로 터진다.
 - **`lib/shared.ts`·`lib/messages.ts`는 순수해야 한다.** prisma·fastify를 임포트하지 않는다.

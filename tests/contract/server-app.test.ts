@@ -1,3 +1,6 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
 import { afterEach, describe, it, expect, vi } from 'vitest';
 
 import {
@@ -9,8 +12,11 @@ import {
   settlementOverspend as serverSettlementOverspend,
   shiftYearMonth as serverShiftYearMonth,
 } from '../../server/src/lib/shared.js';
+import { effectiveDay as serverEffectiveDay } from '../../server/src/lib/schedule.js';
 
 import { needsReason as appNeedsReason } from '../../mobile/src/entities/entry/model/reason';
+import { shortMonthHint as appShortMonthHint } from '../../mobile/src/entities/family/model/settlement';
+import { palettes } from '../../mobile/src/shared/config/theme';
 import { settlementDelta as appSettlementDelta } from '../../mobile/src/entities/entry/model/settlement';
 import { defaultSettles as appDefaultSettles } from '../../mobile/src/entities/fixed-expense/model/settles';
 import {
@@ -185,5 +191,38 @@ describe('결산 차액 — 서버가 남은 돈에서 빼는 금액과 앱이 �
       }),
     ).toBe(0);
     expect(appSettlementDelta(300000, 250000)).toEqual({ kind: 'under', amount: 50000 });
+  });
+});
+
+/**
+ * 정산일의 말일 보정(서버)과 "짧은 달엔 말일에" 안내(앱)가 같은 날짜부터 갈린다.
+ * 같은 함수는 아니지만 같은 규칙이다 — 서버가 규칙을 바꾸면 앱 안내만 조용히 틀려지는 모양이라 묶어둔다.
+ */
+describe('정산일 말일 보정 — 서버 규칙과 앱 안내 문턱이 같다', () => {
+  it('가장 짧은 달(28일)에서 날짜가 바뀌는 날에만 안내가 붙는다', () => {
+    for (let day = 1; day <= 31; day += 1) {
+      const clamped = serverEffectiveDay(day, 28) !== day;
+      expect(appShortMonthHint(day) !== null, `${day}일`).toBe(clamped);
+    }
+  });
+});
+
+/**
+ * 알림 아이콘 색은 app.json(네이티브 매니페스트)과 theme.ts 양쪽에 같은 값으로 산다.
+ * 매니페스트가 TS 토큰을 못 읽어 두 곳이 될 수밖에 없는데, 토큰만 바꾸면 알림 아이콘 색이
+ * 조용히 낡는다 — 그 갈라짐을 잡는 자동 장치가 이것 하나다. (app.config.js 주석 참조)
+ */
+describe('알림 아이콘 색 — app.json 과 theme 토큰이 같다', () => {
+  it('expo-notifications 플러그인의 color 가 light primary 다', async () => {
+    const appJson = JSON.parse(
+      await readFile(join(import.meta.dirname, '../../mobile/app.json'), 'utf8'),
+    ) as { expo: { plugins: (string | [string, { color?: string }])[] } };
+
+    const plugin = appJson.expo.plugins.find(
+      (entry): entry is [string, { color?: string }] =>
+        Array.isArray(entry) && entry[0] === 'expo-notifications',
+    );
+
+    expect(plugin?.[1].color).toBe(palettes.light.primary);
   });
 });

@@ -93,6 +93,9 @@ jobs:
       PORT: 4000
       HOST: 127.0.0.1
       PUBLIC_BASE_URL: http://localhost:4000
+      # 스모크는 /dev/reminders/run 으로 시각을 넣어 직접 돌린다. 진짜 스케줄러가 같이 돌면
+      # 말일에 CI 가 돌 때 exp.host 로 실제 요청이 나가고 settlementNotifiedFor 를 덮어 스모크가 흔들린다
+      REMINDERS_ENABLED: 'false'
 
     steps:
       - uses: actions/checkout@v5

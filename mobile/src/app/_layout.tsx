@@ -10,6 +10,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ThemeProvider, makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { ConfirmHost } from '@/shared/ui';
+import { useNotificationTap, usePushRegistration } from '@/features/push';
 import { useSession } from '@/entities/session';
 
 const queryClient = new QueryClient({
@@ -57,6 +58,10 @@ function AppShell() {
   useEffect(() => {
     void hydrate();
   }, [hydrate]);
+
+  // 알림 받을 기기 등록 — 권한이 이미 있을 때만 조용히 · 알림을 누르면 그 가족의 홈으로 (F-FAM-10)
+  usePushRegistration();
+  useNotificationTap();
 
   /**
    * 토큰이 "있다가 없어지면" 로그인 화면으로 보낸다. 로그아웃 버튼도, 서버의 401 도

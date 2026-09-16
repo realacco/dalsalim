@@ -1,4 +1,4 @@
-// 기능: F-FAM-02 F-FAM-06 F-FAM-07 F-FAM-08 F-FAM-09 F-SES-06
+// 기능: F-FAM-02 F-FAM-06 F-FAM-07 F-FAM-08 F-FAM-09 F-FAM-10 F-SES-06
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,6 +10,8 @@ import { confirm } from '@/shared/lib/confirm';
 import { useFamily } from './model/use-family';
 import { JoinRequestsCard } from './ui/join-requests-card';
 import { MembersCard } from './ui/members-card';
+import { SettlementCard } from './ui/settlement-card';
+import { SettlementSheet } from './ui/settlement-sheet';
 
 /**
  * 가족 화면 — 초대코드 · 참여 요청 · 구성원. 계정 쪽 일은 내 정보로 옮겼다 (F-SES-06).
@@ -80,6 +82,17 @@ export default function FamilyScreen() {
               ) : null}
             </Card>
 
+            <SettlementCard
+              settlement={f.mySettlement}
+              hint={f.settlementHint}
+              pushState={f.pushState}
+              error={f.settlementError}
+              busy={f.savingSettlement}
+              onEdit={f.openSettlement}
+              onClear={f.clearSettlement}
+              onEnablePush={f.enablePush}
+            />
+
             {f.iAmOwner && f.requests.length > 0 ? (
               <JoinRequestsCard
                 requests={f.requests}
@@ -102,6 +115,15 @@ export default function FamilyScreen() {
           </>
         ) : null}
       </ScrollView>
+
+      <SettlementSheet
+        draft={f.settlementDraft}
+        error={f.settlementError}
+        saving={f.savingSettlement}
+        onChange={f.editSettlement}
+        onSave={f.saveSettlement}
+        onClose={f.closeSettlement}
+      />
     </SafeAreaView>
   );
 }

@@ -1,9 +1,10 @@
-// 기능: F-FAM-01 F-FAM-02 F-FAM-06 F-FAM-07 F-FAM-08 F-FAM-09 F-FIX-05
+// 기능: F-FAM-01 F-FAM-02 F-FAM-06 F-FAM-07 F-FAM-08 F-FAM-09 F-FAM-10 F-FIX-05
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
 import { requireMembership, requireOwner, requireUser } from '../lib/auth.js';
-import { displayName } from '../lib/schemas.js';
+import { settlementOf } from '../lib/schedule.js';
+import { displayName, settlement } from '../lib/schemas.js';
 import { CATEGORIES } from '../lib/shared.js';
 import {
   createFamily,
@@ -12,6 +13,7 @@ import {
   renameMember,
   rotateInviteCode,
   transferOwnership,
+  updateMemberSettlement,
 } from '../services/family.js';
 
 /** 가족 · 초대코드 · 구성원. 참여 요청(대기 · 승인 · 거절)은 join-requests.ts 에 있다. */
@@ -44,6 +46,8 @@ export async function familyRoutes(app: FastifyInstance) {
         nickname: m.user.nickname,
         profileImageUrl: m.user.profileImageUrl,
         isMe: m.userId === user.id,
+        // 남의 정산일도 보인다 — 언제쯤 적을지 서로 아는 것이 이 값의 두 번째 쓸모다 (F-FAM-10)
+        settlement: settlementOf(m),
       })),
     };
   });
@@ -58,15 +62,30 @@ export async function familyRoutes(app: FastifyInstance) {
     return { family: { id: family.id, name: family.name, inviteCode: family.inviteCode } };
   });
 
-  /** 내 표시 이름 바꾸기 */
+  /** 내 표시 이름 (F-FAM-07) · 내 정산일 (F-FAM-10). 보낸 칸만 바꾼다 */
   app.patch('/families/:familyId/me', async (request) => {
     const user = await requireUser(request);
     const { familyId } = z.object({ familyId: z.string() }).parse(request.params);
-    const body = z.object({ displayName }).parse(request.body);
+    const body = z
+      .object({ displayName: displayName.optional(), settlement: settlement.optional() })
+      .refine((value) => value.displayName !== undefined || value.settlement !== undefined, {
+        error: '바꿀 것을 보내주세요.',
+      })
+      .parse(request.body);
     const mine = await requireMembership(user.id, familyId);
 
-    const updated = await renameMember(mine.id, body.displayName);
-    return { membership: { id: updated.id, displayName: updated.displayName } };
+    let updated = mine;
+    if (body.displayName !== undefined) updated = await renameMember(mine.id, body.displayName);
+    if (body.settlement !== undefined)
+      updated = await updateMemberSettlement(mine, body.settlement);
+    return {
+      membership: {
+        id: updated.id,
+        displayName: updated.displayName,
+        settlement: settlementOf(updated),
+        settlementNotifiedFor: updated.settlementNotifiedFor,
+      },
+    };
   });
 
   /** 가족에서 빼기 — 본인이면 나가기, OWNER 가 남을 지목하면 내보내기 */

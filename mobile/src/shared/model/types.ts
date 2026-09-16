@@ -33,6 +33,9 @@ export type MemberEntryStatus = EntryStatus | 'NONE';
 export type BookStatus = 'OPEN' | 'COMPLETE';
 export type Role = 'OWNER' | 'MEMBER';
 
+/** 정산일 알림 (F-FAM-10). 구성원의 것이라 가족 조회와 /me 양쪽 응답에 실린다. 한국 시간 */
+export type Settlement = { day: number; hour: number; minute: number };
+
 /** 수입 · 고정비 · 추가지출 · 지난달 더 쓴 것 · 남은 돈. 개인 단위와 가족 단위 양쪽에서 같은 모양을 쓴다. */
 export type EntrySummary = {
   /** 월급 + 기타 수입 */

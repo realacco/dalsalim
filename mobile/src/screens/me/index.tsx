@@ -73,6 +73,7 @@ export default function MeScreen() {
           <Button
             label="로그아웃"
             variant="ghost"
+            loading={m.signingOut}
             onPress={() =>
               confirm({
                 title: '로그아웃',

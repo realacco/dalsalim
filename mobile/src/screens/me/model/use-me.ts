@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useSession } from '@/entities/session';
+import { disablePushForThisDevice } from '@/features/push';
 import { MESSAGES } from '@/shared/config/messages';
 import { errorMessage, isSessionExpired } from '@/shared/lib/errors';
 
@@ -19,6 +20,7 @@ export function useMe() {
   const { me, familyId, refreshMe, selectFamily, signOut } = useSession();
 
   const [refreshing, setRefreshing] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   async function refresh() {
     setRefreshing(true);
@@ -72,7 +74,15 @@ export function useMe() {
     refreshing,
     refresh: () => void refresh(),
     switchFamily: (nextFamilyId: string) => void switchFamily(nextFamilyId),
-    // 토큰이 비면 앱 셸이 로그인으로 보낸다
-    signOut: () => void signOut(),
+    signingOut,
+    /*
+      토큰이 비면 앱 셸이 로그인으로 보낸다. 그 전에 이 기기의 알림 등록을 무른다 (F-FAM-10) —
+      안 무르면 로그아웃한 폰에 다음 정산일 알림이 그대로 온다.
+      무르기가 실패하거나 느려도 로그아웃은 한다 (finally). 그동안 버튼은 도는 중으로 보인다.
+    */
+    signOut: () => {
+      setSigningOut(true);
+      void disablePushForThisDevice().finally(signOut);
+    },
   };
 }

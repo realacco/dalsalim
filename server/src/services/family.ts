@@ -1,8 +1,9 @@
-// 기능: F-FAM-01 F-FAM-02 F-FAM-03 F-FAM-04 F-FAM-05 F-FAM-06 F-FAM-07 F-FAM-08 F-FAM-09
+// 기능: F-FAM-01 F-FAM-02 F-FAM-03 F-FAM-04 F-FAM-05 F-FAM-06 F-FAM-07 F-FAM-08 F-FAM-09 F-FAM-10
 import type { Membership } from '@prisma/client';
 
 import { prisma } from '../lib/db.js';
 import { fail } from '../lib/http.js';
+import { type Settlement, carriedNotifiedFor, localParts } from '../lib/schedule.js';
 import { ACTIVE_MEMBER, randomInviteCode } from '../lib/shared.js';
 import { refreshBookStatus } from './book.js';
 
@@ -160,6 +161,33 @@ export function renameMember(membershipId: string, displayName: string) {
 }
 
 /**
+ * 정산일 저장 (F-FAM-10). null 이면 안 받기.
+ * "이번 달에 보냈다" 표시를 어떻게 이어갈지는 lib/schedule 의 carriedNotifiedFor 가 정한다 —
+ * 판정 규칙은 그 파일 한 곳에만 둔다.
+ */
+export function updateMemberSettlement(
+  mine: Pick<Membership, 'id' | 'settlementNotifiedFor'>,
+  settlement: Settlement | null,
+) {
+  const fields = {
+    settlementDay: settlement?.day ?? null,
+    settlementHour: settlement?.hour ?? null,
+    settlementMinute: settlement?.minute ?? null,
+  };
+  return prisma.membership.update({
+    where: { id: mine.id },
+    data: {
+      ...fields,
+      settlementNotifiedFor: carriedNotifiedFor(
+        mine.settlementNotifiedFor,
+        fields,
+        localParts(new Date()),
+      ),
+    },
+  });
+}
+
+/**
  * 가족에서 빼기 — 본인이면 나가기, OWNER 가 남을 지목하면 내보내기.
  * 이게 없으면 안 쓰는 멤버 한 명이 장부를 영원히 막는다. 잘못 초대한 사람도 뺄 수 없다.
  */
@@ -191,6 +219,10 @@ export async function removeMember(familyId: string, mine: Membership, targetId:
  *
  * 뺀 뒤에는 그 가족의 장부 상태를 다시 계산해야 한다. 안 그러면 "완성"에 필요한
  * 인원수가 줄었는데도 장부가 계속 진행 중으로 남는다.
+ *
+ * 정산일(F-FAM-10)은 지우지 않는다. 재참여는 이 행이 PENDING 으로 돌아오는 것이라 승인되면 예전 정산일이
+ * 그대로 살아난다 — 잘못 내보냈다 되돌린 사람이 알림을 다시 켜야 한다면 그게 더 이상하다.
+ * LEFT 인 동안 안 가는 건 스케줄러의 ACTIVE_MEMBER 필터가 맡는다.
  */
 export async function deactivateMember(familyId: string, membershipId: string) {
   await prisma.membership.update({
