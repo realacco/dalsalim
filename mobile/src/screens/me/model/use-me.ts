@@ -82,7 +82,12 @@ export function useMe() {
     */
     signOut: () => {
       setSigningOut(true);
-      void disablePushForThisDevice().finally(signOut);
+      // catch 는 지금 도는 코드를 위한 게 아니다 — 무르기 안쪽은 이미 전부 삼킨다.
+      // finally 는 거부를 그대로 흘려보내서, 나중에 저 안에 안 감싼 await 하나가 들어오면
+      // 로그아웃 경로가 조용히 unhandled rejection 을 낸다. 호출부에서 닫아 둔다
+      void disablePushForThisDevice()
+        .finally(signOut)
+        .catch(() => {});
     },
   };
 }
