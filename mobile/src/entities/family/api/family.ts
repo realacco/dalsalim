@@ -100,6 +100,14 @@ export function removeMember(familyId: string, membershipId: string) {
   });
 }
 
+/**
+ * 가족 없애기 (F-FAM-11) — 구성원이 나 하나뿐인 가족장만.
+ * 여기서는 서버가 진짜로 지운다. 혼자인 가족의 기록은 전부 내 것이라 바뀔 남의 숫자가 없다.
+ */
+export function deleteFamily(familyId: string) {
+  return api<{ ok: true }>(`/families/${familyId}`, { method: 'DELETE' });
+}
+
 /** 가족장 넘기기. 넘긴 사람은 일반 멤버가 된다. */
 export function transferOwner(familyId: string, membershipId: string) {
   return api<{ ok: true; ownerMembershipId: string }>(`/families/${familyId}/transfer-owner`, {

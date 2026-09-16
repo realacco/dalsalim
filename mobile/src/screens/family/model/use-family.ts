@@ -8,6 +8,7 @@ import { bookKeys } from '@/entities/book';
 import {
   DEFAULT_SETTLEMENT,
   approveJoinRequest,
+  deleteFamily,
   familyKeys,
   fetchFamily,
   fetchJoinRequests,
@@ -114,20 +115,32 @@ export function useFamily() {
     onError: failed,
   });
 
-  /** 나가면 이 가족의 화면에 더 있을 이유가 없다. 다른 가족이 있으면 그쪽으로, 없으면 처음으로. */
+  /** 이 가족을 떠난 뒤 갈 곳. 다른 가족이 있으면 그쪽으로, 없으면 처음으로. 나가기와 없애기가 같다 */
+  async function afterLeavingFamily() {
+    queryClient.clear();
+    const next = await refreshMe();
+    const other = next?.memberships[0];
+    if (other) {
+      await selectFamily(other.family.id);
+      router.replace('/(tabs)');
+    } else {
+      router.replace('/onboarding');
+    }
+  }
+
   const leave = useMutation({
     mutationFn: (membershipId: string) => removeMember(familyId as string, membershipId),
-    onSuccess: async () => {
-      queryClient.clear();
-      const next = await refreshMe();
-      const other = next?.memberships[0];
-      if (other) {
-        await selectFamily(other.family.id);
-        router.replace('/(tabs)');
-      } else {
-        router.replace('/onboarding');
-      }
-    },
+    onSuccess: afterLeavingFamily,
+    onError: failed,
+  });
+
+  /**
+   * 가족 없애기 (F-FAM-11) — 구성원이 나 하나뿐일 때만 버튼이 보인다.
+   * 혼자인 가족장은 나갈 수가 없다. 나가면 초대코드만 살아 있는 가족이 남기 때문이다.
+   */
+  const removeFamily = useMutation({
+    mutationFn: () => deleteFamily(familyId as string),
+    onSuccess: afterLeavingFamily,
     onError: failed,
   });
 
@@ -162,6 +175,11 @@ export function useFamily() {
     myMembership,
     iAmOwner,
     others,
+    /**
+     * 가족장이 나가려면 먼저 할 일이 있다 — 남은 사람이 있으면 넘기고, 나 혼자면 없앤다 (F-FAM-11).
+     * 배타적인 두 갈래라 boolean 둘로 내려보내면 어긋날 수 있어 하나로 정한다.
+     */
+    ownerExit: iAmOwner ? (others.length > 0 ? ('handover' as const) : ('delete' as const)) : null,
     requests: joinRequests.data ?? [],
 
     isLoading: detail.isLoading,
@@ -178,6 +196,7 @@ export function useFamily() {
       remove.isPending ||
       handOver.isPending ||
       leave.isPending ||
+      removeFamily.isPending ||
       approve.isPending ||
       reject.isPending,
     rotating: rotate.isPending,
@@ -190,6 +209,9 @@ export function useFamily() {
     handOver: (membershipId: string) => handOver.mutate(membershipId),
     remove: (membershipId: string) => remove.mutate(membershipId),
     leave: () => myMembership && leave.mutate(myMembership.id),
+    deleteFamily: () => removeFamily.mutate(),
+    contents: detail.data?.contents ?? null,
+
     // 정산일 (F-FAM-10)
     mySettlement: myMembership?.settlement ?? null,
     settlementHint: passedMonthHint(mySession?.settlementNotifiedFor ?? null, currentYearMonth()),

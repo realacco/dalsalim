@@ -1,4 +1,4 @@
-// 기능: F-FAM-01 F-FAM-02 F-FAM-06 F-FAM-07 F-FAM-08 F-FAM-09 F-FAM-10 F-FIX-05
+// 기능: F-FAM-01 F-FAM-02 F-FAM-06 F-FAM-07 F-FAM-08 F-FAM-09 F-FAM-10 F-FAM-11 F-FIX-05
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
@@ -7,7 +7,9 @@ import { settlementOf } from '../lib/schedule.js';
 import { displayName, settlement } from '../lib/schemas.js';
 import { CATEGORIES } from '../lib/shared.js';
 import {
+  countFamilyContents,
   createFamily,
+  deleteFamily,
   getFamilyWithMembers,
   removeMember,
   renameMember,
@@ -35,9 +37,15 @@ export async function familyRoutes(app: FastifyInstance) {
     const { familyId } = z.object({ familyId: z.string() }).parse(request.params);
     const mine = await requireMembership(user.id, familyId);
 
-    const family = await getFamilyWithMembers(familyId);
+    const [family, contents] = await Promise.all([
+      getFamilyWithMembers(familyId),
+      // 없애기 확인 다이얼로그가 읽는다 (F-FAM-11). 가족장이 아니어도 실어 보낸다 —
+      // 응답 모양이 사람마다 달라지면 앱이 그때그때 다른 타입을 다뤄야 한다
+      countFamilyContents(familyId),
+    ]);
     return {
       family: { id: family.id, name: family.name, inviteCode: family.inviteCode },
+      contents,
       myMembershipId: mine.id,
       members: family.memberships.map((m) => ({
         id: m.id,
@@ -109,5 +117,18 @@ export async function familyRoutes(app: FastifyInstance) {
 
     const target = await transferOwnership(familyId, mine, body.membershipId);
     return { ok: true, ownerMembershipId: target.id };
+  });
+
+  /**
+   * 가족 없애기 (F-FAM-11) — 혼자 남은 가족장만. 구성원이 남아 있으면 서비스가 막는다.
+   * 리소스가 없어지는 동작이라 { ok: true } 다. 이어서 쓸 id 도 없다 — 가족 자체가 사라진다.
+   */
+  app.delete('/families/:familyId', async (request) => {
+    const user = await requireUser(request);
+    const { familyId } = z.object({ familyId: z.string() }).parse(request.params);
+    const mine = await requireOwner(user.id, familyId);
+
+    await deleteFamily(familyId, mine.id);
+    return { ok: true };
   });
 }

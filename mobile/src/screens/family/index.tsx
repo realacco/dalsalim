@@ -1,4 +1,4 @@
-// 기능: F-FAM-02 F-FAM-06 F-FAM-07 F-FAM-08 F-FAM-09 F-FAM-10 F-SES-06
+// 기능: F-FAM-02 F-FAM-06 F-FAM-07 F-FAM-08 F-FAM-09 F-FAM-10 F-FAM-11 F-SES-06
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -105,12 +105,15 @@ export default function FamilyScreen() {
             <MembersCard
               members={f.members}
               iAmOwner={f.iAmOwner}
+              familyName={f.family.name}
+              contents={f.contents}
               canLeave={Boolean(f.myMembership)}
-              ownerMustHandOverFirst={f.iAmOwner && f.others.length > 0}
+              ownerExit={f.ownerExit}
               busy={f.busy}
               onHandOver={f.handOver}
               onRemove={f.remove}
               onLeave={f.leave}
+              onDeleteFamily={f.deleteFamily}
             />
           </>
         ) : null}
