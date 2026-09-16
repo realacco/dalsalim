@@ -20,10 +20,10 @@ import {
   passedMonthHint,
 } from '@/entities/family';
 import { useSession } from '@/entities/session';
-import { disablePushForThisDevice, enablePushForThisDevice, usePushStore } from '@/features/push';
+import { enablePushForThisDevice, usePushStore } from '@/features/push';
 import type { Settlement } from '@/shared/model/types';
 import { MESSAGES } from '@/shared/config/messages';
-import { errorMessage } from '@/shared/lib/errors';
+import { errorMessage, isSessionExpired } from '@/shared/lib/errors';
 import { currentYearMonth } from '@/shared/lib/format';
 
 /**
@@ -35,14 +35,14 @@ import { currentYearMonth } from '@/shared/lib/format';
 export function useFamily() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { me, familyId, signOut, refreshMe, selectFamily } = useSession();
+  // me 는 정산일 힌트(F-FAM-10)가 쓴다 — 계정 카드가 내 정보로 간 뒤에도 남는 이유다
+  const { me, familyId, refreshMe, selectFamily } = useSession();
 
   const [copied, setCopied] = useState(false);
 
   /** 정산일 시트. draft 가 있으면 열려 있다 (F-FAM-10) */
   const [settlementDraft, setSettlementDraft] = useState<Settlement | null>(null);
   const [settlementError, setSettlementError] = useState<string | null>(null);
-  const [signingOut, setSigningOut] = useState(false);
   /** 앱 전체의 값 — 앱을 켤 때의 조용한 재등록 결과도 여기로 온다 */
   const pushState = usePushStore((state) => state.state);
 
@@ -69,8 +69,10 @@ export function useFamily() {
     enabled: Boolean(familyId) && iAmOwner,
   });
 
-  const failed = (caught: unknown) =>
+  const failed = (caught: unknown) => {
+    if (isSessionExpired(caught)) return;
     Alert.alert(MESSAGES.actionFailed, errorMessage(caught, MESSAGES.actionFailedBody));
+  };
 
   /** 구성원이 바뀌면 장부의 완성 판정도 바뀐다. 가족·요청·장부 캐시를 같이 비운다. */
   function refetchAll() {
@@ -167,14 +169,7 @@ export function useFamily() {
     setTimeout(() => setCopied(false), 1600);
   }
 
-  function switchFamily(nextFamilyId: string) {
-    void selectFamily(nextFamilyId);
-    void queryClient.invalidateQueries();
-  }
-
   return {
-    me,
-    familyId,
     family: detail.data?.family ?? null,
     members,
     myMembership,
@@ -216,14 +211,6 @@ export function useFamily() {
     leave: () => myMembership && leave.mutate(myMembership.id),
     deleteFamily: () => removeFamily.mutate(),
     contents: detail.data?.contents ?? null,
-    switchFamily,
-    // 토큰이 비면 앱 셸이 로그인으로 보낸다. 그 전에 이 기기의 알림 등록을 무른다 (F-FAM-10).
-    // 무르기가 실패하거나 느려도 로그아웃은 한다 — finally. 그동안 버튼은 도는 중으로 보인다
-    signingOut,
-    signOut: () => {
-      setSigningOut(true);
-      void disablePushForThisDevice().finally(signOut);
-    },
 
     // 정산일 (F-FAM-10)
     mySettlement: myMembership?.settlement ?? null,

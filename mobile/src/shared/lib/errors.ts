@@ -14,3 +14,15 @@ export function errorMessage(caught: unknown, fallback: string): string {
   if (caught instanceof ApiError && caught.message.trim()) return caught.message;
   return fallback;
 }
+
+/**
+ * 세션이 끊겨서 실패한 것인가.
+ *
+ * 401 은 화면이 처리하지 않는다 (CLAUDE.md 실패 표현 표) — api() 가 세션을 비우고
+ * 앱 셸이 로그인으로 보낸다. 그런데 던지기는 그대로 던지므로, 동작 실패를 Alert 으로
+ * 받는 자리는 로그인 화면 위에 "안 됐어요" 를 한 번 더 띄우게 된다.
+ * 그 자리에서 이걸로 걸러 조용히 넘긴다.
+ */
+export function isSessionExpired(caught: unknown): boolean {
+  return caught instanceof ApiError && caught.status === 401;
+}
