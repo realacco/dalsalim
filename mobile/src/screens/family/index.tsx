@@ -12,7 +12,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
-import { Button, Card, Loading, Muted, QueryError } from '@/shared/ui';
+import { Button, Card, Loading, Muted, PressableScale, QueryError } from '@/shared/ui';
 import { confirm } from '@/shared/lib/confirm';
 
 import { useFamily } from './model/use-family';
@@ -61,10 +61,20 @@ export default function FamilyScreen() {
             <Text style={styles.title} numberOfLines={1}>
               {f.family?.name ?? '가족'}
             </Text>
-            {/* 탭을 늘리지 않는다 — 계정 쪽 일은 한 달에 몇 번이라 헤더에 한 줄이면 된다 */}
-            <Pressable onPress={() => router.push('/me')} hitSlop={12} style={styles.myPageTap}>
+            {/*
+              탭을 늘리지 않는다 — 계정 쪽 일은 한 달에 몇 번이라 헤더에 하나면 된다.
+              다만 색 글자 한 줄은 버튼으로 안 읽혀 찾게 된다 (실사용 후기 2026-09-17) — 바탕을 깐 알약으로 둔다
+            */}
+            <PressableScale
+              onPress={() => router.push('/me')}
+              hitSlop={8}
+              small
+              accessibilityRole="button"
+              containerStyle={styles.myPageWrap}
+              style={styles.myPageTap}
+            >
               <Text style={styles.myPage}>내 정보</Text>
-            </Pressable>
+            </PressableScale>
           </View>
 
           {f.isLoading ? <Loading /> : null}
@@ -178,8 +188,15 @@ const useStyles = makeStyles((t) => ({
     paddingHorizontal: t.space.xs,
   },
   title: { ...t.font.title, fontWeight: t.weight.heavy, color: t.colors.ink, flexShrink: 1 },
-  myPageTap: { flexShrink: 0 },
-  myPage: { ...t.font.body, fontWeight: t.weight.semibold, color: t.colors.primary },
+  // 줄어들지 않는 쪽은 바깥 컨테이너다 — PressableScale 은 레이아웃을 containerStyle 로 받는다
+  myPageWrap: { flexShrink: 0 },
+  myPageTap: {
+    backgroundColor: t.colors.primarySoft,
+    borderRadius: t.radius.pill,
+    paddingHorizontal: t.space.lg,
+    paddingVertical: t.space.sm,
+  },
+  myPage: { ...t.font.body, fontWeight: t.weight.bold, color: t.colors.primary },
   cardTitle: { ...t.font.bodyLg, fontWeight: t.weight.bold, color: t.colors.ink },
 
   codeBox: {
