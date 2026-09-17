@@ -64,8 +64,9 @@ describe('★ F-SES-04 signOut — 저장소가 말을 안 들어도 나간다',
 });
 
 /*
-  hydrate 의 유일한 계약은 「어떤 길로 들어와도 ready 로 끝난다」다. ready 가 false 로 남으면
+  hydrate 의 계약은 「보안 저장소가 던지거나 멈춰도 ready 로 끝난다」다. ready 가 false 로 남으면
   게이트가 로딩에서 못 나오고, 앱을 껐다 켜도 같은 저장소를 또 읽어 그대로 멈춘다 (#54).
+  /me 가 네트워크에서 멈추는 경우는 여기서 보장하지 않는다 (#67).
 */
 describe('★ F-SES-03 hydrate — 저장소가 말을 안 들어도 ready 로 끝난다', () => {
   const me: Me = {
@@ -129,6 +130,8 @@ describe('★ F-SES-03 hydrate — 저장소가 말을 안 들어도 ready 로 �
       await pending;
 
       expect(useSession.getState()).toMatchObject({ ready: true, token: null, me: null });
+      // 느렸을 뿐인 한 번의 실행이 로그인을 영구히 풀면 안 된다 — 토큰은 다음 실행에서 다시 읽힌다
+      expect(vi.mocked(SecureStore.deleteItemAsync)).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
     }
