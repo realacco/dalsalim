@@ -1,4 +1,5 @@
 // 기능: F-FAM-10
+import { useEffect } from 'react';
 import { isRunningInExpoGo } from 'expo';
 
 import { type PushState, usePushStore } from './model/push-store';
@@ -30,8 +31,18 @@ const registration: Registration | null = isRunningInExpoGo()
 
 const noop = () => {};
 
+/**
+ * Expo Go 에서도 앱을 켤 때 한 번은 상태를 적는다 — 안 적으면 `null` 로 남아서, 이미 정산일을 정해둔
+ * 사람의 카드가 「이날 이 시각에 알려드려요」 만 보여준다. 이 기기에서는 안 오는데도.
+ */
+function useUnavailableHere() {
+  useEffect(() => {
+    usePushStore.getState().setState('unavailable');
+  }, []);
+}
+
 export const usePushRegistration: Registration['usePushRegistration'] =
-  registration?.usePushRegistration ?? noop;
+  registration?.usePushRegistration ?? useUnavailableHere;
 
 export const useNotificationTap: Registration['useNotificationTap'] =
   registration?.useNotificationTap ?? noop;
