@@ -906,7 +906,82 @@ async function main() {
     ) === true,
   );
 
+  /*
+    ★ 「딸린 것」은 기록만이 아니다 — 고정비 항목도 Membership 에 매달려 있다.
+    고정비만 등록하고 위저드는 한 번도 안 연 사람이 거절당하면, 행을 지우는 순간
+    Cascade 가 그 항목까지 가져간다. 숫자는 안 바뀌지만(그 사람 EntryLine 이 없다)
+    「돌아오려다 만 사람 것을 안 지운다」는 이 절의 취지에 어긋난다.
+
+    다시 승인받았을 때 항목이 그대로 있는지로 본다 — 고정비 목록은 ACTIVE 만 보여주므로
+    그 길이 아니면 밖에서 관측할 수가 없다.
+  */
+  const fixedOnlyToken = await login('스모크되돌이둘');
+  const fixedOnlyJoin = async () => {
+    await call('POST', '/families/join', {
+      token: fixedOnlyToken,
+      body: { inviteCode: backInviteCode, displayName: '되돌이둘' },
+    });
+    const list = await call('GET', `/families/${backFamilyId}/join-requests`, {
+      token: backOwnerToken,
+    });
+    return list.body.requests?.find((r) => r.displayName === '되돌이둘')?.id;
+  };
+
+  await call('POST', `/families/${backFamilyId}/join-requests/${await fixedOnlyJoin()}/approve`, {
+    token: backOwnerToken,
+  });
+
+  // 기록(my-entry)은 한 번도 안 연다. 고정비 항목만 하나 만든다
+  const fixedOnlyMembershipId = (
+    await call('GET', `/families/${backFamilyId}/fixed-expenses`, { token: fixedOnlyToken })
+  ).body.groups?.find((g) => g.displayName === '되돌이둘')?.membershipId;
+  const madeFixed = await call('POST', `/families/${backFamilyId}/fixed-expenses`, {
+    token: fixedOnlyToken,
+    body: {
+      membershipId: fixedOnlyMembershipId,
+      name: '되돌이 통신비',
+      category: '통신',
+      defaultAmount: 40_000,
+    },
+  });
+  check(
+    'F-FAM-05 (준비) 고정비만 등록한다 — 위저드는 안 연다',
+    madeFixed.status === 200,
+    madeFixed.body,
+  );
+
+  const fixedOnlyRow = (
+    await call('GET', `/families/${backFamilyId}`, { token: backOwnerToken })
+  ).body.members?.find((m) => m.displayName === '되돌이둘');
+  await call('DELETE', `/families/${backFamilyId}/members/${fixedOnlyRow?.id}`, {
+    token: backOwnerToken,
+  });
+
+  const fixedOnlyRejoinId = await fixedOnlyJoin();
+  await call('POST', `/families/${backFamilyId}/join-requests/${fixedOnlyRejoinId}/reject`, {
+    token: backOwnerToken,
+  });
+
+  // 다시 요청해 승인까지 가서, 그 항목이 살아 있는지 본다
+  await call('POST', `/families/${backFamilyId}/join-requests/${await fixedOnlyJoin()}/approve`, {
+    token: backOwnerToken,
+  });
+  const fixedAfterReject = (
+    await call('GET', `/families/${backFamilyId}/fixed-expenses`, { token: fixedOnlyToken })
+  ).body.groups?.find((g) => g.displayName === '되돌이둘')?.items;
+  check(
+    '★ F-FAM-05 거절해도 그 사람의 고정비 항목이 안 지워진다 (하드룰 6)',
+    fixedAfterReject?.some((f) => f.name === '되돌이 통신비') === true,
+    fixedAfterReject?.map((f) => f.name),
+  );
+
   // 다음 실행을 위해 치운다. 나간 사람은 정원에 안 들므로 혼자인 가족장으로서 없앨 수 있다
+  const fixedOnlyBack = (
+    await call('GET', `/families/${backFamilyId}`, { token: backOwnerToken })
+  ).body.members?.find((m) => m.displayName === '되돌이둘');
+  await call('DELETE', `/families/${backFamilyId}/members/${fixedOnlyBack?.id}`, {
+    token: backOwnerToken,
+  });
   await call('DELETE', `/families/${backFamilyId}`, { token: backOwnerToken });
 
   console.log('\n[초대코드 재발급]');
