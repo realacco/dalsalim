@@ -865,6 +865,43 @@ async function main() {
     { before: backBefore.totals?.income, after: backAfterLeave.totals?.income },
   );
 
+  /*
+    ★ 숫자만이 아니라 이름도 — 지난 달 요약의 사람별 이름은 멤버십의 표시 이름을 실시간으로 읽는다.
+    재참여 요청이 그 이름을 덮으면, 승인도 안 된 요청 하나로 남이 보는 지난 달 화면이 바뀌고
+    거절돼도 안 돌아온다. 요청에 적은 새 이름은 승인될 때만 표시 이름이 된다.
+  */
+  const namesIn = (summary) => summary.perMember?.map((m) => m.displayName) ?? [];
+  const renamedId = await joinAndGetRequestId(backMemberToken, '되돌이새이름');
+  check(
+    'F-FAM-03 재참여 요청의 가족장 목록에는 새로 적은 이름이 보인다',
+    Boolean(renamedId),
+    renamedId,
+  );
+  const whileRenamedPending = (await call('GET', backSummaryPath, { token: backOwnerToken })).body;
+  check(
+    '★ F-FAM-03 재참여 요청만으로는 지난 달 요약의 표시 이름이 안 바뀐다',
+    namesIn(whileRenamedPending).includes('되돌이원') &&
+      !namesIn(whileRenamedPending).includes('되돌이새이름'),
+    namesIn(whileRenamedPending),
+  );
+  const renamedReject = await call(
+    'POST',
+    `/families/${backFamilyId}/join-requests/${renamedId}/reject`,
+    { token: backOwnerToken },
+  );
+  check(
+    'F-FAM-05 (준비) 새 이름으로 온 재참여 요청을 거절한다',
+    renamedReject.status === 200,
+    renamedReject.body,
+  );
+  const afterRenamedReject = (await call('GET', backSummaryPath, { token: backOwnerToken })).body;
+  check(
+    '★ F-FAM-05 새 이름으로 온 재참여를 거절해도 지난 달 요약의 표시 이름이 그대로다',
+    namesIn(afterRenamedReject).includes('되돌이원') &&
+      !namesIn(afterRenamedReject).includes('되돌이새이름'),
+    namesIn(afterRenamedReject),
+  );
+
   // ★ 이 절의 핵심 — 되살아난 행에는 지난 제출본이 달려 있다. 거절이 그걸 지우면 안 된다
   const rejoinId = await joinAndGetRequestId(backMemberToken, '되돌이원');
   check('F-FAM-05 (준비) 나갔던 사람이 다시 요청한다', Boolean(rejoinId), rejoinId);
@@ -913,6 +950,27 @@ async function main() {
     'F-FAM-04 무른 요청은 내 대기 목록에서 사라진다',
     pendingAfterCancel?.every((r) => r.family?.id !== backFamilyId) === true,
     pendingAfterCancel?.map((r) => r.family?.id),
+  );
+
+  // 승인되면 그때 새 이름이 표시 이름이 된다 — 그 뒤로는 F-FAM-07 처럼 지난 달에도 새 이름이 보인다
+  const approveRenamed = await call(
+    'POST',
+    `/families/${backFamilyId}/join-requests/${await joinAndGetRequestId(backMemberToken, '되돌이새이름')}/approve`,
+    { token: backOwnerToken },
+  );
+  check(
+    'F-FAM-05 (준비) 새 이름으로 온 재참여를 승인한다',
+    approveRenamed.status === 200,
+    approveRenamed.body,
+  );
+  const membersAfterRenamedApprove = (
+    await call('GET', `/families/${backFamilyId}`, { token: backOwnerToken })
+  ).body.members?.map((m) => m.displayName);
+  check(
+    '★ F-FAM-05 재참여가 승인되면 요청에 적은 이름이 표시 이름이 된다',
+    membersAfterRenamedApprove?.includes('되돌이새이름') === true &&
+      membersAfterRenamedApprove?.includes('되돌이원') === false,
+    membersAfterRenamedApprove,
   );
 
   /*

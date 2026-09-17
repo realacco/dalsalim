@@ -39,13 +39,13 @@ model Family {
 }
 
 model Membership {
-  id          String    @id @default(cuid())
-  familyId    String
-  userId      String
-  displayName String // 가족 안에서 불리는 이름 ("아빠")
-  role        String // OWNER | MEMBER
-  sortOrder   Int       @default(0)
-  joinedAt    DateTime  @default(now())
+  id                   String    @id @default(cuid())
+  familyId             String
+  userId               String
+  displayName          String // 가족 안에서 불리는 이름 ("아빠")
+  role                 String // OWNER | MEMBER
+  sortOrder            Int       @default(0)
+  joinedAt             DateTime  @default(now())
   /// PENDING | ACTIVE | LEFT
   ///
   ///  - PENDING: 초대코드를 넣었지만 가족장이 아직 승인하지 않은 사람.
@@ -53,10 +53,14 @@ model Membership {
   ///  - ACTIVE: 구성원.
   ///  - LEFT: 나갔거나 내보내진 사람. 실제로 지우지 않는 이유는 MemberEntry 가 Cascade 로
   ///    딸려 나가 과거 장부의 합계가 바뀌기 때문이다. 지난 기록은 그대로 두고 앞으로만 빼낸다.
-  status      String    @default("ACTIVE")
+  status               String    @default("ACTIVE")
   /// 참여를 요청한 시각. 가족장에게 "언제 요청했는지"를 보여준다.
-  requestedAt DateTime?
-  leftAt      DateTime?
+  requestedAt          DateTime?
+  /// 재참여 요청에 적은 표시 이름. **승인될 때 displayName 으로 옮기고 비운다** (F-FAM-03 · F-FAM-05).
+  /// 되살아난 행의 displayName 을 요청 시점에 덮으면, 그 이름을 실시간으로 읽는 지난 달 요약이
+  /// 승인도 안 된 요청 하나로 바뀌고 거절돼도 안 돌아온다. 처음 들어오는 사람은 지난 달이 없어 안 쓴다.
+  requestedDisplayName String?
+  leftAt               DateTime?
 
   /// 정산일 알림 (F-FAM-10). 날짜 1~31 · 시 0~23 · 분 0~59, 한국 시간. 셋 다 null 이면 안 받는다.
   /// 구성원의 것이지 사용자의 것이 아니다 — 가족마다 정산일이 다를 수 있고, 가족 탭이 남의 것도 보여준다.
