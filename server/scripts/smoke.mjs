@@ -899,11 +899,12 @@ async function main() {
     afterCancel.totals?.income === backBefore.totals?.income,
     { before: backBefore.totals?.income, after: afterCancel.totals?.income },
   );
+  const pendingAfterCancel = (await call('GET', '/families/pending', { token: backMemberToken }))
+    .body.requests;
   check(
     'F-FAM-04 무른 요청은 내 대기 목록에서 사라진다',
-    (await call('GET', '/families/pending', { token: backMemberToken })).body.requests?.every(
-      (r) => r.family?.id !== backFamilyId,
-    ) === true,
+    pendingAfterCancel?.every((r) => r.family?.id !== backFamilyId) === true,
+    pendingAfterCancel?.map((r) => r.family?.id),
   );
 
   /*
@@ -957,15 +958,33 @@ async function main() {
     token: backOwnerToken,
   });
 
-  const fixedOnlyRejoinId = await fixedOnlyJoin();
-  await call('POST', `/families/${backFamilyId}/join-requests/${fixedOnlyRejoinId}/reject`, {
-    token: backOwnerToken,
-  });
+  /*
+    ⚠️ 거절·승인 응답을 **반드시 본다.** 안 보면 거절이 실패해도(id 가 undefined 거나
+    REQUEST_NOT_FOUND) 행이 PENDING 으로 남고, 뒤의 재요청이 아직 살아 있는 그 id 를
+    그대로 집어 승인까지 통과한다 — **거절을 한 번도 안 거친 채 초록이 된다.**
+  */
+  const fixedOnlyReject = await call(
+    'POST',
+    `/families/${backFamilyId}/join-requests/${await fixedOnlyJoin()}/reject`,
+    { token: backOwnerToken },
+  );
+  check(
+    'F-FAM-05 (준비) 고정비만 있는 사람의 재참여를 거절한다',
+    fixedOnlyReject.status === 200,
+    fixedOnlyReject.body,
+  );
 
   // 다시 요청해 승인까지 가서, 그 항목이 살아 있는지 본다
-  await call('POST', `/families/${backFamilyId}/join-requests/${await fixedOnlyJoin()}/approve`, {
-    token: backOwnerToken,
-  });
+  const fixedOnlyApprove = await call(
+    'POST',
+    `/families/${backFamilyId}/join-requests/${await fixedOnlyJoin()}/approve`,
+    { token: backOwnerToken },
+  );
+  check(
+    'F-FAM-05 (준비) 거절당한 뒤 다시 승인받는다',
+    fixedOnlyApprove.status === 200,
+    fixedOnlyApprove.body,
+  );
   const fixedAfterReject = (
     await call('GET', `/families/${backFamilyId}/fixed-expenses`, { token: fixedOnlyToken })
   ).body.groups?.find((g) => g.displayName === '되돌이둘')?.items;
@@ -1015,12 +1034,28 @@ async function main() {
     token: backOwnerToken,
   });
 
-  await call('POST', `/families/${backFamilyId}/join-requests/${await clockOnlyJoin()}/reject`, {
-    token: backOwnerToken,
-  });
-  await call('POST', `/families/${backFamilyId}/join-requests/${await clockOnlyJoin()}/approve`, {
-    token: backOwnerToken,
-  });
+  // 위와 같은 이유로 둘 다 응답을 본다
+  const clockOnlyReject = await call(
+    'POST',
+    `/families/${backFamilyId}/join-requests/${await clockOnlyJoin()}/reject`,
+    { token: backOwnerToken },
+  );
+  check(
+    'F-FAM-05 (준비) 정산일만 켠 사람의 재참여를 거절한다',
+    clockOnlyReject.status === 200,
+    clockOnlyReject.body,
+  );
+
+  const clockOnlyApprove = await call(
+    'POST',
+    `/families/${backFamilyId}/join-requests/${await clockOnlyJoin()}/approve`,
+    { token: backOwnerToken },
+  );
+  check(
+    'F-FAM-05 (준비) 거절당한 뒤 다시 승인받는다 — 정산일 쪽',
+    clockOnlyApprove.status === 200,
+    clockOnlyApprove.body,
+  );
 
   const clockAfterReject = (
     await call('GET', `/families/${backFamilyId}`, { token: backOwnerToken })
