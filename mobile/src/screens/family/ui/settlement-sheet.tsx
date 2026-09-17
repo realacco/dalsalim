@@ -3,20 +3,21 @@ import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-ha
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
-  SETTLEMENT_DAYS,
-  SETTLEMENT_HOURS,
-  SETTLEMENT_MINUTES,
-  formatHour,
+  SETTLEMENT_DAY_ROWS,
+  SETTLEMENT_TIME_PRESETS,
+  formatPreset,
   formatSettlement,
+  formatTime,
   shortMonthHint,
+  stepTime,
 } from '@/entities/family';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import type { Settlement } from '@/shared/model/types';
-import { Button, Chip, ErrorText, Muted, useSheetDrag } from '@/shared/ui';
+import { Button, Chip, ErrorText, Muted, PressableScale, useSheetDrag } from '@/shared/ui';
 
 /**
  * 정산일을 고르는 아래 시트. draft 가 없으면 닫혀 있다.
- * 입력창이 없어 키보드 회피는 없다 — 칩만 누른다. (고정비 시트보다 가볍게 둔 이유)
+ * 입력창이 없어 키보드 회피는 없다 — 격자 칸 · 칩 · −/+ 만 누른다. (고정비 시트보다 가볍게 둔 이유)
  *
  * 끌어내려 닫는 것은 고정비·계산기 시트와 **같은 배관**(`useSheetDrag`)을 쓴다.
  * 알약은 이 앱에서 손잡이라, 다른 시트는 끌리는데 여기만 안 끌리면 고장으로 읽힌다.
@@ -60,7 +61,11 @@ export function SettlementSheet({
                 <Text style={styles.title}>정산일</Text>
               </View>
             </GestureDetector>
-            {/* 칩이 쉰 개 남짓이라 큰 글자 설정에서는 화면을 넘는다 — 뚜껑을 두고 안에서 스크롤 (저장 버튼이 잘리면 기능이 막힌다) */}
+            {/*
+              큰 글자 설정에서는 화면을 넘을 수 있다 — 뚜껑을 두고 안에서 스크롤 (저장 버튼이 잘리면 기능이 막힌다).
+              칩 57개를 깔던 때(날짜 31 · 시 24 · 분 2)는 기본 글자에서도 넘쳤다 — 그게 「고르는 데 손이 많이 간다」
+              의 절반이었다 (실사용 후기 2026-09-17)
+            */}
             {draft ? (
               /*
                 좌우·아래 여백은 시트가 아니라 contentContainerStyle 에 준다. 시트에 패딩을 주면
@@ -77,38 +82,70 @@ export function SettlementSheet({
                 {hint ? <Muted>{hint}</Muted> : null}
 
                 <Text style={styles.label}>날짜</Text>
-                <View style={styles.wrap}>
-                  {SETTLEMENT_DAYS.map((day) => (
-                    <Chip
-                      key={day}
-                      label={`${day}`}
-                      selected={draft.day === day}
-                      onPress={() => onChange({ day })}
-                    />
+                <View style={styles.grid}>
+                  {SETTLEMENT_DAY_ROWS.map((row, index) => (
+                    <View key={index} style={styles.gridRow}>
+                      {row.map((day, col) =>
+                        day === null ? (
+                          <View key={`empty-${col}`} style={styles.cellSlot} />
+                        ) : (
+                          <PressableScale
+                            key={day}
+                            small
+                            accessibilityRole="button"
+                            accessibilityLabel={`${day}일`}
+                            accessibilityState={{ selected: draft.day === day }}
+                            onPress={() => onChange({ day })}
+                            containerStyle={styles.cellSlot}
+                            style={[styles.cell, draft.day === day && styles.cellSelected]}
+                          >
+                            <Text
+                              style={[
+                                styles.cellLabel,
+                                draft.day === day && styles.cellLabelSelected,
+                              ]}
+                            >
+                              {day}
+                            </Text>
+                          </PressableScale>
+                        ),
+                      )}
+                    </View>
                   ))}
                 </View>
 
                 <Text style={styles.label}>시각</Text>
-                {/* 가로 스크롤이면 골라둔 칩이 화면 밖에 있을 수 있다 — 접어서 전부 보이게 */}
                 <View style={styles.wrap}>
-                  {SETTLEMENT_HOURS.map((hour) => (
+                  {SETTLEMENT_TIME_PRESETS.map((preset) => (
                     <Chip
-                      key={hour}
-                      label={formatHour(hour)}
-                      selected={draft.hour === hour}
-                      onPress={() => onChange({ hour })}
+                      key={preset.hour}
+                      label={formatPreset(preset)}
+                      selected={draft.hour === preset.hour && draft.minute === 0}
+                      onPress={() => onChange({ hour: preset.hour, minute: 0 })}
                     />
                   ))}
                 </View>
-                <View style={styles.row}>
-                  {SETTLEMENT_MINUTES.map((minute) => (
-                    <Chip
-                      key={minute}
-                      label={`${String(minute).padStart(2, '0')}분`}
-                      selected={draft.minute === minute}
-                      onPress={() => onChange({ minute })}
-                    />
-                  ))}
+                {/* 넷에 없는 시각은 30분씩 옮겨서 닿는다. 가운데 글자가 지금 고른 값이다 */}
+                <View style={styles.stepper}>
+                  <PressableScale
+                    small
+                    accessibilityRole="button"
+                    accessibilityLabel="30분 앞당기기"
+                    onPress={() => onChange(stepTime(draft.hour, draft.minute, -1))}
+                    style={styles.stepButton}
+                  >
+                    <Text style={styles.stepGlyph}>−</Text>
+                  </PressableScale>
+                  <Text style={styles.stepValue}>{formatTime(draft.hour, draft.minute)}</Text>
+                  <PressableScale
+                    small
+                    accessibilityRole="button"
+                    accessibilityLabel="30분 늦추기"
+                    onPress={() => onChange(stepTime(draft.hour, draft.minute, 1))}
+                    style={styles.stepButton}
+                  >
+                    <Text style={styles.stepGlyph}>+</Text>
+                  </PressableScale>
                 </View>
 
                 {error ? <ErrorText>{error}</ErrorText> : null}
@@ -152,5 +189,42 @@ const useStyles = makeStyles((t) => ({
   preview: { ...t.font.bodyLg, fontWeight: t.weight.bold, color: t.colors.primary },
   label: { ...t.font.sectionTitle, fontWeight: t.weight.bold, color: t.colors.inkSoft },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: t.space.sm },
-  row: { flexDirection: 'row', gap: t.space.sm },
+
+  grid: { gap: t.space.xs },
+  gridRow: { flexDirection: 'row', gap: t.space.xs },
+  /** 칸 폭은 줄이 나눠 가진다 — 빈 칸도 같은 몫을 가져야 마지막 줄 칸이 안 커진다 */
+  cellSlot: { flex: 1 },
+  cell: {
+    minHeight: t.size.touch,
+    borderRadius: t.radius.md,
+    borderWidth: t.border.control,
+    borderColor: t.colors.line,
+    backgroundColor: t.colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // 칩의 선택 모양과 같다 — 같은 시트 안에서 「골랐다」 가 두 모양이면 안 된다
+  cellSelected: { backgroundColor: t.colors.primarySoft, borderColor: t.colors.primary },
+  cellLabel: { ...t.font.body, fontWeight: t.weight.semibold, color: t.colors.inkSoft },
+  cellLabelSelected: { color: t.colors.primary, fontWeight: t.weight.bold },
+
+  stepper: { flexDirection: 'row', alignItems: 'center', gap: t.space.md },
+  // 크기를 못 박지 않는다 — 큰 글자 설정에서 글리프가 세로로 잘린다. 날짜 칸과 같은 규칙
+  stepButton: {
+    minWidth: t.size.touch,
+    minHeight: t.size.touch,
+    paddingHorizontal: t.space.sm,
+    borderRadius: t.radius.pill,
+    backgroundColor: t.colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepGlyph: { ...t.font.title, fontWeight: t.weight.bold, color: t.colors.inkSoft },
+  stepValue: {
+    ...t.font.bodyLg,
+    fontWeight: t.weight.bold,
+    color: t.colors.ink,
+    flex: 1,
+    textAlign: 'center',
+  },
 }));
