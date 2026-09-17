@@ -232,12 +232,19 @@ describe('★ F-SES-03 hydrate — 서버에 못 닿아도 로그인은 안 풀�
   });
 
   it('서버가 500 을 줘도 토큰을 지우지 않는다', async () => {
-    vi.mocked(api).mockRejectedValue(apiError(500, 'INTERNAL'));
+    const serverDown = apiError(500, 'INTERNAL');
+    vi.mocked(api).mockRejectedValue(serverDown);
 
     await useSession.getState().hydrate();
 
     expect(vi.mocked(SecureStore.deleteItemAsync)).not.toHaveBeenCalled();
-    expect(useSession.getState()).toMatchObject({ ready: true, token: 't0k3n' });
+    // 카드는 bootError 가 있어야 뜬다 — 없으면 me 가 없어 가족이 있는 사람이 온보딩으로 간다
+    expect(useSession.getState()).toMatchObject({
+      ready: true,
+      token: 't0k3n',
+      me: null,
+      bootError: serverDown,
+    });
   });
 
   it('서버가 401 로 거절하면 토큰을 지운다 — 위 케이스들의 대조군', async () => {

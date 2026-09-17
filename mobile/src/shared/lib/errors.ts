@@ -22,6 +22,9 @@ export function errorMessage(caught: unknown, fallback: string): string {
  * 앱 셸이 로그인으로 보낸다. 그런데 던지기는 그대로 던지므로, 동작 실패를 Alert 으로
  * 받는 자리는 로그인 화면 위에 "안 됐어요" 를 한 번 더 띄우게 된다.
  * 그 자리에서 이걸로 걸러 조용히 넘긴다.
+ *
+ * ⚠️ 앱을 켤 때 저장된 토큰을 지울지도 이것이 가른다 (entities/session 의 hydrate, #67).
+ * 여기를 넓히면 서버에 못 닿았을 뿐인데 로그인이 풀리는 경우도 같이 넓어진다.
  */
 export function isSessionExpired(caught: unknown): boolean {
   return caught instanceof ApiError && caught.status === 401;
