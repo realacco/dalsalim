@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// 세션은 보안 저장소와 api() 를 물고 있다. 여기서 보려는 건 signOut 의 뒷정리뿐이다
+// 세션은 보안 저장소와 api() 를 물고 있다. 여기서 보려는 건 저장소가 말을 안 들을 때
+// signOut 의 뒷정리와 hydrate 가 ready 로 끝나는지다. api() 는 /me 응답을 만들어 쓰려고 흉내 낸다
 vi.mock('expo-secure-store', () => ({
   getItemAsync: vi.fn(),
   setItemAsync: vi.fn(),
