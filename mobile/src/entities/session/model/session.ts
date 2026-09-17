@@ -17,6 +17,8 @@ type SessionState = {
   signIn: (token: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshMe: () => Promise<Me | null>;
+  /** 서버가 돌려준 바뀐 사용자를 그대로 반영한다 — /me 를 다시 부르지 않는다 (F-SES-07) */
+  applyUser: (user: Me['user']) => void;
   selectFamily: (familyId: string) => Promise<void>;
 };
 
@@ -122,6 +124,12 @@ export const useSession = create<SessionState>((set, get) => ({
     const me = await api<Me>('/me');
     set({ me, familyId: pickFamilyId(me, get().familyId) });
     return me;
+  },
+
+  applyUser: (user) => {
+    const me = get().me;
+    // 저장 응답이 오기 전에 로그아웃했으면 되살릴 세션이 없다
+    if (me) set({ me: { ...me, user } });
   },
 
   selectFamily: async (familyId) => {

@@ -27,7 +27,7 @@ function signedIn() {
     ready: true,
     token: 't0k3n',
     me: {
-      user: { id: 'u1', nickname: '아빠', profileImageUrl: null, isDev: false },
+      user: { id: 'u1', nickname: '아빠', isDev: false },
       memberships: [],
     },
     familyId: 'f1',
@@ -70,7 +70,7 @@ describe('★ F-SES-04 signOut — 저장소가 말을 안 들어도 나간다',
 */
 describe('★ F-SES-03 hydrate — 저장소가 말을 안 들어도 ready 로 끝난다', () => {
   const me: Me = {
-    user: { id: 'u1', nickname: '아빠', profileImageUrl: null, isDev: false },
+    user: { id: 'u1', nickname: '아빠', isDev: false },
     // 가족을 둘 둔다 — 하나면 기억한 값이 무엇이든 그 가족으로 가서 「첫 가족으로 떨어진다」를 못 가린다
     memberships: [
       {
@@ -157,5 +157,26 @@ describe('★ F-SES-03 hydrate — 저장소가 말을 안 들어도 ready 로 �
     await expect(useSession.getState().hydrate()).resolves.toBeUndefined();
 
     expect(useSession.getState()).toMatchObject({ ready: true, token: null, me: null });
+  });
+});
+
+describe('F-SES-07 applyUser — 닉네임 저장 응답을 세션에 넣기', () => {
+  it('사용자만 바꾸고 가족 목록은 그대로 둔다', () => {
+    signedIn();
+    const before = useSession.getState().me;
+
+    useSession.getState().applyUser({ id: 'u1', nickname: '새 이름', isDev: false });
+
+    expect(useSession.getState().me?.user.nickname).toBe('새 이름');
+    expect(useSession.getState().me?.memberships).toBe(before?.memberships);
+    expect(useSession.getState().familyId).toBe('f1');
+  });
+
+  it('그사이 로그아웃했으면 세션을 되살리지 않는다', () => {
+    useSession.setState({ ready: true, token: null, me: null, familyId: null });
+
+    useSession.getState().applyUser({ id: 'u1', nickname: '새 이름', isDev: false });
+
+    expect(useSession.getState().me).toBeNull();
   });
 });

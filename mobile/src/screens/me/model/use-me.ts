@@ -26,7 +26,7 @@ const THEME_LABELS: Record<ThemePreference, string> = {
 export function useMe() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { me, familyId, refreshMe, selectFamily, signOut } = useSession();
+  const { me, familyId, refreshMe, applyUser, selectFamily, signOut } = useSession();
   const themePreference = useThemePreference((state) => state.preference);
   const chooseThemePreference = useThemePreference((state) => state.choose);
 
@@ -84,16 +84,17 @@ export function useMe() {
 
   /**
    * 닉네임 저장 (F-SES-07). 실패하면 카드 안 붉은 한 줄로 남기고 입력은 그대로 둔다 — 폼 안 저장 실패 규칙.
-   * 비었거나 20자를 넘는 것은 서버가 막고 그 문장(「이름을 입력해주세요.」)이 그대로 뜬다.
-   * 저장되면 /me 를 다시 받아 화면이 바뀐 이름을 그린다
+   * 비었거나 20자를 넘는 것은 서버가 막고 그 한국어 문장이 그대로 뜬다 (lib/schemas 의 displayName).
+   *
+   * 저장 응답의 사용자를 세션에 바로 넣는다. /me 를 다시 부르면 그 호출만 실패해도 이미 저장된
+   * 이름을 두고 「저장하지 못했어요」 가 떠서, 사용자가 실패한 줄 알고 다시 누르게 된다
    */
   async function saveNickname() {
     if (nicknameDraft === null) return;
     setSavingNickname(true);
     setNicknameError(null);
     try {
-      await updateNickname(nicknameDraft);
-      await refreshMe();
+      applyUser(await updateNickname(nicknameDraft));
       setNicknameDraft(null);
     } catch (caught) {
       if (!isSessionExpired(caught)) setNicknameError(errorMessage(caught, MESSAGES.saveFailed));

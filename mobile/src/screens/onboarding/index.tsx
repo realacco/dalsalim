@@ -12,10 +12,7 @@ import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Button, Card, ErrorText, Field, Input, Muted } from '@/shared/ui';
 import { MESSAGES } from '@/shared/config/messages';
 import { errorMessage } from '@/shared/lib/errors';
-import { truncateText } from '@/shared/lib/format';
-
-/** 서버 zod 의 displayName `.max(20)` 과 같다 — 입력 칸 한도와 기본값 자르기가 같이 쓴다 */
-const DISPLAY_NAME_MAX = 20;
+import { NAME_MAX_LENGTH, truncateText } from '@/shared/lib/format';
 
 type Mode = 'create' | 'join';
 
@@ -32,7 +29,7 @@ export default function OnboardingScreen() {
   // 카카오 닉네임은 화면에 안 보여주고 이 칸의 처음 값으로만 쓴다 — 가족 안의 이름은 본인이 고친다.
   // 서버가 20자까지 받으므로 긴 닉네임은 잘라서 넣는다 (이모지를 반쪽으로 자르지 않게 truncateText)
   const [displayName, setDisplayName] = useState(() =>
-    truncateText(me?.user.nickname ?? '', DISPLAY_NAME_MAX),
+    truncateText(me?.user.nickname ?? '', NAME_MAX_LENGTH),
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -127,7 +124,7 @@ export default function OnboardingScreen() {
             value={displayName}
             onChangeText={setDisplayName}
             placeholder="아빠"
-            maxLength={DISPLAY_NAME_MAX}
+            maxLength={NAME_MAX_LENGTH}
           />
         </Field>
 

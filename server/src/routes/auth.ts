@@ -161,7 +161,6 @@ export async function authRoutes(app: FastifyInstance) {
       user: {
         id: renamed.id,
         nickname: renamed.nickname,
-        profileImageUrl: renamed.profileImageUrl,
         isDev: renamed.devKey !== null,
       },
     };
@@ -180,7 +179,6 @@ export async function authRoutes(app: FastifyInstance) {
       user: {
         id: user.id,
         nickname: user.nickname,
-        profileImageUrl: user.profileImageUrl,
         isDev: user.devKey !== null,
       },
       memberships: memberships.map((m) => ({

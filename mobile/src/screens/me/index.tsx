@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { BuildInfo, Button, Card, Chip, ErrorText, Input, Muted } from '@/shared/ui';
 import { confirm } from '@/shared/lib/confirm';
+import { NAME_MAX_LENGTH } from '@/shared/lib/format';
 
 import { useMe } from './model/use-me';
 
@@ -59,7 +60,7 @@ export default function MeScreen() {
                 value={m.nicknameDraft}
                 onChangeText={m.changeNickname}
                 placeholder="아빠"
-                maxLength={20}
+                maxLength={NAME_MAX_LENGTH}
                 autoFocus
               />
               <ErrorText>{m.nicknameError}</ErrorText>
