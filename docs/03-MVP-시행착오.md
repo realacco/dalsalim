@@ -200,6 +200,32 @@ family.ts:147  요청 거절 → membership.delete()   같은 주석
 그대로 집어 승인까지 통과한다 — **거절을 한 번도 안 거친 채 초록**이 된다.
 서버를 깨뜨려 빨개지는 것은 확인했지만 **스모크 자신이 어긋나는 경우**는 안 봤던 것이다.
 
+### ★ 1-11. 라이브러리를 **불러오기만 해도** 던져서 앱이 통째로 안 떴다
+
+Android Expo Go 에서 앱이 시작되자마자 빈 화면으로 죽었다. 로그에는
+`Route ./_layout.tsx is missing the required default export` 가 찍혔는데, 정작 그 파일에는
+default export 가 멀쩡히 있었다. **모듈 평가가 실패하면 expo-router 는 "export 가 없다" 로 말한다** —
+증상과 원인의 이름이 다르다.
+
+원인은 `expo-notifications` 였다. 이 패키지는 `index` 에서 `DevicePushTokenAutoRegistration.fx` 를
+다시 내보내고, 그 파일이 **불러오는 것만으로** 최상단에서 `addPushTokenListener` 를 부른다.
+그 함수는 Expo Go + 안드로이드면 그 자리에서 `throw` 한다 (SDK 53 부터 원격 푸시가 Expo Go 에서 빠졌다).
+그래서 그 모듈을 임포트한 `features/push` → `app/_layout` 이 통째로 평가에 실패했다.
+
+> 🔴 **우리 쪽 `try/catch` 는 함수 호출을 감싼 것이라 이 예외의 밖이었다.**
+> 토큰 발급(`getExpoPushTokenAsync`)은 감싸 뒀고 주석도 「Expo Go 에서는 토큰이 안 나온다」 까지만
+> 가정하고 있었다. 실패가 **한 단계 앞(임포트)** 에서 났다.
+
+고침은 `features/push` 입구에서 `isRunningInExpoGo()` 로 갈라 **그 모듈을 아예 안 읽는 것**이다.
+개발 빌드로 갈아타는 쪽은 버렸다 — Expo Go 로 바로 도는 개발 루프를 잃는다.
+
+**남길 것**
+- 부수효과 파일(`*.fx`)을 가진 패키지는 **임포트 자체가 실행**이다. 실행 환경이 갈리는 기능이면
+  `try/catch` 가 아니라 **임포트를 가른다.**
+- 환경 갈림은 **모듈 로드 때 한 번만** 정한다. 훅을 조건부로 부르지 않기 위해서다.
+- 3층이 밀리면 이런 것이 몇 주 동안 안 보인다. 이 버그는 `expo-notifications` 가 들어온 날
+  (2026-09-15, #48) 부터 있었고, 그 뒤 확인은 APK 로만 했다.
+
 ---
 
 ## 2. 발견했지만 아직 안 고친 것
