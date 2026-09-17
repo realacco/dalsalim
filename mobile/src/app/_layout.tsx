@@ -1,4 +1,4 @@
-// 기능: F-SES-04 F-SES-05
+// 기능: F-SES-04 F-SES-05 F-SES-09
 import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -9,6 +9,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ThemeProvider, makeStyles, useTheme } from '@/shared/config/theme-provider';
+import { hideSplash } from '@/shared/lib/splash';
 import { ConfirmHost } from '@/shared/ui';
 import { useNotificationTap, usePushRegistration } from '@/features/push';
 import { useSession } from '@/entities/session';
@@ -28,6 +29,16 @@ const queryClient = new QueryClient({
 const FILL = { flex: 1 } as const;
 
 export default function RootLayout() {
+  /*
+    세션(토큰) 읽기는 ThemeProvider 바깥에서 시작한다. 안쪽 AppShell 에서 시작하면 테마 저장값을
+    다 읽을 때까지 마운트되지 않아 두 보안 저장소 읽기가 줄을 선다 — 테마 읽기가 1초 한도까지
+    가면 로그인 확인도 그만큼 늦는다 (F-SES-09)
+  */
+  const hydrate = useSession((state) => state.hydrate);
+  useEffect(() => {
+    void hydrate();
+  }, [hydrate]);
+
   return (
     /*
       gesture-handler 가 요구하는 뿌리. 여태 앱 어디에도 없었고, 제스처를 쓰는 곳이
@@ -50,14 +61,9 @@ export default function RootLayout() {
 function AppShell() {
   const styles = useStyles();
   const { colors, scheme } = useTheme();
-  const hydrate = useSession((state) => state.hydrate);
   const ready = useSession((state) => state.ready);
   const token = useSession((state) => state.token);
   const pathname = usePathname();
-
-  useEffect(() => {
-    void hydrate();
-  }, [hydrate]);
 
   // 알림 받을 기기 등록 — 권한이 이미 있을 때만 조용히 · 알림을 누르면 그 가족의 홈으로 (F-FAM-10)
   usePushRegistration();
@@ -98,7 +104,11 @@ function AppShell() {
    * 앱의 루트 배경을 테마 색으로 직접 칠해야 사라진다.
    */
   useEffect(() => {
-    void SystemUI.setBackgroundColorAsync(colors.bg);
+    // 칠하기를 기다린 뒤에 스플래시를 내린다 — 둘 다 기다리지 않는 네이티브 호출이라 순서를 여기서 정한다.
+    // 안 그러면 「어둡게」 로 켤 때 밝은 창 배경이 한 프레임 비친다 (F-SES-09). 칠하기가 실패해도 내린다
+    void SystemUI.setBackgroundColorAsync(colors.bg)
+      .catch(() => undefined)
+      .finally(hideSplash);
   }, [colors.bg]);
 
   return (
