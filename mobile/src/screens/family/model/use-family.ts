@@ -48,7 +48,9 @@ export function useFamily() {
    * 이 가족 안 내 이름 편집 (F-FAM-07). null 이면 편집 중이 아니다.
    * 어느 가족에서 열었는지 같이 쥔다 — 가족 탭은 내 정보 아래 깔린 채 남아 있어서, 편집을 열어둔 채
    * 내 정보에서 다른 가족으로 바꾸고 돌아오면 칸이 그대로 열려 [저장] 이 A 의 이름을 B 에 쓴다.
-   * 바뀐 뒤에 effect 로 비우면 한 프레임은 열린 칸이 보이므로, 가족이 다르면 처음부터 닫힌 것으로 읽는다
+   * 바뀐 뒤에 effect 로 비우면 한 프레임은 열린 칸이 보이므로, 가족이 다르면 처음부터 닫힌 것으로 읽는다.
+   * 가리기만 하지 않고 같은 렌더에서 비운다 — A → B → A 로 돌아왔을 때 그사이 다른 기기에서 바뀐 이름 위에
+   * 옛 draft 가 다시 열리면 안 된다 (렌더 중 setState 로 파생 상태를 맞추는 React 의 권장 모양)
    */
   const [nameEdit, setNameEdit] = useState<{
     familyId: string | null;
@@ -56,6 +58,7 @@ export function useFamily() {
     error: string | null;
   } | null>(null);
   const openNameEdit = nameEdit?.familyId === familyId ? nameEdit : null;
+  if (nameEdit && !openNameEdit) setNameEdit(null);
 
   /** 앱 전체의 값 — 앱을 켤 때의 조용한 재등록 결과도 여기로 온다 */
   const pushState = usePushStore((state) => state.state);
