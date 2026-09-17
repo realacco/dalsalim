@@ -80,7 +80,7 @@ export function useMe() {
   /**
    * 앱 테마 (F-SES-09). 누르는 순간 앱 전체가 바뀌고 저장은 뒤따른다 — 저장 버튼이 없다.
    * 저장이 실패해도 이번 실행 동안은 고른 테마가 유지되므로 되돌리지 않고 알리기만 한다.
-   * 칩 줄에 붙은 동작이라 문구를 붙일 한 자리가 없어 Alert 이다
+   * 카드에 인라인 문구를 붙일 자리는 있지만 정의서(F-SES-09 예외 표)가 알림 한 번으로 정했다
    */
   async function chooseTheme(next: ThemePreference) {
     if (next === themePreference) return;

@@ -15,6 +15,9 @@ import { type ThemePreference, parseThemePreference } from '@/shared/lib/theme-p
  */
 const KEY = 'dalsalim.theme';
 
+/** 보안 저장소 읽기를 기다리는 한도. 넘기면 기기 설정으로 시작한다 — 스플래시에 갇히는 것보다 낫다 */
+const HYDRATE_TIMEOUT_MS = 1000;
+
 type ThemePreferenceState = {
   /** 저장값을 읽었는가. 읽기 전에 그리면 "어둡게" 를 고른 사람에게도 밝은 화면이 한 번 비친다 */
   ready: boolean;
@@ -30,18 +33,34 @@ export const useThemePreference = create<ThemePreferenceState>((set, get) => ({
 
   hydrate: async () => {
     if (get().ready) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      const raw = await SecureStore.getItemAsync(KEY);
+      // 던지지 않고 멈추는 경우까지 막는다. ThemeProvider 가 스플래시를 붙잡고 있어서
+      // 여기서 영영 안 돌아오면 사용자에게는 "앱이 안 켜진다" 로 보인다
+      const raw = await Promise.race([
+        SecureStore.getItemAsync(KEY),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error('theme read timeout')), HYDRATE_TIMEOUT_MS);
+        }),
+      ]);
       set({ ready: true, preference: parseThemePreference(raw) });
     } catch {
       // 못 읽었다고 앱을 막을 일은 아니다. 기능이 없던 때처럼 폰 설정을 따라간다
       set({ ready: true, preference: 'system' });
+    } finally {
+      clearTimeout(timer);
     }
   },
 
   choose: async (preference) => {
     set({ preference });
-    await SecureStore.setItemAsync(KEY, preference);
+    try {
+      await SecureStore.setItemAsync(KEY, preference);
+    } catch (caught) {
+      // 그사이 다른 값을 골랐으면 이 쓰기는 이미 낡았다. 실패를 알리면 제대로 저장된 마지막 값을
+      // 두고 "안 됐어요" 가 뜬다 — 알리는 것은 사용자가 지금 보고 있는 값의 실패뿐이다
+      if (get().preference === preference) throw caught;
+    }
     // 칩을 연달아 누르면 쓰기가 겹친다. 먼저 시작한 쓰기가 늦게 끝나면 저장소에 앞의 값이 남아
     // 다음 실행에서 조용히 되돌아가므로, 끝난 뒤 그사이 바뀐 값이 있으면 마지막 값을 다시 쓴다
     const latest = get().preference;

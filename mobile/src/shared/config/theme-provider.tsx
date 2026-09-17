@@ -43,7 +43,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [hydrate]);
 
   // 자식의 effect 가 부모보다 먼저 돈다 — 앱 셸이 창 배경을 테마 색으로 칠한 뒤에 스플래시가 내려간다.
-  // hydrate 는 읽기가 실패해도 ready 가 되므로 스플래시가 영영 안 내려가는 길은 없다
+  // hydrate 는 읽기가 던지거나 1초 안에 안 돌아와도 ready 가 되므로 스플래시에 갇히지 않는다
   useEffect(() => {
     if (ready) void SplashScreen.hideAsync().catch(() => undefined);
   }, [ready]);

@@ -35,6 +35,24 @@ describe('F-SES-09 hydrate — 켤 때 저장값 읽기', () => {
 
     expect(useThemePreference.getState()).toMatchObject({ ready: true, preference: 'system' });
   });
+
+  it('F-SES-09 읽기가 던지지 않고 멈춰도 1초 뒤 기기 설정으로 시작한다 — 스플래시에 갇히지 않는다', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(SecureStore.getItemAsync).mockReturnValue(
+        new Promise<string | null>(() => undefined),
+      );
+
+      const pending = useThemePreference.getState().hydrate();
+      expect(useThemePreference.getState().ready).toBe(false);
+      await vi.advanceTimersByTimeAsync(1000);
+      await pending;
+
+      expect(useThemePreference.getState()).toMatchObject({ ready: true, preference: 'system' });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('F-SES-09 choose — 고르기', () => {
@@ -78,6 +96,29 @@ describe('F-SES-09 choose — 고르기', () => {
     releaseFirst();
     await first;
 
+    expect(useThemePreference.getState().preference).toBe('light');
+    expect(stored.at(-1)).toBe('light');
+  });
+
+  it('F-SES-09 먼저 누른 값의 쓰기만 실패하면 알리지 않고 마지막 값을 저장한다', async () => {
+    const stored: string[] = [];
+    let rejectFirst: () => void = () => undefined;
+    vi.mocked(SecureStore.setItemAsync)
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((_, reject) => {
+            rejectFirst = () => reject(new Error('keystore'));
+          }),
+      )
+      .mockImplementation(async (_key, value) => {
+        stored.push(value);
+      });
+
+    const first = useThemePreference.getState().choose('dark');
+    await useThemePreference.getState().choose('light');
+    rejectFirst();
+
+    await expect(first).resolves.toBeUndefined();
     expect(useThemePreference.getState().preference).toBe('light');
     expect(stored.at(-1)).toBe('light');
   });
