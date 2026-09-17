@@ -9,6 +9,7 @@ import {
   listJoinRequests,
   listMyPendingRequests,
   rejectJoinRequest,
+  requestDisplayName,
   requestJoin,
 } from '../services/family.js';
 import { displayName } from '../lib/schemas.js';
@@ -41,7 +42,7 @@ export async function joinRequestRoutes(app: FastifyInstance) {
       membership: {
         id: membership.id,
         status: 'PENDING' as const,
-        displayName: membership.requestedDisplayName ?? membership.displayName,
+        displayName: requestDisplayName(membership),
         family: { id: family.id, name: family.name },
       },
     };
@@ -58,8 +59,7 @@ export async function joinRequestRoutes(app: FastifyInstance) {
     return {
       requests: pending.map((m) => ({
         membershipId: m.id,
-        // 재참여면 요청에 적은 새 이름이 따로 있다 — 승인 전에는 표시 이름에 안 들어간다
-        displayName: m.requestedDisplayName ?? m.displayName,
+        displayName: requestDisplayName(m),
         requestedAt: m.requestedAt,
         family: { id: m.familyId, name: m.family.name },
       })),
@@ -84,8 +84,8 @@ export async function joinRequestRoutes(app: FastifyInstance) {
     return {
       requests: requests.map((m) => ({
         id: m.id,
-        // 가족장은 승인하면 붙을 이름을 보고 고른다 — 재참여면 요청에 적은 새 이름이다
-        displayName: m.requestedDisplayName ?? m.displayName,
+        // 가족장은 승인하면 붙을 이름을 보고 고른다
+        displayName: requestDisplayName(m),
         nickname: m.user.nickname,
         profileImageUrl: m.user.profileImageUrl,
         requestedAt: m.requestedAt,

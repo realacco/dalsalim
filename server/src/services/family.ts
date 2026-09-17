@@ -93,6 +93,17 @@ export async function requestJoin(userId: string, inviteCode: string, displayNam
   return { membership, family };
 }
 
+/**
+ * 참여 요청 화면(본인 대기 · 가족장 목록 · 요청 응답)에 보일 이름.
+ * 재참여면 요청에 적은 새 이름이 따로 있고, 승인 전에는 표시 이름에 안 들어간다 (requestJoin 주석 참조).
+ * ⚠️ 가족 데이터를 그리는 화면(구성원 · 요약 · 고정비)은 이걸 쓰지 않는다 — 거기는 승인된 이름만 보인다
+ */
+export function requestDisplayName(
+  membership: Pick<Membership, 'displayName' | 'requestedDisplayName'>,
+) {
+  return membership.requestedDisplayName ?? membership.displayName;
+}
+
 /** 내가 승인을 기다리고 있는 가족들 */
 export function listMyPendingRequests(userId: string) {
   return prisma.membership.findMany({
