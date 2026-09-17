@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 
 import { api, onUnauthorized, setAuthToken } from '@/shared/api/client';
+import { isSessionExpired } from '@/shared/lib/errors';
 import type { Me } from './types';
 
 const TOKEN_KEY = 'dalsalim.token';
@@ -12,6 +13,11 @@ type SessionState = {
   token: string | null;
   me: Me | null;
   familyId: string | null;
+  /**
+   * 켤 때 /me 가 401 이 아닌 이유로 실패한 것 (#67). 토큰은 남아 있고 게이트가 [다시 시도] 를 띄운다.
+   * 서버에 못 닿은 것은 로그인이 풀린 것이 아니다
+   */
+  bootError: unknown;
 
   hydrate: () => Promise<void>;
   signIn: (token: string) => Promise<void>;
@@ -52,16 +58,19 @@ export const useSession = create<SessionState>((set, get) => ({
   token: null,
   me: null,
   familyId: null,
+  bootError: null,
 
   hydrate: async () => {
+    // [다시 시도] 로 다시 불리면 게이트가 로딩으로 돌아가야 누른 것이 보인다
+    set({ ready: false, bootError: null });
     /*
       ★ 이 함수의 계약은 「보안 저장소가 던지거나 멈춰도 ready 로 끝난다」다. 저장소 호출 하나가
       던지거나 안 돌아오면 ready 가 false 로 남아 게이트가 로딩에서 못 나오고, 껐다 켜도 같은
       저장소를 또 읽어 그대로 멈춘다 (F-SES-03). 저장소 실패는 세션을 무너뜨리는 사건이 아니다 —
       토큰을 못 읽었으면 로그인 안 된 상태로, 기억한 가족을 못 읽었으면 첫 가족으로 떨어뜨린다.
       읽기가 늦어 한도를 넘긴 경우에도 토큰은 **지우지 않는다** — 다음 실행에서 다시 읽힌다.
-      ⚠️ /me 가 네트워크에서 멈추는 경우는 보장하지 않는다. api() 에는 한도가 없고,
-      네트워크 실패를 어떻게 다룰지는 #67 에서 따로 정한다
+      ⚠️ /me 가 네트워크에서 멈추는 경우는 보장하지 않는다. api() 에는 한도가 없다 —
+      실패로 돌아오면 아래 catch 가 401 과 그 밖을 가른다 (#67)
 
       두 읽기를 따로 받는 이유: 가족 id 를 못 읽었다고 멀쩡한 토큰까지 버리면 로그인이 풀린다.
     */
@@ -83,7 +92,17 @@ export const useSession = create<SessionState>((set, get) => ({
     try {
       const me = await api<Me>('/me');
       set({ ready: true, me, familyId: pickFamilyId(me, remembered) });
-    } catch {
+    } catch (caught) {
+      /*
+        토큰을 지우는 건 서버가 401 로 거절했을 때뿐이다 (#67). 지하철에서 켜서 서버에 못 닿았거나
+        서버가 잠깐 500 을 준 것까지 로그아웃으로 받으면, 신호가 돌아와도 로그인을 다시 해야 한다.
+        그때는 토큰을 두고 실패만 남긴다 — 게이트가 [다시 시도] 로 이 함수를 다시 부른다.
+        401 판정은 화면들이 쓰는 isSessionExpired 한 곳이다 — 둘이 갈라지면 아무 경고가 없다
+      */
+      if (!isSessionExpired(caught)) {
+        set({ ready: true, me: null, familyId: null, bootError: caught });
+        return;
+      }
       // 토큰이 만료됐거나 서버가 초기화된 경우 — 조용히 로그아웃한다.
       // 그 정리가 실패해도 로그아웃 상태로는 끝낸다. 남은 토큰은 다음 실행에서 /me 가 또 거절해 다시 여기로 온다
       await SecureStore.deleteItemAsync(TOKEN_KEY).catch(() => undefined);
@@ -95,7 +114,7 @@ export const useSession = create<SessionState>((set, get) => ({
   signIn: async (token) => {
     await SecureStore.setItemAsync(TOKEN_KEY, token);
     setAuthToken(token);
-    set({ token });
+    set({ token, bootError: null });
 
     const me = await api<Me>('/me');
     set({ me, familyId: pickFamilyId(me, null) });
@@ -116,7 +135,7 @@ export const useSession = create<SessionState>((set, get) => ({
       SecureStore.deleteItemAsync(FAMILY_KEY),
     ]);
     setAuthToken(null);
-    set({ token: null, me: null, familyId: null });
+    set({ token: null, me: null, familyId: null, bootError: null });
   },
 
   refreshMe: async () => {

@@ -7,7 +7,13 @@ vi.mock('expo-secure-store', () => ({
   setItemAsync: vi.fn(),
   deleteItemAsync: vi.fn(),
 }));
-vi.mock('@/shared/api/client', () => ({
+// 실물 client 가 부르는 네이티브 모듈 — client.test · errors.test 와 같은 흉내다
+vi.mock('expo-constants', () => ({ default: { expoConfig: null, expoGoConfig: null } }));
+vi.mock('react-native', () => ({ Platform: { OS: 'android' } }));
+// ApiError 는 실물을 쓴다 — 세션이 401 을 가르는 판정(isSessionExpired)이 클래스를 보므로,
+// 모양을 지어내면 ApiError 가 바뀌어도 이 파일은 초록으로 남는다
+vi.mock('@/shared/api/client', async () => ({
+  ...(await vi.importActual<typeof import('@/shared/api/client')>('@/shared/api/client')),
   api: vi.fn(),
   onUnauthorized: vi.fn(),
   setAuthToken: vi.fn(),
@@ -15,12 +21,17 @@ vi.mock('@/shared/api/client', () => ({
 
 import * as SecureStore from 'expo-secure-store';
 
-import { api } from '@/shared/api/client';
+import { ApiError, api } from '@/shared/api/client';
 import { useSession } from './session';
 import type { Me } from './types';
 
 const TOKEN_KEY = 'dalsalim.token';
 const FAMILY_KEY = 'dalsalim.familyId';
+
+/** status 0 은 서버에 못 닿은 것이다 — api() 가 fetch 실패를 그렇게 던진다 */
+function apiError(status: number, code: string) {
+  return new ApiError(status, code, code);
+}
 
 function signedIn() {
   useSession.setState({
@@ -66,7 +77,7 @@ describe('★ F-SES-04 signOut — 저장소가 말을 안 들어도 나간다',
 /*
   hydrate 의 계약은 「보안 저장소가 던지거나 멈춰도 ready 로 끝난다」다. ready 가 false 로 남으면
   게이트가 로딩에서 못 나오고, 앱을 껐다 켜도 같은 저장소를 또 읽어 그대로 멈춘다 (#54).
-  /me 가 네트워크에서 멈추는 경우는 여기서 보장하지 않는다 (#67).
+  /me 가 네트워크에서 멈추는 경우는 여기서 보장하지 않는다 — 실패로 돌아온 경우만 아래에서 본다 (#67).
 */
 describe('★ F-SES-03 hydrate — 저장소가 말을 안 들어도 ready 로 끝난다', () => {
   const me: Me = {
@@ -96,7 +107,7 @@ describe('★ F-SES-03 hydrate — 저장소가 말을 안 들어도 ready 로 �
     vi.mocked(SecureStore.getItemAsync).mockReset();
     vi.mocked(SecureStore.deleteItemAsync).mockReset();
     vi.mocked(api).mockReset();
-    useSession.setState({ ready: false, token: null, me: null, familyId: null });
+    useSession.setState({ ready: false, token: null, me: null, familyId: null, bootError: null });
   });
 
   it('토큰 읽기가 던지면 로그인 안 된 상태로 끝난다', async () => {
@@ -151,7 +162,7 @@ describe('★ F-SES-03 hydrate — 저장소가 말을 안 들어도 ready 로 �
 
   it('토큰이 만료돼 정리하다 저장소 삭제가 던져도 로그인 안 된 상태로 끝난다', async () => {
     vi.mocked(SecureStore.getItemAsync).mockResolvedValue('t0k3n');
-    vi.mocked(api).mockRejectedValue(new Error('401'));
+    vi.mocked(api).mockRejectedValue(apiError(401, 'TOKEN_INVALID'));
     vi.mocked(SecureStore.deleteItemAsync).mockRejectedValue(new Error('저장소가 잠겼어요'));
 
     await expect(useSession.getState().hydrate()).resolves.toBeUndefined();
@@ -186,5 +197,89 @@ describe('F-SES-07 applyUser — 닉네임 저장 응답을 세션에 넣기', (
     useSession.getState().applyUser({ id: 'u1', nickname: '새 이름', isDev: false });
 
     expect(useSession.getState().me).toBeNull();
+  });
+});
+
+/*
+  서버에 못 닿은 것은 로그인이 풀린 것이 아니다 (#67). 지하철에서 앱을 켰다고 토큰을 지우면
+  신호가 돌아와도 카카오 로그인을 다시 해야 한다. 토큰을 지우는 건 서버가 401 로 거절했을 때뿐이다.
+*/
+describe('★ F-SES-03 hydrate — 서버에 못 닿아도 로그인은 안 풀린다', () => {
+  beforeEach(() => {
+    vi.mocked(SecureStore.getItemAsync).mockReset();
+    vi.mocked(SecureStore.deleteItemAsync).mockReset();
+    vi.mocked(SecureStore.deleteItemAsync).mockResolvedValue(undefined);
+    vi.mocked(api).mockReset();
+    vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key: string) =>
+      key === TOKEN_KEY ? 't0k3n' : null,
+    );
+    useSession.setState({ ready: false, token: null, me: null, familyId: null, bootError: null });
+  });
+
+  it('서버에 못 닿으면 저장된 토큰을 지우지 않고 실패를 남긴다', async () => {
+    const offline = apiError(0, 'NETWORK');
+    vi.mocked(api).mockRejectedValue(offline);
+
+    await useSession.getState().hydrate();
+
+    expect(vi.mocked(SecureStore.deleteItemAsync)).not.toHaveBeenCalled();
+    expect(useSession.getState()).toMatchObject({
+      ready: true,
+      token: 't0k3n',
+      me: null,
+      bootError: offline,
+    });
+  });
+
+  it('서버가 500 을 줘도 토큰을 지우지 않는다', async () => {
+    const serverDown = apiError(500, 'INTERNAL');
+    vi.mocked(api).mockRejectedValue(serverDown);
+
+    await useSession.getState().hydrate();
+
+    expect(vi.mocked(SecureStore.deleteItemAsync)).not.toHaveBeenCalled();
+    // 카드는 bootError 가 있어야 뜬다 — 없으면 me 가 없어 가족이 있는 사람이 온보딩으로 간다
+    expect(useSession.getState()).toMatchObject({
+      ready: true,
+      token: 't0k3n',
+      me: null,
+      bootError: serverDown,
+    });
+  });
+
+  it('서버가 401 로 거절하면 토큰을 지운다 — 위 케이스들의 대조군', async () => {
+    vi.mocked(api).mockRejectedValue(apiError(401, 'TOKEN_INVALID'));
+
+    await useSession.getState().hydrate();
+
+    expect(vi.mocked(SecureStore.deleteItemAsync)).toHaveBeenCalledWith(TOKEN_KEY);
+    expect(useSession.getState()).toMatchObject({ ready: true, token: null, bootError: null });
+  });
+
+  it('다시 시도를 누르면 끝나기 전까지 로딩으로 돌아가 있다', async () => {
+    vi.mocked(api).mockRejectedValueOnce(apiError(0, 'NETWORK'));
+    await useSession.getState().hydrate();
+
+    vi.mocked(api).mockReturnValue(new Promise(() => undefined));
+    void useSession.getState().hydrate();
+    // 저장소를 다 읽고 /me 가 나가 멈춘 뒤를 본다 — 첫 문장 직후만 보면 「끝나기 전까지」 가 검증되지 않는다
+    await vi.waitFor(() => expect(vi.mocked(api)).toHaveBeenCalledTimes(2));
+
+    // 카드가 그대로 남으면 누른 게 안 보여 계속 누른다
+    expect(useSession.getState()).toMatchObject({ ready: false, bootError: null });
+  });
+
+  it('다시 시도해서 닿으면 실패가 지워지고 들어간다', async () => {
+    vi.mocked(api).mockRejectedValueOnce(apiError(0, 'NETWORK'));
+    await useSession.getState().hydrate();
+
+    vi.mocked(api).mockResolvedValue({
+      user: { id: 'u1', nickname: '아빠', isDev: false },
+      memberships: [],
+    });
+    await useSession.getState().hydrate();
+
+    expect(useSession.getState()).toMatchObject({ ready: true, token: 't0k3n', bootError: null });
+    expect(useSession.getState().me).not.toBeNull();
   });
 });
