@@ -17,7 +17,7 @@ import { Button, Chip, ErrorText, Muted, PressableScale, useSheetDrag } from '@/
 
 /**
  * 정산일을 고르는 아래 시트. draft 가 없으면 닫혀 있다.
- * 입력창이 없어 키보드 회피는 없다 — 칩만 누른다. (고정비 시트보다 가볍게 둔 이유)
+ * 입력창이 없어 키보드 회피는 없다 — 격자 칸 · 칩 · −/+ 만 누른다. (고정비 시트보다 가볍게 둔 이유)
  *
  * 끌어내려 닫는 것은 고정비·계산기 시트와 **같은 배관**(`useSheetDrag`)을 쓴다.
  * 알약은 이 앱에서 손잡이라, 다른 시트는 끌리는데 여기만 안 끌리면 고장으로 읽힌다.
@@ -209,9 +209,11 @@ const useStyles = makeStyles((t) => ({
   cellLabelSelected: { color: t.colors.primary, fontWeight: t.weight.bold },
 
   stepper: { flexDirection: 'row', alignItems: 'center', gap: t.space.md },
+  // 크기를 못 박지 않는다 — 큰 글자 설정에서 글리프가 세로로 잘린다. 날짜 칸과 같은 규칙
   stepButton: {
-    width: t.size.touch,
-    height: t.size.touch,
+    minWidth: t.size.touch,
+    minHeight: t.size.touch,
+    paddingHorizontal: t.space.sm,
     borderRadius: t.radius.pill,
     backgroundColor: t.colors.surfaceMuted,
     alignItems: 'center',
