@@ -73,8 +73,13 @@ export async function regenerateInviteCode(familyId: string) {
   return family;
 }
 
-export function updateMyDisplayName(familyId: string, displayName: string) {
-  return api(`/families/${familyId}/me`, { method: 'PATCH', body: { displayName } });
+/** 이 가족 안에서 내 이름 (F-FAM-07). 비었거나 20자를 넘으면 서버가 한국어 문장으로 막는다 */
+export async function updateMyDisplayName(familyId: string, displayName: string) {
+  const { membership } = await api<{ membership: { id: string; displayName: string } }>(
+    `/families/${familyId}/me`,
+    { method: 'PATCH', body: { displayName } },
+  );
+  return membership;
 }
 
 /** 내 정산일 (F-FAM-10). null 이면 안 받기. 같은 라우트지만 이름은 안 건드린다 */

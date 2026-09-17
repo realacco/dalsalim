@@ -16,15 +16,17 @@ import {
   rejectJoinRequest,
   removeMember,
   transferOwner,
+  updateMyDisplayName,
   updateMySettlement,
   passedMonthHint,
 } from '@/entities/family';
+import { fixedExpenseKeys } from '@/entities/fixed-expense';
 import { useSession } from '@/entities/session';
 import { enablePushForThisDevice, usePushStore } from '@/features/push';
 import type { Settlement } from '@/shared/model/types';
 import { MESSAGES } from '@/shared/config/messages';
 import { errorMessage, isSessionExpired } from '@/shared/lib/errors';
-import { currentYearMonth } from '@/shared/lib/format';
+import { NAME_MAX_LENGTH, currentYearMonth, truncateText } from '@/shared/lib/format';
 
 /**
  * 가족 화면의 상태 조립. 화면은 여기서 받은 것을 그리기만 한다.
@@ -43,6 +45,22 @@ export function useFamily() {
   /** 정산일 시트. draft 가 있으면 열려 있다 (F-FAM-10) */
   const [settlementDraft, setSettlementDraft] = useState<Settlement | null>(null);
   const [settlementError, setSettlementError] = useState<string | null>(null);
+  /**
+   * 이 가족 안 내 이름 편집 (F-FAM-07). null 이면 편집 중이 아니다.
+   * 어느 가족에서 열었는지 같이 쥔다 — 가족 탭은 내 정보 아래 깔린 채 남아 있어서, 편집을 열어둔 채
+   * 내 정보에서 다른 가족으로 바꾸고 돌아오면 칸이 그대로 열려 [저장] 이 A 의 이름을 B 에 쓴다.
+   * 바뀐 뒤에 effect 로 비우면 한 프레임은 열린 칸이 보이므로, 가족이 다르면 처음부터 닫힌 것으로 읽는다.
+   * 가리기만 하지 않고 같은 렌더에서 비운다 — A → B → A 로 돌아왔을 때 그사이 다른 기기에서 바뀐 이름 위에
+   * 옛 draft 가 다시 열리면 안 된다 (렌더 중 setState 로 파생 상태를 맞추는 React 의 권장 모양)
+   */
+  const [nameEdit, setNameEdit] = useState<{
+    familyId: string | null;
+    draft: string;
+    error: string | null;
+  } | null>(null);
+  const openNameEdit = nameEdit?.familyId === familyId ? nameEdit : null;
+  if (nameEdit && !openNameEdit) setNameEdit(null);
+
   /** 앱 전체의 값 — 앱을 켤 때의 조용한 재등록 결과도 여기로 온다 */
   const pushState = usePushStore((state) => state.state);
 
@@ -162,6 +180,32 @@ export function useFamily() {
     onError: (caught) => setSettlementError(errorMessage(caught, MESSAGES.saveFailed)),
   });
 
+  /**
+   * 내 이름 저장 (F-FAM-07). 실패하면 입력 아래 붉은 한 줄로 남기고 입력은 그대로 둔다 — 폼 안 저장 실패 규칙.
+   * 내 이름을 그리는 화면의 캐시를 다 비운다 — 기록에는 이름을 복사해 두지 않아서 지난 달에도 새 이름이
+   * 보여야 한다. 이번 달(장부) · 월 요약 · 고정비 탭(사람별 묶음) · 내 정보(/me) 넷이다.
+   * 추이는 이름을 안 싣고, 기록 상세(entry)는 이름을 싣지만 화면이 안 그려서 안 비운다.
+   * /me 도 다시 부른다 — 내 정보의 「내 가족」 목록이 이 이름을 보여준다
+   */
+  const saveName = useMutation({
+    mutationFn: (displayName: string) => updateMyDisplayName(familyId as string, displayName),
+    // 다시 누르면 지난번 붉은 줄을 지운다 — 요청이 도는 동안 옛 문구가 남아 있지 않게 (내 정보와 같다)
+    onMutate: () => setNameEdit((edit) => (edit ? { ...edit, error: null } : edit)),
+    onSuccess: () => {
+      setNameEdit(null);
+      void queryClient.invalidateQueries({ queryKey: familyKeys.detail(familyId) });
+      void queryClient.invalidateQueries({ queryKey: bookKeys.family(familyId) });
+      void queryClient.invalidateQueries({ queryKey: bookKeys.summaries(familyId) });
+      void queryClient.invalidateQueries({ queryKey: fixedExpenseKeys.list(familyId) });
+      void refreshMe();
+    },
+    onError: (caught) => {
+      if (isSessionExpired(caught)) return;
+      const error = errorMessage(caught, MESSAGES.saveFailed);
+      setNameEdit((edit) => (edit ? { ...edit, error } : edit));
+    },
+  });
+
   async function copyCode() {
     if (!detail.data) return;
     await Clipboard.setStringAsync(detail.data.family.inviteCode);
@@ -211,6 +255,21 @@ export function useFamily() {
     leave: () => myMembership && leave.mutate(myMembership.id),
     deleteFamily: () => removeFamily.mutate(),
     contents: detail.data?.contents ?? null,
+
+    // 이 가족 안 내 이름 (F-FAM-07)
+    nameDraft: openNameEdit?.draft ?? null,
+    nameError: openNameEdit?.error ?? null,
+    savingName: saveName.isPending,
+    editName: () =>
+      setNameEdit({
+        familyId,
+        // 20자 규칙 전에 들어온 이름이 있으면 입력 칸이 못 받는다 — 잘라서 연다
+        draft: truncateText(myMembership?.displayName ?? '', NAME_MAX_LENGTH),
+        error: null,
+      }),
+    changeName: (draft: string) => setNameEdit((edit) => (edit ? { ...edit, draft } : edit)),
+    cancelName: () => setNameEdit(null),
+    saveName: () => openNameEdit && saveName.mutate(openNameEdit.draft),
 
     // 정산일 (F-FAM-10)
     mySettlement: myMembership?.settlement ?? null,
