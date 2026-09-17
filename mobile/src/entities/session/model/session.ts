@@ -20,6 +20,20 @@ type SessionState = {
   selectFamily: (familyId: string) => Promise<void>;
 };
 
+/** 켤 때 보안 저장소 읽기를 기다리는 한도. 넘기면 못 읽은 것으로 본다 — 로딩에 갇히는 것보다 낫다 */
+const STORAGE_READ_TIMEOUT_MS = 2000;
+
+/** 던지지 않고 멈추는 읽기까지 실패로 바꾼다. allSettled 는 reject 만 받아주고 멈춤은 못 받는다 */
+function readWithTimeout(key: string): Promise<string | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([
+    SecureStore.getItemAsync(key),
+    new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error('storage read timeout')), STORAGE_READ_TIMEOUT_MS);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
 /** 여러 가족에 속할 수 있으므로 마지막에 보던 가족을 기억한다. */
 function pickFamilyId(me: Me | null, remembered: string | null): string | null {
   if (!me || me.memberships.length === 0) return null;
@@ -35,16 +49,19 @@ export const useSession = create<SessionState>((set, get) => ({
 
   hydrate: async () => {
     /*
-      ★ 이 함수의 유일한 계약은 「어떤 길로 들어와도 ready 로 끝난다」다. 저장소 호출 하나가 던져
-      reject 되면 ready 가 false 로 남아 게이트가 로딩에서 못 나오고, 껐다 켜도 같은 저장소를 또
-      읽어 그대로 멈춘다 (F-SES-04). 저장소 실패는 세션을 무너뜨리는 사건이 아니다 —
+      ★ 이 함수의 계약은 「보안 저장소가 던지거나 멈춰도 ready 로 끝난다」다. 저장소 호출 하나가
+      던지거나 안 돌아오면 ready 가 false 로 남아 게이트가 로딩에서 못 나오고, 껐다 켜도 같은
+      저장소를 또 읽어 그대로 멈춘다 (F-SES-04). 저장소 실패는 세션을 무너뜨리는 사건이 아니다 —
       토큰을 못 읽었으면 로그인 안 된 상태로, 기억한 가족을 못 읽었으면 첫 가족으로 떨어뜨린다.
+      읽기가 늦어 한도를 넘긴 경우에도 토큰은 **지우지 않는다** — 다음 실행에서 다시 읽힌다.
+      ⚠️ /me 가 네트워크에서 멈추는 경우는 보장하지 않는다. api() 에는 한도가 없고,
+      네트워크 실패를 어떻게 다룰지는 #67 에서 따로 정한다
 
       두 읽기를 따로 받는 이유: 가족 id 를 못 읽었다고 멀쩡한 토큰까지 버리면 로그인이 풀린다.
     */
     const [tokenRead, rememberedRead] = await Promise.allSettled([
-      SecureStore.getItemAsync(TOKEN_KEY),
-      SecureStore.getItemAsync(FAMILY_KEY),
+      readWithTimeout(TOKEN_KEY),
+      readWithTimeout(FAMILY_KEY),
     ]);
     const token = tokenRead.status === 'fulfilled' ? tokenRead.value : null;
     const remembered = rememberedRead.status === 'fulfilled' ? rememberedRead.value : null;
