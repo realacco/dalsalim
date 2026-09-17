@@ -14,7 +14,9 @@ vi.mock('@/shared/api/client', () => ({
 
 import * as SecureStore from 'expo-secure-store';
 
+import { api } from '@/shared/api/client';
 import { useSession } from './session';
+import type { Me } from './types';
 
 const TOKEN_KEY = 'dalsalim.token';
 const FAMILY_KEY = 'dalsalim.familyId';
@@ -57,5 +59,62 @@ describe('★ F-SES-04 signOut — 저장소가 말을 안 들어도 나간다',
     const keys = vi.mocked(SecureStore.deleteItemAsync).mock.calls.map(([key]) => key);
     expect(keys).toContain(TOKEN_KEY);
     expect(keys).toContain(FAMILY_KEY);
+  });
+});
+
+/*
+  hydrate 의 유일한 계약은 「어떤 길로 들어와도 ready 로 끝난다」다. ready 가 false 로 남으면
+  게이트가 로딩에서 못 나오고, 앱을 껐다 켜도 같은 저장소를 또 읽어 그대로 멈춘다 (#54).
+*/
+describe('★ F-SES-04 hydrate — 저장소가 말을 안 들어도 ready 로 끝난다', () => {
+  const me: Me = {
+    user: { id: 'u1', nickname: '아빠', profileImageUrl: null, isDev: false },
+    memberships: [
+      {
+        id: 'm1',
+        role: 'OWNER',
+        displayName: '아빠',
+        settlement: null,
+        settlementNotifiedFor: null,
+        family: { id: 'f1', name: '김씨네', inviteCode: 'ABC123' },
+      },
+    ],
+  };
+
+  beforeEach(() => {
+    vi.mocked(SecureStore.getItemAsync).mockReset();
+    vi.mocked(SecureStore.deleteItemAsync).mockReset();
+    vi.mocked(api).mockReset();
+    useSession.setState({ ready: false, token: null, me: null, familyId: null });
+  });
+
+  it('토큰 읽기가 던지면 로그인 안 된 상태로 끝난다', async () => {
+    vi.mocked(SecureStore.getItemAsync).mockRejectedValue(new Error('저장소가 잠겼어요'));
+
+    await expect(useSession.getState().hydrate()).resolves.toBeUndefined();
+
+    expect(useSession.getState()).toMatchObject({ ready: true, token: null, me: null });
+  });
+
+  it('기억한 가족 id 읽기만 던지면 로그인은 이어가고 첫 가족을 고른다', async () => {
+    vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key: string) => {
+      if (key === FAMILY_KEY) throw new Error('저장소가 잠겼어요');
+      return 't0k3n';
+    });
+    vi.mocked(api).mockResolvedValue(me);
+
+    await useSession.getState().hydrate();
+
+    expect(useSession.getState()).toMatchObject({ ready: true, token: 't0k3n', familyId: 'f1' });
+  });
+
+  it('토큰이 만료돼 정리하다 저장소 삭제가 던져도 로그인 안 된 상태로 끝난다', async () => {
+    vi.mocked(SecureStore.getItemAsync).mockResolvedValue('t0k3n');
+    vi.mocked(api).mockRejectedValue(new Error('401'));
+    vi.mocked(SecureStore.deleteItemAsync).mockRejectedValue(new Error('저장소가 잠겼어요'));
+
+    await expect(useSession.getState().hydrate()).resolves.toBeUndefined();
+
+    expect(useSession.getState()).toMatchObject({ ready: true, token: null, me: null });
   });
 });
