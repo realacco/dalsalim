@@ -68,7 +68,9 @@ export async function requestJoin(userId: string, inviteCode: string, displayNam
     // 나갔던 사람도 다시 승인을 받는다 — 내보낸 사람이 코드만으로 돌아오면 안 되니까.
     membership = await prisma.membership.update({
       where: { id: existing.id },
-      data: { status: 'PENDING', requestedAt: new Date(), leftAt: null, displayName },
+      // leftAt 은 그대로 둔다 — 승인되면 approveJoinRequest 가 지우고,
+      // 거절·취소되면 discardJoinRequest 가 이 행을 LEFT 로 되돌리므로 그때 그대로 맞다
+      data: { status: 'PENDING', requestedAt: new Date(), displayName },
     });
   } else {
     membership = await prisma.membership.create({
@@ -103,8 +105,30 @@ export async function cancelJoinRequest(userId: string, membershipId: string) {
     throw fail('REQUEST_NOT_FOUND');
   }
 
-  // 승인 전이라 이 멤버십에 매달린 기록이 없다. 되살릴 게 없으니 그냥 지운다 (하드룰 6 의 예외).
-  await prisma.membership.delete({ where: { id: mine.id } });
+  await discardJoinRequest(mine.id);
+}
+
+/**
+ * 참여 요청을 없던 일로 만든다 — 취소(F-FAM-04)와 거절(F-FAM-05)이 같이 쓴다.
+ *
+ * ★ 「승인 전이니 매달린 기록이 없다」가 **항상 참이 아니다.**
+ *   `@@unique([familyId, userId])` 라 재참여가 행을 새로 만들지 못하고 requestJoin 이
+ *   있던 행을 되살리므로, **지난 제출본이 달린 PENDING** 이 존재한다. 그 행을 지우면
+ *   `MemberEntry` · `EntryLine` 이 Cascade 로 따라가 그 달 가족 합계가 바뀐다
+ *   (하드룰 6 · F-BOOK-02). 거절은 가족장이 누르는 버튼이라, 그대로 두면 내보내기로는
+ *   절대 못 하는 일을 거절로는 할 수 있게 된다.
+ *
+ * 두 갈래를 여기 한 곳에만 둔다 — 같은 판단이 취소·거절에 복사돼 있었고 둘 다 틀렸다.
+ * 정원은 어느 갈래에서도 안 바뀐다(refreshBookStatus 는 ACTIVE 만 센다)므로 다시 안 센다.
+ */
+export async function discardJoinRequest(membershipId: string) {
+  const entries = await prisma.memberEntry.count({ where: { membershipId } });
+
+  // 집계에 한 줄도 안 들어간 행이다 — 지워도 바뀌는 숫자가 없다 (하드룰 6 근거 ①)
+  if (entries === 0) return prisma.membership.delete({ where: { id: membershipId } });
+
+  // 돌아오려다 만 사람이다. 요청하기 직전 자리인 LEFT 로 되돌린다
+  return prisma.membership.update({ where: { id: membershipId }, data: { status: 'LEFT' } });
 }
 
 /** 들어온 참여 요청 목록 — 가족장이 본다 */
@@ -142,9 +166,7 @@ export async function approveJoinRequest(familyId: string, membershipId: string)
 export async function rejectJoinRequest(familyId: string, membershipId: string) {
   const target = await findPendingRequest(familyId, membershipId);
 
-  // 승인 전이라 매달린 기록이 없다. LEFT 로 남기면 "한때 구성원이었던 사람"으로
-  // 잘못 읽히고 다시 요청할 때도 걸리적거린다. 지우는 게 맞다.
-  await prisma.membership.delete({ where: { id: target.id } });
+  await discardJoinRequest(target.id);
   return target;
 }
 

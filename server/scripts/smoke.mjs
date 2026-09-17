@@ -768,6 +768,144 @@ async function main() {
   // 원래대로 두 명으로 되돌린다
   await clearOutsider(dad.token, dad.familyId, '이웃');
 
+  console.log('\n[재참여 거절]');
+  /*
+    ★ 「승인 대기 = 아직 아무것도 안 적었다」가 아니다.
+    `@@unique([familyId, userId])` 라 재참여가 행을 새로 못 만들고 있던 행을 되살리므로,
+    **지난 제출본이 달린 PENDING** 이 존재한다. 그 행을 지우면 Cascade 로 그 달 가족 합계가 바뀐다.
+    거절은 가족장이 누르는 버튼이라, 그대로 두면 내보내기로는 못 하는 일을 거절로는 할 수 있다.
+
+    스모크네를 건드리면 안 되므로 이 절도 자기 가족을 따로 만들어 쓰고 마지막에 없앤다.
+  */
+  const BACK_OWNER = '스모크되돌이장';
+  const BACK_MEMBER = '스모크되돌이원';
+  const BACK_FAMILY = '되돌이네';
+  const backOwnerToken = await login(BACK_OWNER);
+
+  for (const backStale of (
+    await call('GET', '/me', { token: backOwnerToken })
+  ).body.memberships?.filter((m) => m.family.name === BACK_FAMILY) ?? []) {
+    const backDetail = await call('GET', `/families/${backStale.family.id}`, {
+      token: backOwnerToken,
+    });
+    for (const backOther of backDetail.body.members?.filter((m) => !m.isMe) ?? []) {
+      await call('DELETE', `/families/${backStale.family.id}/members/${backOther.id}`, {
+        token: backOwnerToken,
+      });
+    }
+    await call('DELETE', `/families/${backStale.family.id}`, { token: backOwnerToken });
+  }
+
+  const backFamily = await call('POST', '/families', {
+    token: backOwnerToken,
+    body: { name: BACK_FAMILY, displayName: '되돌이장' },
+  });
+  const backFamilyId = backFamily.body.family?.id;
+  const backInviteCode = backFamily.body.family?.inviteCode;
+  check('F-FAM-05 (준비) 가족을 만든다', backFamily.status === 200, backFamily.body);
+
+  const backMemberToken = await login(BACK_MEMBER);
+  const joinAndGetRequestId = async () => {
+    await call('POST', '/families/join', {
+      token: backMemberToken,
+      body: { inviteCode: backInviteCode, displayName: '되돌이원' },
+    });
+    const list = await call('GET', `/families/${backFamilyId}/join-requests`, {
+      token: backOwnerToken,
+    });
+    return list.body.requests?.find((r) => r.displayName === '되돌이원')?.id;
+  };
+
+  await call(
+    'POST',
+    `/families/${backFamilyId}/join-requests/${await joinAndGetRequestId()}/approve`,
+    {
+      token: backOwnerToken,
+    },
+  );
+
+  // 이 사람이 이번 달에 한 줄 적고 제출한다. 이 숫자가 끝까지 그대로여야 한다
+  const backEntry = (
+    await call('POST', `/families/${backFamilyId}/books/${thisMonth}/my-entry`, {
+      token: backMemberToken,
+    })
+  ).body.entry;
+  const backIncome = backEntry?.lines?.find((l) => l.kind === 'INCOME');
+  await call('PATCH', `/entries/${backEntry?.id}/lines/${backIncome?.id}`, {
+    token: backMemberToken,
+    body: { actualAmount: 3_000_000 },
+  });
+  const backSubmit = await call('POST', `/entries/${backEntry?.id}/submit`, {
+    token: backMemberToken,
+  });
+  check('F-FAM-05 (준비) 그 사람이 제출한다', backSubmit.status === 200, backSubmit.body);
+
+  const backSummaryPath = `/families/${backFamilyId}/books/${thisMonth}/summary`;
+  const backBefore = (await call('GET', backSummaryPath, { token: backOwnerToken })).body;
+
+  // 내보낸다 — 여기까지는 F-BOOK-02 가 이미 지키는 구간이다
+  const backMemberRow = (
+    await call('GET', `/families/${backFamilyId}`, { token: backOwnerToken })
+  ).body.members?.find((m) => m.displayName === '되돌이원');
+  await call('DELETE', `/families/${backFamilyId}/members/${backMemberRow?.id}`, {
+    token: backOwnerToken,
+  });
+  const backAfterLeave = (await call('GET', backSummaryPath, { token: backOwnerToken })).body;
+  check(
+    'F-FAM-05 (준비) 내보내도 그 달 합계는 그대로다',
+    backAfterLeave.totals?.income === backBefore.totals?.income,
+    { before: backBefore.totals?.income, after: backAfterLeave.totals?.income },
+  );
+
+  // ★ 이 절의 핵심 — 되살아난 행에는 지난 제출본이 달려 있다. 거절이 그걸 지우면 안 된다
+  const rejoinId = await joinAndGetRequestId();
+  check('F-FAM-05 (준비) 나갔던 사람이 다시 요청한다', Boolean(rejoinId), rejoinId);
+
+  const rejoinReject = await call(
+    'POST',
+    `/families/${backFamilyId}/join-requests/${rejoinId}/reject`,
+    { token: backOwnerToken },
+  );
+  check('F-FAM-05 가족장이 재참여 요청을 거절한다', rejoinReject.status === 200, rejoinReject.body);
+
+  const afterRejoinReject = (await call('GET', backSummaryPath, { token: backOwnerToken })).body;
+  check(
+    '★ F-FAM-05 재참여를 거절해도 그 사람의 지난 기록이 그대로다 (하드룰 6)',
+    afterRejoinReject.totals?.income === backBefore.totals?.income &&
+      afterRejoinReject.perMember?.length === backBefore.perMember?.length,
+    { before: backBefore.totals?.income, after: afterRejoinReject.totals?.income },
+  );
+  check(
+    'F-FAM-05 거절당한 사람은 구성원 목록에 없다',
+    (await call('GET', `/families/${backFamilyId}`, { token: backOwnerToken })).body.members
+      ?.length === 1,
+  );
+
+  // ★ 본인이 무르는 길도 같은 코드로 판정한다 (F-FAM-04)
+  const cancelId = await joinAndGetRequestId();
+  check('F-FAM-04 (준비) 거절당해도 다시 요청할 수 있다', Boolean(cancelId), cancelId);
+
+  const cancelled = await call('DELETE', `/families/pending/${cancelId}`, {
+    token: backMemberToken,
+  });
+  check('F-FAM-04 요청을 스스로 무른다', cancelled.status === 200, cancelled.body);
+
+  const afterCancel = (await call('GET', backSummaryPath, { token: backOwnerToken })).body;
+  check(
+    '★ F-FAM-04 요청을 취소해도 그 사람의 지난 기록이 그대로다 (하드룰 6)',
+    afterCancel.totals?.income === backBefore.totals?.income,
+    { before: backBefore.totals?.income, after: afterCancel.totals?.income },
+  );
+  check(
+    'F-FAM-04 무른 요청은 내 대기 목록에서 사라진다',
+    (await call('GET', '/families/pending', { token: backMemberToken })).body.requests?.every(
+      (r) => r.family?.id !== backFamilyId,
+    ) === true,
+  );
+
+  // 다음 실행을 위해 치운다. 나간 사람은 정원에 안 들므로 혼자인 가족장으로서 없앨 수 있다
+  await call('DELETE', `/families/${backFamilyId}`, { token: backOwnerToken });
+
   console.log('\n[초대코드 재발급]');
   const memberRotates = await call('POST', `/families/${dad.familyId}/invite-code`, {
     token: mom.token,
