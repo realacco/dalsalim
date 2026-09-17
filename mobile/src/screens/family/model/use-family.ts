@@ -20,6 +20,7 @@ import {
   updateMySettlement,
   passedMonthHint,
 } from '@/entities/family';
+import { fixedExpenseKeys } from '@/entities/fixed-expense';
 import { useSession } from '@/entities/session';
 import { enablePushForThisDevice, usePushStore } from '@/features/push';
 import type { Settlement } from '@/shared/model/types';
@@ -181,8 +182,9 @@ export function useFamily() {
 
   /**
    * 내 이름 저장 (F-FAM-07). 실패하면 입력 아래 붉은 한 줄로 남기고 입력은 그대로 둔다 — 폼 안 저장 실패 규칙.
-   * 장부 · 월 요약 캐시도 비운다 — 기록에는 이름을 복사해 두지 않아서 지난 달에도 새 이름이 보여야 한다.
-   * 추이는 이름을 싣지 않아 안 비운다.
+   * 내 이름을 그리는 화면의 캐시를 다 비운다 — 기록에는 이름을 복사해 두지 않아서 지난 달에도 새 이름이
+   * 보여야 한다. 이번 달(장부) · 월 요약 · 고정비 탭(사람별 묶음) · 내 정보(/me) 넷이다.
+   * 추이는 이름을 안 싣고, 기록 상세(entry)는 이름을 싣지만 화면이 안 그려서 안 비운다.
    * /me 도 다시 부른다 — 내 정보의 「내 가족」 목록이 이 이름을 보여준다
    */
   const saveName = useMutation({
@@ -194,6 +196,7 @@ export function useFamily() {
       void queryClient.invalidateQueries({ queryKey: familyKeys.detail(familyId) });
       void queryClient.invalidateQueries({ queryKey: bookKeys.family(familyId) });
       void queryClient.invalidateQueries({ queryKey: bookKeys.summaries(familyId) });
+      void queryClient.invalidateQueries({ queryKey: fixedExpenseKeys.list(familyId) });
       void refreshMe();
     },
     onError: (caught) => {
