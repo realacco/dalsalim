@@ -96,7 +96,7 @@ const useStyles = makeStyles((t) => ({
   // 시트 바탕(bg) 위에서 누를 수 있는 것으로 읽히게 한 단 밝게 · 테두리를 둔다 — 정산일 시트의 칩과 같은 조합
   action: {
     backgroundColor: t.colors.surface,
-    borderWidth: t.border.hairline,
+    borderWidth: t.border.control,
     borderColor: t.colors.line,
     borderRadius: t.radius.lg,
     paddingHorizontal: t.space.lg,

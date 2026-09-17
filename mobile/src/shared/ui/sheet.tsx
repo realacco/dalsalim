@@ -81,11 +81,7 @@ export function Sheet({
             <GestureDetector gesture={drag}>
               <View style={[styles.header, title ? styles.headerWithTitle : null]}>
                 <View style={styles.grabber} />
-                {title ? (
-                  <Text style={styles.title} numberOfLines={1}>
-                    {title}
-                  </Text>
-                ) : null}
+                {title ? <Text style={styles.title}>{title}</Text> : null}
               </View>
             </GestureDetector>
             {children}

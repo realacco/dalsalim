@@ -98,7 +98,7 @@ export function CalculatorSheet({
 
   return (
     // 배경을 눌러 닫지 않는다 — 치던 수식이 한 번의 헛손질에 날아간다
-    <Sheet visible={visible} onClose={onCancel} capHeight={false}>
+    <Sheet visible={visible} onClose={onCancel} capHeight={false} dismissOnBackdrop={false}>
       <View style={[styles.body, { paddingBottom: bottom }]}>
         {/*
                 수식과 결과는 늘 같이 보인다. 무엇을 눌러 이 금액이 됐는지 안 보이면

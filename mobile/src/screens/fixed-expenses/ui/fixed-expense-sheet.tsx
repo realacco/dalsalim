@@ -53,7 +53,12 @@ export function FixedExpenseSheet({
 
   return (
     // 배경을 눌러 닫지 않는다 — 적던 칸이 헛손질 한 번에 날아간다
-    <Sheet visible={isOpen} onClose={onClose} title={draft?.id ? '고정비 수정' : '고정비 추가'}>
+    <Sheet
+      visible={isOpen}
+      onClose={onClose}
+      title={draft?.id ? '고정비 수정' : '고정비 추가'}
+      dismissOnBackdrop={false}
+    >
       {/*
               패딩은 ScrollView 가 아니라 contentContainerStyle 에 준다.
               시트에 패딩을 주면 ScrollView 가 그만큼 안쪽에 놓여서
