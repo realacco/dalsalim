@@ -58,22 +58,23 @@ export function FixedExpenseSheet({
       onClose={onClose}
       title={draft?.id ? '고정비 수정' : '고정비 추가'}
       dismissOnBackdrop={false}
+      capHeight
     >
       {/*
-              패딩은 ScrollView 가 아니라 contentContainerStyle 에 준다.
-              시트에 패딩을 주면 ScrollView 가 그만큼 안쪽에 놓여서
-              스크롤바가 화면 끝이 아니라 글자 위에 그려진다.
-            */}
+        패딩은 ScrollView 가 아니라 contentContainerStyle 에 준다.
+        시트에 패딩을 주면 ScrollView 가 그만큼 안쪽에 놓여서
+        스크롤바가 화면 끝이 아니라 글자 위에 그려진다.
+      */}
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[styles.sheetContent, { paddingBottom: bottom }]}
       >
         {/*
-                '생활비' 를 여기 넣는 사람이 있는데, 뜻이 두 가지다. (기획서 3장)
-                매달 이체하는 정액이면 고정비가 맞지만, 실제로 쓴 총액이면 매달 금액이 달라서
-                위저드가 매번 사유를 묻는다 — 사유가 "예외 기록"이 아니라 "매달 잔업"이 된다.
-                등록하기 전에 갈라줘야 한다.
-              */}
+          '생활비' 를 여기 넣는 사람이 있는데, 뜻이 두 가지다. (기획서 3장)
+          매달 이체하는 정액이면 고정비가 맞지만, 실제로 쓴 총액이면 매달 금액이 달라서
+          위저드가 매번 사유를 묻는다 — 사유가 "예외 기록"이 아니라 "매달 잔업"이 된다.
+          등록하기 전에 갈라줘야 한다.
+        */}
         <Notice>
           매달 <Text style={styles.noticeStrong}>같은 금액</Text>이 나가는 것만 등록해요. 생활비도
           매달 옮겨두는 정액이면 여기 맞고, 실제로 쓴 돈은 기록할 때 적어요.
@@ -89,10 +90,10 @@ export function FixedExpenseSheet({
         </Field>
 
         {/*
-                이름 바로 다음에 둔다. "무엇인가"를 적는 두 칸이 붙어 있어야 흐름이 안 끊긴다.
-                ⚠️ 여러 줄로 열지 않는다 — 목록 행 높이가 항목마다 달라지고,
-                엔터로 칸이 끝없이 늘어나는 문제를 여기서 다시 만든다.
-              */}
+          이름 바로 다음에 둔다. "무엇인가"를 적는 두 칸이 붙어 있어야 흐름이 안 끊긴다.
+          ⚠️ 여러 줄로 열지 않는다 — 목록 행 높이가 항목마다 달라지고,
+          엔터로 칸이 끝없이 늘어나는 문제를 여기서 다시 만든다.
+        */}
         <Field label="설명 (선택)" hint="목록에서 가족이 볼 때 도움이 돼요.">
           <Input
             value={draft?.description ?? ''}
@@ -134,9 +135,9 @@ export function FixedExpenseSheet({
         </Field>
 
         {/*
-                결산 스위치 (F-FIX-07). 분류를 생활비로 고르면 켜지고, 사람이 건드리기 전까지만 따라간다 —
-                그 규칙은 model/draft 의 patchDraft 에 있다. "목표" "예산" 이라는 말을 쓰지 않는다 (하드룰 9).
-              */}
+          결산 스위치 (F-FIX-07). 분류를 생활비로 고르면 켜지고, 사람이 건드리기 전까지만 따라간다 —
+          그 규칙은 model/draft 의 patchDraft 에 있다. "목표" "예산" 이라는 말을 쓰지 않는다 (하드룰 9).
+        */}
         <Toggle
           label="다음 달에 실제로 쓴 금액을 물어요"
           hint="생활비처럼 옮겨두고 쓰는 돈에 켜두세요. 통신비처럼 그냥 빠져나가는 돈은 꺼두면 돼요."

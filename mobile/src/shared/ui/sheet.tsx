@@ -30,7 +30,7 @@ export function Sheet({
   onClose,
   title,
   dismissOnBackdrop = false,
-  capHeight = true,
+  capHeight = false,
   children,
 }: {
   visible: boolean;
@@ -45,8 +45,8 @@ export function Sheet({
   dismissOnBackdrop?: boolean;
   /**
    * 화면의 90% 로 높이를 묶나. **안쪽이 ScrollView 인 시트만** 켠다 — 묶인 높이를 넘는 만큼 스크롤로 받는다.
-   * 스크롤이 없는 시트(계산기)에 묶으면 RN 은 줄이지 않고 넘치게 두어서, 큰 글자 설정에서
-   * 맨 아래 [이 금액 쓰기] 가 화면 밖으로 밀린다. 그런 시트는 자기 높이가 곧 뚜껑이다
+   * 스크롤이 없는 시트(계산기)에 묶으면 RN 은 줄이지 않고 넘치게 두어서 맨 아래 버튼이 밀린다.
+   * 그래서 **기본은 끔**이다 — 다음 시트를 만드는 사람이 이 프롭을 몰라도 조용히 틀어지지 않는 쪽으로.
    */
   capHeight?: boolean;
   children: ReactNode;

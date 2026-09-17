@@ -41,6 +41,7 @@ export function MemberActionsSheet({
       onClose={onClose}
       title={member ? `${member.displayName}님` : ''}
       dismissOnBackdrop
+      capHeight
     >
       {member ? (
         <ScrollView

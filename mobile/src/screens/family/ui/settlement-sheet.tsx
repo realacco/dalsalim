@@ -38,14 +38,14 @@ export function SettlementSheet({
   const hint = draft ? shortMonthHint(draft.day) : null;
 
   return (
-    <Sheet visible={draft !== null} onClose={onClose} title="정산일" dismissOnBackdrop>
+    <Sheet visible={draft !== null} onClose={onClose} title="정산일" dismissOnBackdrop capHeight>
       {/* 칩이 쉰 개 남짓이라 큰 글자 설정에서는 화면을 넘는다 — 뚜껑을 두고 안에서 스크롤 (저장 버튼이 잘리면 기능이 막힌다) */}
       {draft ? (
         /*
-                좌우·아래 여백은 시트가 아니라 contentContainerStyle 에 준다. 시트에 패딩을 주면
-                ScrollView 가 그만큼 안쪽에 놓여서 스크롤바가 화면 끝이 아니라 칩 위에 그려진다.
-                (고정비 시트와 같은 이유 — `fixed-expense-sheet.tsx`)
-              */
+          좌우·아래 여백은 시트가 아니라 contentContainerStyle 에 준다. 시트에 패딩을 주면
+          ScrollView 가 그만큼 안쪽에 놓여서 스크롤바가 화면 끝이 아니라 칩 위에 그려진다.
+          (고정비 시트와 같은 이유 — `fixed-expense-sheet.tsx`)
+        */
         <ScrollView
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + space.lg }]}
         >

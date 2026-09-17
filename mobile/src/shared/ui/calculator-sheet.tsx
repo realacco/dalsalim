@@ -101,9 +101,9 @@ export function CalculatorSheet({
     <Sheet visible={visible} onClose={onCancel} capHeight={false} dismissOnBackdrop={false}>
       <View style={[styles.body, { paddingBottom: bottom }]}>
         {/*
-                수식과 결과는 늘 같이 보인다. 무엇을 눌러 이 금액이 됐는지 안 보이면
-                틀렸을 때 사람이 못 찾는다.
-              */}
+          수식과 결과는 늘 같이 보인다. 무엇을 눌러 이 금액이 됐는지 안 보이면
+          틀렸을 때 사람이 못 찾는다.
+        */}
         <View accessible style={styles.display} accessibilityLabel={readout}>
           {settled ? (
             <>
