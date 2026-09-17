@@ -805,20 +805,28 @@ async function main() {
   check('F-FAM-05 (준비) 가족을 만든다', backFamily.status === 200, backFamily.body);
 
   const backMemberToken = await login(BACK_MEMBER);
-  const joinAndGetRequestId = async () => {
+
+  /*
+    요청을 넣고 가족장 목록에서 그 id 를 집어 온다. 이 절의 세 사람이 같이 쓴다.
+
+    ⚠️ 부르는 쪽이 **거절·승인 응답을 반드시 본다.** 여기서 돌려주는 id 는 「지금 대기 중인
+    요청」이라, 앞선 거절이 실패해 행이 PENDING 으로 남아 있으면 그 id 가 그대로 돌아온다.
+    응답을 안 보면 거절을 한 번도 안 거친 채 뒤의 검사가 초록이 된다.
+  */
+  const joinAndGetRequestId = async (token, displayName) => {
     await call('POST', '/families/join', {
-      token: backMemberToken,
-      body: { inviteCode: backInviteCode, displayName: '되돌이원' },
+      token,
+      body: { inviteCode: backInviteCode, displayName },
     });
     const list = await call('GET', `/families/${backFamilyId}/join-requests`, {
       token: backOwnerToken,
     });
-    return list.body.requests?.find((r) => r.displayName === '되돌이원')?.id;
+    return list.body.requests?.find((r) => r.displayName === displayName)?.id;
   };
 
   await call(
     'POST',
-    `/families/${backFamilyId}/join-requests/${await joinAndGetRequestId()}/approve`,
+    `/families/${backFamilyId}/join-requests/${await joinAndGetRequestId(backMemberToken, '되돌이원')}/approve`,
     {
       token: backOwnerToken,
     },
@@ -858,7 +866,7 @@ async function main() {
   );
 
   // ★ 이 절의 핵심 — 되살아난 행에는 지난 제출본이 달려 있다. 거절이 그걸 지우면 안 된다
-  const rejoinId = await joinAndGetRequestId();
+  const rejoinId = await joinAndGetRequestId(backMemberToken, '되돌이원');
   check('F-FAM-05 (준비) 나갔던 사람이 다시 요청한다', Boolean(rejoinId), rejoinId);
 
   const rejoinReject = await call(
@@ -885,7 +893,7 @@ async function main() {
   );
 
   // ★ 본인이 무르는 길도 같은 코드로 판정한다 (F-FAM-04)
-  const cancelId = await joinAndGetRequestId();
+  const cancelId = await joinAndGetRequestId(backMemberToken, '되돌이원');
   check('F-FAM-04 (준비) 거절당해도 다시 요청할 수 있다', Boolean(cancelId), cancelId);
 
   const cancelled = await call('DELETE', `/families/pending/${cancelId}`, {
@@ -917,20 +925,14 @@ async function main() {
     그 길이 아니면 밖에서 관측할 수가 없다.
   */
   const fixedOnlyToken = await login('스모크되돌이둘');
-  const fixedOnlyJoin = async () => {
-    await call('POST', '/families/join', {
-      token: fixedOnlyToken,
-      body: { inviteCode: backInviteCode, displayName: '되돌이둘' },
-    });
-    const list = await call('GET', `/families/${backFamilyId}/join-requests`, {
-      token: backOwnerToken,
-    });
-    return list.body.requests?.find((r) => r.displayName === '되돌이둘')?.id;
-  };
 
-  await call('POST', `/families/${backFamilyId}/join-requests/${await fixedOnlyJoin()}/approve`, {
-    token: backOwnerToken,
-  });
+  await call(
+    'POST',
+    `/families/${backFamilyId}/join-requests/${await joinAndGetRequestId(fixedOnlyToken, '되돌이둘')}/approve`,
+    {
+      token: backOwnerToken,
+    },
+  );
 
   // 기록(my-entry)은 한 번도 안 연다. 고정비 항목만 하나 만든다
   const fixedOnlyMembershipId = (
@@ -958,14 +960,9 @@ async function main() {
     token: backOwnerToken,
   });
 
-  /*
-    ⚠️ 거절·승인 응답을 **반드시 본다.** 안 보면 거절이 실패해도(id 가 undefined 거나
-    REQUEST_NOT_FOUND) 행이 PENDING 으로 남고, 뒤의 재요청이 아직 살아 있는 그 id 를
-    그대로 집어 승인까지 통과한다 — **거절을 한 번도 안 거친 채 초록이 된다.**
-  */
   const fixedOnlyReject = await call(
     'POST',
-    `/families/${backFamilyId}/join-requests/${await fixedOnlyJoin()}/reject`,
+    `/families/${backFamilyId}/join-requests/${await joinAndGetRequestId(fixedOnlyToken, '되돌이둘')}/reject`,
     { token: backOwnerToken },
   );
   check(
@@ -977,7 +974,7 @@ async function main() {
   // 다시 요청해 승인까지 가서, 그 항목이 살아 있는지 본다
   const fixedOnlyApprove = await call(
     'POST',
-    `/families/${backFamilyId}/join-requests/${await fixedOnlyJoin()}/approve`,
+    `/families/${backFamilyId}/join-requests/${await joinAndGetRequestId(fixedOnlyToken, '되돌이둘')}/approve`,
     { token: backOwnerToken },
   );
   check(
@@ -1001,20 +998,14 @@ async function main() {
     그 의도가 무너진다.
   */
   const clockOnlyToken = await login('스모크되돌이셋');
-  const clockOnlyJoin = async () => {
-    await call('POST', '/families/join', {
-      token: clockOnlyToken,
-      body: { inviteCode: backInviteCode, displayName: '되돌이셋' },
-    });
-    const list = await call('GET', `/families/${backFamilyId}/join-requests`, {
-      token: backOwnerToken,
-    });
-    return list.body.requests?.find((r) => r.displayName === '되돌이셋')?.id;
-  };
 
-  await call('POST', `/families/${backFamilyId}/join-requests/${await clockOnlyJoin()}/approve`, {
-    token: backOwnerToken,
-  });
+  await call(
+    'POST',
+    `/families/${backFamilyId}/join-requests/${await joinAndGetRequestId(clockOnlyToken, '되돌이셋')}/approve`,
+    {
+      token: backOwnerToken,
+    },
+  );
 
   // 기록도 고정비도 안 만든다. 정산일만 켠다
   const setClock = await call('PATCH', `/families/${backFamilyId}/me`, {
@@ -1034,10 +1025,9 @@ async function main() {
     token: backOwnerToken,
   });
 
-  // 위와 같은 이유로 둘 다 응답을 본다
   const clockOnlyReject = await call(
     'POST',
-    `/families/${backFamilyId}/join-requests/${await clockOnlyJoin()}/reject`,
+    `/families/${backFamilyId}/join-requests/${await joinAndGetRequestId(clockOnlyToken, '되돌이셋')}/reject`,
     { token: backOwnerToken },
   );
   check(
@@ -1048,7 +1038,7 @@ async function main() {
 
   const clockOnlyApprove = await call(
     'POST',
-    `/families/${backFamilyId}/join-requests/${await clockOnlyJoin()}/approve`,
+    `/families/${backFamilyId}/join-requests/${await joinAndGetRequestId(clockOnlyToken, '되돌이셋')}/approve`,
     { token: backOwnerToken },
   );
   check(
