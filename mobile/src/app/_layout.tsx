@@ -8,7 +8,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { ThemeProvider, hideSplash, makeStyles, useTheme } from '@/shared/config/theme-provider';
+import { ThemeProvider, makeStyles, useTheme } from '@/shared/config/theme-provider';
+import { hideSplash } from '@/shared/lib/splash';
 import { ConfirmHost } from '@/shared/ui';
 import { useNotificationTap, usePushRegistration } from '@/features/push';
 import { useSession } from '@/entities/session';

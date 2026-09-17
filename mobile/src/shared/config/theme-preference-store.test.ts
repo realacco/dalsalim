@@ -6,16 +6,22 @@ vi.mock('expo-secure-store', () => ({
   setItemAsync: vi.fn(),
 }));
 
-import * as SecureStore from 'expo-secure-store';
-
-import { useThemePreference } from './theme-preference-store';
+type SecureStoreModule = typeof import('expo-secure-store');
+type StoreModule = typeof import('./theme-preference-store');
 
 const KEY = 'dalsalim.theme';
 
-beforeEach(() => {
-  vi.mocked(SecureStore.getItemAsync).mockReset();
-  vi.mocked(SecureStore.setItemAsync).mockReset();
-  useThemePreference.setState({ ready: false, preference: 'system' });
+let SecureStore: SecureStoreModule;
+let useThemePreference: StoreModule['useThemePreference'];
+
+/*
+  케이스마다 모듈을 새로 불러온다. 스토어는 모듈 전역에 쓰기 줄을 들고 있어서, 앞 케이스가
+  끝나지 않은 쓰기를 남기면 다음 케이스의 쓰기가 그 뒤에서 영영 기다린다 — 원인을 찾기 어려운 실패다
+*/
+beforeEach(async () => {
+  vi.resetModules();
+  SecureStore = await import('expo-secure-store');
+  ({ useThemePreference } = await import('./theme-preference-store'));
 });
 
 /** 대기 중인 약속들이 한 바퀴 돌 틈을 준다 */

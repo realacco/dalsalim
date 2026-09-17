@@ -8,36 +8,9 @@ import {
   useColorScheme,
 } from 'react-native';
 
-import * as SplashScreen from 'expo-splash-screen';
-
 import { type Theme, buildTheme } from './theme';
 import { resolveColorScheme } from './theme-preference';
 import { useThemePreference } from './theme-preference-store';
-
-/*
-  스플래시를 저장값을 읽고 창 배경을 테마 색으로 칠할 때까지 붙잡아 둔다. 그냥 두면 루트 뷰가 붙는
-  순간 내려가고, 아래 `return null` 동안 안드로이드 창 배경(app.json 의 밝은 색 한 벌)이 비친다 —
-  「어둡게」 를 고른 사람에게는 켤 때마다 밝은 판이 번쩍인다.
-  이미 내려갔거나 못 붙잡는 환경이면 던지는데, 그때는 붙잡지 않은 것과 같아 버린다.
-*/
-void SplashScreen.preventAutoHideAsync().catch(() => undefined);
-
-/** 무슨 일이 있어도 이 시간 뒤에는 스플래시를 내린다 — 렌더가 던지면 에러 화면을 덮고 남기 때문이다 */
-const SPLASH_MAX_MS = 3000;
-
-let splashHidden = false;
-
-/**
- * 스플래시를 내린다. 여러 번 불러도 한 번만 내린다.
- * 부르는 곳은 앱 셸이다 — 창 배경을 테마 색으로 칠한 **뒤에** 불러야 두 네이티브 호출의 순서가 보장된다.
- */
-export function hideSplash() {
-  if (splashHidden) return;
-  splashHidden = true;
-  void SplashScreen.hideAsync().catch(() => undefined);
-}
-
-setTimeout(hideSplash, SPLASH_MAX_MS);
 
 /**
  * 테마를 화면에 흘려보낸다.
