@@ -10,8 +10,8 @@ import {
 
 import * as SplashScreen from 'expo-splash-screen';
 
-import { resolveColorScheme } from '@/shared/lib/theme-preference';
 import { type Theme, buildTheme } from './theme';
+import { resolveColorScheme } from './theme-preference';
 import { useThemePreference } from './theme-preference-store';
 
 /*

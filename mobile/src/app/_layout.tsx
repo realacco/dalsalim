@@ -28,6 +28,16 @@ const queryClient = new QueryClient({
 const FILL = { flex: 1 } as const;
 
 export default function RootLayout() {
+  /*
+    세션(토큰) 읽기는 ThemeProvider 바깥에서 시작한다. 안쪽 AppShell 에서 시작하면 테마 저장값을
+    다 읽을 때까지 마운트되지 않아 두 보안 저장소 읽기가 줄을 선다 — 테마 읽기가 1초 한도까지
+    가면 로그인 확인도 그만큼 늦는다 (F-SES-09)
+  */
+  const hydrate = useSession((state) => state.hydrate);
+  useEffect(() => {
+    void hydrate();
+  }, [hydrate]);
+
   return (
     /*
       gesture-handler 가 요구하는 뿌리. 여태 앱 어디에도 없었고, 제스처를 쓰는 곳이
@@ -50,14 +60,9 @@ export default function RootLayout() {
 function AppShell() {
   const styles = useStyles();
   const { colors, scheme } = useTheme();
-  const hydrate = useSession((state) => state.hydrate);
   const ready = useSession((state) => state.ready);
   const token = useSession((state) => state.token);
   const pathname = usePathname();
-
-  useEffect(() => {
-    void hydrate();
-  }, [hydrate]);
 
   // 알림 받을 기기 등록 — 권한이 이미 있을 때만 조용히 · 알림을 누르면 그 가족의 홈으로 (F-FAM-10)
   usePushRegistration();

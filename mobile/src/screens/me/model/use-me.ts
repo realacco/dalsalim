@@ -8,7 +8,7 @@ import { disablePushForThisDevice } from '@/features/push';
 import { MESSAGES } from '@/shared/config/messages';
 import { useThemePreference } from '@/shared/config/theme-preference-store';
 import { errorMessage, isSessionExpired } from '@/shared/lib/errors';
-import { THEME_PREFERENCES, type ThemePreference } from '@/shared/lib/theme-preference';
+import { THEME_PREFERENCES, type ThemePreference } from '@/shared/config/theme-preference';
 
 /** 칩에 붙는 이름. 「시스템」 은 개발자 말이라 폰에서 보이는 말인 「기기 설정」 으로 쓴다 */
 const THEME_LABELS: Record<ThemePreference, string> = {

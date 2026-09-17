@@ -2,7 +2,7 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 
-import { type ThemePreference, parseThemePreference } from '@/shared/lib/theme-preference';
+import { type ThemePreference, parseThemePreference } from './theme-preference';
 
 /**
  * 앱 테마 선택값 — **계정이 아니라 이 폰의 것**이다.
@@ -17,6 +17,9 @@ const KEY = 'dalsalim.theme';
 
 /** 보안 저장소 읽기를 기다리는 한도. 넘기면 기기 설정으로 시작한다 — 스플래시에 갇히는 것보다 낫다 */
 const HYDRATE_TIMEOUT_MS = 1000;
+
+/** 저장소 쓰기 줄. 앞의 쓰기가 실패해도 뒤의 쓰기는 이어서 돈다 */
+let writes: Promise<void> = Promise.resolve();
 
 type ThemePreferenceState = {
   /** 저장값을 읽었는가. 읽기 전에 그리면 "어둡게" 를 고른 사람에게도 밝은 화면이 한 번 비친다 */
@@ -54,16 +57,17 @@ export const useThemePreference = create<ThemePreferenceState>((set, get) => ({
 
   choose: async (preference) => {
     set({ preference });
+    // 칩을 연달아 누르면 쓰기가 겹친다. 겹친 쓰기는 끝나는 순서가 정해져 있지 않아 앞의 값이
+    // 마지막에 닿을 수 있고, 그러면 다음 실행에서 조용히 되돌아간다. 쓰기를 누른 순서대로
+    // 한 줄로 세우면 마지막에 누른 값이 마지막에 저장된다
+    const write = writes.then(() => SecureStore.setItemAsync(KEY, preference));
+    writes = write.catch(() => undefined);
     try {
-      await SecureStore.setItemAsync(KEY, preference);
+      await write;
     } catch (caught) {
-      // 그사이 다른 값을 골랐으면 이 쓰기는 이미 낡았다. 실패를 알리면 제대로 저장된 마지막 값을
-      // 두고 "안 됐어요" 가 뜬다 — 알리는 것은 사용자가 지금 보고 있는 값의 실패뿐이다
+      // 그사이 다른 값을 골랐으면 이 쓰기는 이미 낡았다. 실패를 알리면 뒤에 줄 선 마지막 값이
+      // 저장될 텐데도 "안 됐어요" 가 뜬다 — 알리는 것은 사용자가 지금 보고 있는 값의 실패뿐이다
       if (get().preference === preference) throw caught;
     }
-    // 칩을 연달아 누르면 쓰기가 겹친다. 먼저 시작한 쓰기가 늦게 끝나면 저장소에 앞의 값이 남아
-    // 다음 실행에서 조용히 되돌아가므로, 끝난 뒤 그사이 바뀐 값이 있으면 마지막 값을 다시 쓴다
-    const latest = get().preference;
-    if (latest !== preference) await SecureStore.setItemAsync(KEY, latest);
   },
 }));

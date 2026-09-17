@@ -1,5 +1,5 @@
 // 기능: F-SES-09
-import type { ColorScheme } from '@/shared/config/theme';
+import type { ColorScheme } from './theme';
 
 /** 앱 테마 선택값. `system` 은 폰의 다크 모드 설정을 그대로 따라간다 */
 export type ThemePreference = 'system' | 'light' | 'dark';

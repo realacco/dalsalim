@@ -18,8 +18,55 @@ beforeEach(() => {
   useThemePreference.setState({ ready: false, preference: 'system' });
 });
 
+/** 대기 중인 약속들이 한 바퀴 돌 틈을 준다 */
+const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+/**
+ * 쓰기가 **언제 끝날지를 테스트가 정하는** 저장소. 연달아 누르기는 끝나는 순서가 전부라,
+ * 느린 쓰기를 흉내 내려면 각 쓰기를 붙잡아 두었다가 원하는 순서로 풀어야 한다.
+ */
+function heldStorage() {
+  const pending: { resolve: () => void; reject: () => void }[] = [];
+  const stored: string[] = [];
+  vi.mocked(SecureStore.setItemAsync).mockImplementation(
+    (_key, value) =>
+      new Promise<void>((resolve, reject) => {
+        pending.push({
+          resolve: () => {
+            stored.push(value);
+            resolve();
+          },
+          reject: () => reject(new Error('keystore')),
+        });
+      }),
+  );
+
+  const take = (index: number) => pending.splice(index, 1)[0];
+  return {
+    stored,
+    /** 가장 나중에 시작한 쓰기를 먼저 끝낸다 — 먼저 시작한 쓰기가 늦게 끝나는 최악의 순서 */
+    async finishNewest() {
+      await tick();
+      take(pending.length - 1)?.resolve();
+      await tick();
+    },
+    async failOldest() {
+      await tick();
+      take(0)?.reject();
+      await tick();
+    },
+    async finishAll() {
+      for (let guard = 0; guard < 20; guard++) {
+        await tick();
+        if (pending.length === 0) return;
+        take(pending.length - 1).resolve();
+      }
+    },
+  };
+}
+
 describe('F-SES-09 hydrate — 켤 때 저장값 읽기', () => {
-  it('F-SES-09 저장된 어둡게를 읽고 준비됨으로 바뀐다', async () => {
+  it('저장된 어둡게를 읽고 준비됨으로 바뀐다', async () => {
     vi.mocked(SecureStore.getItemAsync).mockResolvedValue('dark');
 
     await useThemePreference.getState().hydrate();
@@ -28,7 +75,7 @@ describe('F-SES-09 hydrate — 켤 때 저장값 읽기', () => {
     expect(useThemePreference.getState()).toMatchObject({ ready: true, preference: 'dark' });
   });
 
-  it('F-SES-09 읽기가 실패해도 기기 설정으로 시작한다 — 앱이 안 뜨면 안 된다', async () => {
+  it('읽기가 실패해도 기기 설정으로 시작한다 — 앱이 안 뜨면 안 된다', async () => {
     vi.mocked(SecureStore.getItemAsync).mockRejectedValue(new Error('keystore'));
 
     await expect(useThemePreference.getState().hydrate()).resolves.toBeUndefined();
@@ -36,7 +83,7 @@ describe('F-SES-09 hydrate — 켤 때 저장값 읽기', () => {
     expect(useThemePreference.getState()).toMatchObject({ ready: true, preference: 'system' });
   });
 
-  it('F-SES-09 읽기가 던지지 않고 멈춰도 1초 뒤 기기 설정으로 시작한다 — 스플래시에 갇히지 않는다', async () => {
+  it('읽기가 던지지 않고 멈춰도 1초 뒤 기기 설정으로 시작한다 — 스플래시에 갇히지 않는다', async () => {
     vi.useFakeTimers();
     try {
       vi.mocked(SecureStore.getItemAsync).mockReturnValue(
@@ -56,7 +103,7 @@ describe('F-SES-09 hydrate — 켤 때 저장값 읽기', () => {
 });
 
 describe('F-SES-09 choose — 고르기', () => {
-  it('F-SES-09 고르면 저장한다', async () => {
+  it('고르면 저장한다', async () => {
     vi.mocked(SecureStore.setItemAsync).mockResolvedValue();
 
     await useThemePreference.getState().choose('light');
@@ -65,7 +112,7 @@ describe('F-SES-09 choose — 고르기', () => {
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith(KEY, 'light');
   });
 
-  it('F-SES-09 저장이 실패해도 화면은 고른 테마로 남고, 실패는 알린다', async () => {
+  it('저장이 실패해도 화면은 고른 테마로 남고, 실패는 알린다', async () => {
     vi.mocked(SecureStore.setItemAsync).mockRejectedValue(new Error('keystore'));
 
     await expect(useThemePreference.getState().choose('dark')).rejects.toThrow('keystore');
@@ -73,53 +120,44 @@ describe('F-SES-09 choose — 고르기', () => {
     expect(useThemePreference.getState().preference).toBe('dark');
   });
 
-  it('F-SES-09 연달아 누르면 먼저 시작한 쓰기가 늦게 끝나도 마지막 값이 저장된다', async () => {
-    const stored: string[] = [];
-    let releaseFirst: () => void = () => undefined;
-    vi.mocked(SecureStore.setItemAsync)
-      // 첫 쓰기(어둡게)는 두 번째가 끝난 뒤에야 끝난다
-      .mockImplementationOnce(
-        (_key, value) =>
-          new Promise<void>((resolve) => {
-            releaseFirst = () => {
-              stored.push(value);
-              resolve();
-            };
-          }),
-      )
-      .mockImplementation(async (_key, value) => {
-        stored.push(value);
-      });
+  it('두 번 연달아 누르면 먼저 시작한 쓰기가 늦게 끝나도 마지막 값이 저장된다', async () => {
+    const storage = heldStorage();
 
-    const first = useThemePreference.getState().choose('dark');
-    await useThemePreference.getState().choose('light');
-    releaseFirst();
-    await first;
+    const dark = useThemePreference.getState().choose('dark');
+    const light = useThemePreference.getState().choose('light');
+    await storage.finishAll();
+    await Promise.all([dark, light]);
 
     expect(useThemePreference.getState().preference).toBe('light');
-    expect(stored.at(-1)).toBe('light');
+    expect(storage.stored.at(-1)).toBe('light');
   });
 
-  it('F-SES-09 먼저 누른 값의 쓰기만 실패하면 알리지 않고 마지막 값을 저장한다', async () => {
-    const stored: string[] = [];
-    let rejectFirst: () => void = () => undefined;
-    vi.mocked(SecureStore.setItemAsync)
-      .mockImplementationOnce(
-        () =>
-          new Promise<void>((_, reject) => {
-            rejectFirst = () => reject(new Error('keystore'));
-          }),
-      )
-      .mockImplementation(async (_key, value) => {
-        stored.push(value);
-      });
+  it('세 번 누르는 사이에 쓰기가 끝나도 마지막 값이 마지막에 저장된다', async () => {
+    const storage = heldStorage();
 
     const first = useThemePreference.getState().choose('dark');
-    await useThemePreference.getState().choose('light');
-    rejectFirst();
+    const second = useThemePreference.getState().choose('light');
+    await storage.finishNewest(); // 밝게가 먼저 끝나고
+    await storage.finishNewest(); // 늦게 끝난 어둡게가 뒤따른다
+    const third = useThemePreference.getState().choose('dark');
+    await storage.finishAll();
+    await Promise.all([first, second, third]);
 
-    await expect(first).resolves.toBeUndefined();
+    expect(useThemePreference.getState().preference).toBe('dark');
+    expect(storage.stored.at(-1)).toBe('dark');
+  });
+
+  it('먼저 누른 값의 쓰기만 실패하면 알리지 않고 마지막 값을 저장한다', async () => {
+    const storage = heldStorage();
+
+    const dark = useThemePreference.getState().choose('dark');
+    const light = useThemePreference.getState().choose('light');
+    await storage.failOldest();
+    await storage.finishAll();
+
+    await expect(dark).resolves.toBeUndefined();
+    await expect(light).resolves.toBeUndefined();
     expect(useThemePreference.getState().preference).toBe('light');
-    expect(stored.at(-1)).toBe('light');
+    expect(storage.stored.at(-1)).toBe('light');
   });
 });
