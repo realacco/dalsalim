@@ -255,6 +255,8 @@ describe('★ F-SES-03 hydrate — 서버에 못 닿아도 로그인은 안 풀�
 
     vi.mocked(api).mockReturnValue(new Promise(() => undefined));
     void useSession.getState().hydrate();
+    // 저장소를 다 읽고 /me 가 나가 멈춘 뒤를 본다 — 첫 문장 직후만 보면 「끝나기 전까지」 가 검증되지 않는다
+    await vi.waitFor(() => expect(vi.mocked(api)).toHaveBeenCalledTimes(2));
 
     // 카드가 그대로 남으면 누른 게 안 보여 계속 누른다
     expect(useSession.getState()).toMatchObject({ ready: false, bootError: null });

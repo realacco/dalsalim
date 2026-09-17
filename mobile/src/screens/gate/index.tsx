@@ -61,7 +61,8 @@ export default function Gate() {
     로그인으로 보내면 멀쩡한 로그인이 풀린 것처럼 보이고, 온보딩으로 보내면 가족이 있는 사람이
     가족 만들기를 만난다. 무엇이 안 됐는지(주소가 붙은 네트워크 문장)와 다시 시도만 보여준다
   */
-  if (token && bootError) {
+  // unknown 이라 진릿값으로 보면 throw undefined 같은 것이 온보딩으로 샌다
+  if (token && bootError !== null) {
     return (
       <View style={styles.splash}>
         <Text style={styles.logo}>달살림</Text>
