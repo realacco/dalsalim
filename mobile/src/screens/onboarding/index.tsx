@@ -25,7 +25,9 @@ export default function OnboardingScreen() {
   const [mode, setMode] = useState<Mode>('create');
   const [familyName, setFamilyName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
-  const [displayName, setDisplayName] = useState('');
+  // 카카오 닉네임은 화면에 안 보여주고 이 칸의 처음 값으로만 쓴다 — 가족 안의 이름은 본인이 고친다.
+  // 서버가 20자까지 받으므로 긴 닉네임은 잘라서 넣는다
+  const [displayName, setDisplayName] = useState(() => (me?.user.nickname ?? '').slice(0, 20));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,10 +81,7 @@ export default function OnboardingScreen() {
     <SafeAreaView style={styles.screen}>
       <View style={{ gap: space.sm }}>
         <Text style={styles.title}>우리 가족 만들기</Text>
-        <Muted>
-          {me?.user.nickname ? `${me.user.nickname}님, ` : ''}
-          가족을 새로 만들거나 이미 있는 가족에 들어갈 수 있어요.
-        </Muted>
+        <Muted>가족을 새로 만들거나 이미 있는 가족에 들어갈 수 있어요.</Muted>
       </View>
 
       <View style={styles.tabs}>
@@ -116,7 +115,7 @@ export default function OnboardingScreen() {
 
         <Field
           label="내 이름"
-          hint="가족 안에서 불리는 이름이에요. 카카오 닉네임과 달라도 괜찮아요."
+          hint="가족 안에서 불리는 이름이에요. 카카오 닉네임을 넣어뒀으니 편하게 바꿔주세요."
         >
           <Input
             value={displayName}

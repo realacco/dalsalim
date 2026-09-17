@@ -37,13 +37,6 @@ export default function MeScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={m.refreshing} onRefresh={m.refresh} />}
       >
-        <Card style={{ gap: space.sm }}>
-          <Text style={styles.cardTitle}>프로필</Text>
-          <Text style={styles.nickname}>{m.nickname}</Text>
-          {/* 「가족 탭에서 바꿀 수 있어요」를 안 붙인다 — F-FAM-07 이 아직 화면에 안 연결돼 있다 */}
-          <Muted>가족 안에서 불리는 이름은 가족마다 따로 있어요.</Muted>
-        </Card>
-
         <Card style={{ gap: space.md }}>
           <Text style={styles.cardTitle}>내 가족</Text>
 
@@ -125,7 +118,6 @@ const useStyles = makeStyles((t) => ({
 
   content: { padding: t.space.lg, gap: t.space.lg, paddingBottom: t.space.xxl },
   cardTitle: { ...t.font.bodyLg, fontWeight: t.weight.bold, color: t.colors.ink },
-  nickname: { ...t.font.display, fontWeight: t.weight.heavy, color: t.colors.ink },
 
   /* 가족 탭의 「가족 바꾸기」 카드에서 그대로 옮겨온 모양이다 */
   familyRow: {

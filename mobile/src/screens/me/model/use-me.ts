@@ -92,7 +92,6 @@ export function useMe() {
   }
 
   return {
-    nickname: me?.user.nickname ?? '',
     families: me?.memberships ?? [],
     familyId,
 

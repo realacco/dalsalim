@@ -27,14 +27,19 @@ export function JoinRequestsCard({
   return (
     <Card style={{ gap: space.md }}>
       <Text style={styles.cardTitle}>참여 요청 {requests.length}건</Text>
-      <Muted>초대코드를 넣은 사람이에요. 아는 사람이 맞는지 확인하고 승인해주세요.</Muted>
+      {/*
+        카카오 닉네임을 안 보여준다 — 본인이 언제든 바꿀 수 있어 누구인지 증명하지 못한다.
+        막는 힘은 가족장 승인(하드룰 8)과 가족에게 직접 묻는 것에서 나오므로 그쪽으로 안내한다
+      */}
+      <Muted>
+        초대코드를 넣은 사람이에요. 요청한 사람이 맞는지 가족에게 확인하고 승인해주세요.
+      </Muted>
       <Divider />
 
       {requests.map((request) => (
         <View key={request.id} style={styles.member}>
           <View style={{ gap: space.xxs }}>
             <Text style={styles.memberName}>{request.displayName}</Text>
-            <Text style={styles.memberMeta}>{request.nickname}</Text>
           </View>
 
           <View style={styles.memberActions}>
@@ -78,5 +83,4 @@ const useStyles = makeStyles((t) => ({
   member: { gap: t.space.sm, paddingVertical: t.space.xs },
   memberActions: { flexDirection: 'row', gap: t.space.sm },
   memberName: { ...t.font.body, fontWeight: t.weight.bold, color: t.colors.ink },
-  memberMeta: { ...t.font.caption, color: t.colors.inkFaint },
 }));

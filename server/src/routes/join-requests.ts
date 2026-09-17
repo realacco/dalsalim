@@ -84,7 +84,6 @@ export async function joinRequestRoutes(app: FastifyInstance) {
       requests: requests.map((m) => ({
         id: m.id,
         displayName: m.displayName,
-        nickname: m.user.nickname,
         profileImageUrl: m.user.profileImageUrl,
         requestedAt: m.requestedAt,
       })),

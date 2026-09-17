@@ -56,7 +56,6 @@ export function MembersCard({
                 {member.displayName}
                 {member.isMe ? ' (나)' : ''}
               </Text>
-              <Text style={styles.memberMeta}>{member.nickname}</Text>
               {/* 남의 정산일 — 언제쯤 적을지 서로 안다 (F-FAM-10) */}
               {member.settlement ? (
                 <Text style={styles.memberMeta}>{formatSettlement(member.settlement)}</Text>

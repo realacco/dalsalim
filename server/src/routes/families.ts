@@ -51,7 +51,6 @@ export async function familyRoutes(app: FastifyInstance) {
         id: m.id,
         displayName: m.displayName,
         role: m.role,
-        nickname: m.user.nickname,
         profileImageUrl: m.user.profileImageUrl,
         isMe: m.userId === user.id,
         // 남의 정산일도 보인다 — 언제쯤 적을지 서로 아는 것이 이 값의 두 번째 쓸모다 (F-FAM-10)
