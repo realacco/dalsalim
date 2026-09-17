@@ -44,9 +44,18 @@ export function useFamily() {
   /** 정산일 시트. draft 가 있으면 열려 있다 (F-FAM-10) */
   const [settlementDraft, setSettlementDraft] = useState<Settlement | null>(null);
   const [settlementError, setSettlementError] = useState<string | null>(null);
-  /** 이 가족 안 내 이름 편집 중인 값. null 이면 편집 중이 아니다 (F-FAM-07) */
-  const [nameDraft, setNameDraft] = useState<string | null>(null);
-  const [nameError, setNameError] = useState<string | null>(null);
+  /**
+   * 이 가족 안 내 이름 편집 (F-FAM-07). null 이면 편집 중이 아니다.
+   * 어느 가족에서 열었는지 같이 쥔다 — 가족 탭은 내 정보 아래 깔린 채 남아 있어서, 편집을 열어둔 채
+   * 내 정보에서 다른 가족으로 바꾸고 돌아오면 칸이 그대로 열려 [저장] 이 A 의 이름을 B 에 쓴다.
+   * 바뀐 뒤에 effect 로 비우면 한 프레임은 열린 칸이 보이므로, 가족이 다르면 처음부터 닫힌 것으로 읽는다
+   */
+  const [nameEdit, setNameEdit] = useState<{
+    familyId: string | null;
+    draft: string;
+    error: string | null;
+  } | null>(null);
+  const openNameEdit = nameEdit?.familyId === familyId ? nameEdit : null;
 
   /** 앱 전체의 값 — 앱을 켤 때의 조용한 재등록 결과도 여기로 온다 */
   const pushState = usePushStore((state) => state.state);
@@ -174,15 +183,18 @@ export function useFamily() {
    */
   const saveName = useMutation({
     mutationFn: (displayName: string) => updateMyDisplayName(familyId as string, displayName),
+    // 다시 누르면 지난번 붉은 줄을 지운다 — 요청이 도는 동안 옛 문구가 남아 있지 않게 (내 정보와 같다)
+    onMutate: () => setNameEdit((edit) => (edit ? { ...edit, error: null } : edit)),
     onSuccess: () => {
-      setNameDraft(null);
-      setNameError(null);
+      setNameEdit(null);
       void queryClient.invalidateQueries({ queryKey: familyKeys.detail(familyId) });
       void queryClient.invalidateQueries({ queryKey: bookKeys.family(familyId) });
       void refreshMe();
     },
     onError: (caught) => {
-      if (!isSessionExpired(caught)) setNameError(errorMessage(caught, MESSAGES.saveFailed));
+      if (isSessionExpired(caught)) return;
+      const error = errorMessage(caught, MESSAGES.saveFailed);
+      setNameEdit((edit) => (edit ? { ...edit, error } : edit));
     },
   });
 
@@ -237,20 +249,19 @@ export function useFamily() {
     contents: detail.data?.contents ?? null,
 
     // 이 가족 안 내 이름 (F-FAM-07)
-    nameDraft,
-    nameError,
+    nameDraft: openNameEdit?.draft ?? null,
+    nameError: openNameEdit?.error ?? null,
     savingName: saveName.isPending,
-    editName: () => {
-      setNameError(null);
-      // 20자 규칙 전에 들어온 이름이 있으면 입력 칸이 못 받는다 — 잘라서 연다
-      setNameDraft(truncateText(myMembership?.displayName ?? '', NAME_MAX_LENGTH));
-    },
-    changeName: (next: string) => setNameDraft(next),
-    cancelName: () => {
-      setNameDraft(null);
-      setNameError(null);
-    },
-    saveName: () => nameDraft !== null && saveName.mutate(nameDraft),
+    editName: () =>
+      setNameEdit({
+        familyId,
+        // 20자 규칙 전에 들어온 이름이 있으면 입력 칸이 못 받는다 — 잘라서 연다
+        draft: truncateText(myMembership?.displayName ?? '', NAME_MAX_LENGTH),
+        error: null,
+      }),
+    changeName: (draft: string) => setNameEdit((edit) => (edit ? { ...edit, draft } : edit)),
+    cancelName: () => setNameEdit(null),
+    saveName: () => openNameEdit && saveName.mutate(openNameEdit.draft),
 
     // 정산일 (F-FAM-10)
     mySettlement: myMembership?.settlement ?? null,
