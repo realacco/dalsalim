@@ -42,5 +42,9 @@ export const useThemePreference = create<ThemePreferenceState>((set, get) => ({
   choose: async (preference) => {
     set({ preference });
     await SecureStore.setItemAsync(KEY, preference);
+    // 칩을 연달아 누르면 쓰기가 겹친다. 먼저 시작한 쓰기가 늦게 끝나면 저장소에 앞의 값이 남아
+    // 다음 실행에서 조용히 되돌아가므로, 끝난 뒤 그사이 바뀐 값이 있으면 마지막 값을 다시 쓴다
+    const latest = get().preference;
+    if (latest !== preference) await SecureStore.setItemAsync(KEY, latest);
   },
 }));

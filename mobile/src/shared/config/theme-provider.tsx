@@ -8,9 +8,19 @@ import {
   useColorScheme,
 } from 'react-native';
 
+import * as SplashScreen from 'expo-splash-screen';
+
 import { resolveColorScheme } from '@/shared/lib/theme-preference';
 import { type Theme, buildTheme } from './theme';
 import { useThemePreference } from './theme-preference-store';
+
+/*
+  스플래시를 저장값을 읽을 때까지 붙잡아 둔다. 그냥 두면 루트 뷰가 붙는 순간 내려가고,
+  아래 `return null` 동안 안드로이드 창 배경(app.json 의 밝은 색 한 벌)이 비친다 —
+  「어둡게」 를 고른 사람에게는 켤 때마다 밝은 판이 번쩍인다.
+  이미 내려갔거나 못 붙잡는 환경이면 던지는데, 그때는 붙잡지 않은 것과 같아 버린다.
+*/
+void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 /**
  * 테마를 화면에 흘려보낸다.
@@ -31,6 +41,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void hydrate();
   }, [hydrate]);
+
+  // 자식의 effect 가 부모보다 먼저 돈다 — 앱 셸이 창 배경을 테마 색으로 칠한 뒤에 스플래시가 내려간다.
+  // hydrate 는 읽기가 실패해도 ready 가 되므로 스플래시가 영영 안 내려가는 길은 없다
+  useEffect(() => {
+    if (ready) void SplashScreen.hideAsync().catch(() => undefined);
+  }, [ready]);
 
   const scheme = resolveColorScheme(preference, system);
   const theme = useMemo(() => buildTheme(scheme), [scheme]);
