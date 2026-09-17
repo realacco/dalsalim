@@ -38,9 +38,7 @@ export function JoinRequestsCard({
 
       {requests.map((request) => (
         <View key={request.id} style={styles.member}>
-          <View style={{ gap: space.xxs }}>
-            <Text style={styles.memberName}>{request.displayName}</Text>
-          </View>
+          <Text style={styles.memberName}>{request.displayName}</Text>
 
           <View style={styles.memberActions}>
             <Button

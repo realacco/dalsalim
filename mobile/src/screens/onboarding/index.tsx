@@ -12,6 +12,10 @@ import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Button, Card, ErrorText, Field, Input, Muted } from '@/shared/ui';
 import { MESSAGES } from '@/shared/config/messages';
 import { errorMessage } from '@/shared/lib/errors';
+import { truncateText } from '@/shared/lib/format';
+
+/** 서버 zod 의 displayName `.max(20)` 과 같다 — 입력 칸 한도와 기본값 자르기가 같이 쓴다 */
+const DISPLAY_NAME_MAX = 20;
 
 type Mode = 'create' | 'join';
 
@@ -26,8 +30,10 @@ export default function OnboardingScreen() {
   const [familyName, setFamilyName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   // 카카오 닉네임은 화면에 안 보여주고 이 칸의 처음 값으로만 쓴다 — 가족 안의 이름은 본인이 고친다.
-  // 서버가 20자까지 받으므로 긴 닉네임은 잘라서 넣는다
-  const [displayName, setDisplayName] = useState(() => (me?.user.nickname ?? '').slice(0, 20));
+  // 서버가 20자까지 받으므로 긴 닉네임은 잘라서 넣는다 (이모지를 반쪽으로 자르지 않게 truncateText)
+  const [displayName, setDisplayName] = useState(() =>
+    truncateText(me?.user.nickname ?? '', DISPLAY_NAME_MAX),
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -115,13 +121,13 @@ export default function OnboardingScreen() {
 
         <Field
           label="내 이름"
-          hint="가족 안에서 불리는 이름이에요. 카카오 닉네임을 넣어뒀으니 편하게 바꿔주세요."
+          hint="가족 안에서 불리는 이름이에요. 가족이 부르는 이름으로 바꿔주세요."
         >
           <Input
             value={displayName}
             onChangeText={setDisplayName}
             placeholder="아빠"
-            maxLength={20}
+            maxLength={DISPLAY_NAME_MAX}
           />
         </Field>
 

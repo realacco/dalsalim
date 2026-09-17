@@ -50,6 +50,22 @@ export function formatMonthShort(yearMonth: string): string {
   return `${Number(yearMonth.split('-')[1])}월`;
 }
 
+/**
+ * 글자 수 한도에 맞춰 자른다. 이모지처럼 두 칸짜리 글자가 한도에 걸치면 통째로 뺀다.
+ *
+ * 길이는 서버 zod `.max()` 와 같은 기준(`String.length`)으로 센다 — 글자 단위로 세면 이모지가
+ * 많은 이름이 한도 안으로 보이지만 서버가 거절한다. 그렇다고 `slice` 로 자르면 이모지가 반쪽이 나
+ * 깨진 글자가 칸에 들어간다. 그래서 글자 단위로 하나씩 붙이되 서버 기준 길이가 넘기 전에 멈춘다.
+ */
+export function truncateText(text: string, max: number): string {
+  let result = '';
+  for (const char of text) {
+    if (result.length + char.length > max) break;
+    result += char;
+  }
+  return result;
+}
+
 /** '오후 2:26' — 마지막으로 확인한 시각처럼 "방금"을 알려줄 때 쓴다 */
 export function formatClock(date: Date): string {
   return date.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' });

@@ -11,6 +11,7 @@ import {
   parseAmount,
   shiftYearMonth,
   toAmountText,
+  truncateText,
 } from './format';
 
 describe('금액 표기', () => {
@@ -87,5 +88,29 @@ describe('연월 표기', () => {
 describe('formatClock', () => {
   it('시:분 으로 보여준다', () => {
     expect(formatClock(new Date(2026, 8, 3, 14, 26))).toMatch(/\d{1,2}:\d{2}/);
+  });
+});
+
+describe('truncateText — 서버 글자 수 한도에 맞춰 자르기', () => {
+  it('한도보다 짧으면 그대로 둔다', () => {
+    expect(truncateText('아빠', 20)).toBe('아빠');
+    expect(truncateText('', 20)).toBe('');
+  });
+
+  it('한도를 넘으면 한도까지만 남긴다', () => {
+    expect(truncateText('가'.repeat(25), 20)).toBe('가'.repeat(20));
+  });
+
+  it('이모지를 반쪽으로 자르지 않는다 — 걸치면 통째로 뺀다', () => {
+    // 19글자 + 이모지(길이 2) 는 21 이라 이모지가 걸친다
+    const result = truncateText(`${'가'.repeat(19)}😀끝`, 20);
+    expect(result).toBe('가'.repeat(19));
+    expect(result).not.toMatch(/[\uD800-\uDFFF]/);
+  });
+
+  it('잘린 결과가 서버와 같은 길이 기준으로 한도를 안 넘는다', () => {
+    const result = truncateText('😀'.repeat(15), 20);
+    expect(result.length).toBeLessThanOrEqual(20);
+    expect(result).toBe('😀'.repeat(10));
   });
 });
