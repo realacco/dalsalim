@@ -6,7 +6,16 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useSession } from '@/entities/session';
 import { disablePushForThisDevice } from '@/features/push';
 import { MESSAGES } from '@/shared/config/messages';
+import { useThemePreference } from '@/shared/config/theme-preference-store';
 import { errorMessage, isSessionExpired } from '@/shared/lib/errors';
+import { THEME_PREFERENCES, type ThemePreference } from '@/shared/lib/theme-preference';
+
+/** 칩에 붙는 이름. 「시스템」 은 개발자 말이라 폰에서 보이는 말인 「기기 설정」 으로 쓴다 */
+const THEME_LABELS: Record<ThemePreference, string> = {
+  system: '기기 설정',
+  light: '밝게',
+  dark: '어둡게',
+};
 
 /**
  * 내 정보 화면의 상태 조립. 화면은 여기서 받은 것을 그리기만 한다.
@@ -18,6 +27,8 @@ export function useMe() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { me, familyId, refreshMe, selectFamily, signOut } = useSession();
+  const themePreference = useThemePreference((state) => state.preference);
+  const chooseThemePreference = useThemePreference((state) => state.choose);
 
   const [refreshing, setRefreshing] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -66,6 +77,20 @@ export function useMe() {
     router.back();
   }
 
+  /**
+   * 앱 테마 (F-SES-09). 누르는 순간 앱 전체가 바뀌고 저장은 뒤따른다 — 저장 버튼이 없다.
+   * 저장이 실패해도 이번 실행 동안은 고른 테마가 유지되므로 되돌리지 않고 알리기만 한다.
+   * 칩 줄에 붙은 동작이라 문구를 붙일 한 자리가 없어 Alert 이다
+   */
+  async function chooseTheme(next: ThemePreference) {
+    if (next === themePreference) return;
+    try {
+      await chooseThemePreference(next);
+    } catch (caught) {
+      Alert.alert(MESSAGES.actionFailed, errorMessage(caught, MESSAGES.actionFailedBody));
+    }
+  }
+
   return {
     nickname: me?.user.nickname ?? '',
     families: me?.memberships ?? [],
@@ -74,6 +99,14 @@ export function useMe() {
     refreshing,
     refresh: () => void refresh(),
     switchFamily: (nextFamilyId: string) => void switchFamily(nextFamilyId),
+
+    themeOptions: THEME_PREFERENCES.map((value) => ({
+      value,
+      label: THEME_LABELS[value],
+      selected: value === themePreference,
+    })),
+    chooseTheme: (next: ThemePreference) => void chooseTheme(next),
+
     signingOut,
     /*
       토큰이 비면 앱 셸이 로그인으로 보낸다. 그 전에 이 기기의 알림 등록을 무른다 (F-FAM-10) —

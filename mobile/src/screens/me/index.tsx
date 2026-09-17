@@ -1,10 +1,10 @@
-// 기능: F-SES-06 F-SES-04
+// 기능: F-SES-06 F-SES-04 F-SES-09
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
-import { BuildInfo, Button, Card, Muted } from '@/shared/ui';
+import { BuildInfo, Button, Card, Chip, Muted } from '@/shared/ui';
 import { confirm } from '@/shared/lib/confirm';
 
 import { useMe } from './model/use-me';
@@ -66,6 +66,25 @@ export default function MeScreen() {
           )}
         </Card>
 
+        {/* 계정이 아니라 이 기기에 걸리는 설정. 로그아웃해도 남는다 (F-SES-09) */}
+        <Card style={{ gap: space.md }}>
+          <Text style={styles.cardTitle}>이 폰</Text>
+          <View style={styles.settingGroup}>
+            <Text style={styles.settingLabel}>화면 모드</Text>
+            <View style={styles.chips}>
+              {m.themeOptions.map((option) => (
+                <Chip
+                  key={option.value}
+                  label={option.label}
+                  selected={option.selected}
+                  onPress={() => m.chooseTheme(option.value)}
+                />
+              ))}
+            </View>
+            <Muted>이 폰에만 적용돼요.</Muted>
+          </View>
+        </Card>
+
         <Card style={{ gap: space.md }}>
           <Text style={styles.cardTitle}>앱 정보</Text>
           {/* 지금 이 폰이 어느 번들을 보고 있는지. OTA 가 닿았는지 가리는 유일한 창구다 */}
@@ -118,4 +137,9 @@ const useStyles = makeStyles((t) => ({
   },
   familyRowActive: { borderColor: t.colors.primary, backgroundColor: t.colors.primarySoft },
   familyName: { ...t.font.body, fontWeight: t.weight.bold, color: t.colors.ink },
+
+  settingGroup: { gap: t.space.sm },
+  settingLabel: { ...t.font.body, fontWeight: t.weight.semibold, color: t.colors.ink },
+  /* 글자를 키운 폰에서 칩 셋이 한 줄에 안 들어가면 다음 줄로 내린다 — 잘리지 않게 */
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: t.space.sm },
 }));

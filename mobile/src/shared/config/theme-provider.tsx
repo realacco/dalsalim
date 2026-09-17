@@ -1,4 +1,5 @@
-import { ReactNode, createContext, useContext, useMemo } from 'react';
+// 기능: F-SES-09
+import { ReactNode, createContext, useContext, useEffect, useMemo } from 'react';
 import {
   type ImageStyle,
   StyleSheet,
@@ -7,7 +8,9 @@ import {
   useColorScheme,
 } from 'react-native';
 
-import { type ColorScheme, type Theme, buildTheme } from './theme';
+import { resolveColorScheme } from '@/shared/lib/theme-preference';
+import { type Theme, buildTheme } from './theme';
+import { useThemePreference } from './theme-preference-store';
 
 /**
  * 테마를 화면에 흘려보낸다.
@@ -15,21 +18,26 @@ import { type ColorScheme, type Theme, buildTheme } from './theme';
  * StyleSheet.create 를 모듈 최상단에서 부르면 그 순간의 색이 그대로 굳는다.
  * 그래서 다크 모드를 하려면 스타일을 **렌더 시점에** 만들어야 한다. makeStyles 가 그 일을 한다.
  *
- * 지금은 기기 설정을 그대로 따라간다. 나중에 앱 안에서 직접 고르게 하려면
- * ThemeProvider 에 override 를 넘기면 되도록 열어뒀다.
+ * 색 체계는 이 폰에 저장된 선택값(F-SES-09)이 정하고, 「기기 설정」 이면 폰의 다크 모드를 따른다.
  */
 const ThemeContext = createContext<Theme>(buildTheme('light'));
 
-export function ThemeProvider({
-  children,
-  override,
-}: {
-  children: ReactNode;
-  override?: ColorScheme;
-}) {
+export function ThemeProvider({ children }: { children: ReactNode }) {
   const system = useColorScheme();
-  const scheme: ColorScheme = override ?? (system === 'dark' ? 'dark' : 'light');
+  const ready = useThemePreference((state) => state.ready);
+  const preference = useThemePreference((state) => state.preference);
+  const hydrate = useThemePreference((state) => state.hydrate);
+
+  useEffect(() => {
+    void hydrate();
+  }, [hydrate]);
+
+  const scheme = resolveColorScheme(preference, system);
   const theme = useMemo(() => buildTheme(scheme), [scheme]);
+
+  // 저장값을 읽기 전에는 아무것도 그리지 않는다. 먼저 그리면 「어둡게」 를 고른 사람에게도
+  // 켤 때마다 밝은 화면이 한 번 비친다. 읽기는 수 밀리초라 스플래시가 가려준다
+  if (!ready) return null;
 
   return <ThemeContext.Provider value={theme}>{children}</ThemeContext.Provider>;
 }
