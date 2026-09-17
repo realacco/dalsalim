@@ -43,31 +43,27 @@ export default function Gate() {
     );
   }
 
-  // 대기 목록을 못 받았으면 어디로 보낼지 모른다. 온보딩으로 보내면 이미 요청한 사람이
-  // 초대코드 화면을 다시 만나 또 요청한다 — 보내지 말고 여기서 다시 시도하게 한다
-  if (noFamily && pending.isError) {
-    return (
-      <View style={styles.splash}>
-        <Text style={styles.logo}>달살림</Text>
-        <View style={styles.errorBox}>
-          <QueryError error={pending.error} onRetry={() => void pending.refetch()} />
-        </View>
-      </View>
-    );
-  }
-
   /*
-    토큰은 있는데 켤 때 /me 가 401 이 아닌 이유로 실패했다 (#67). 어디로도 보내지 않는다 —
-    로그인으로 보내면 멀쩡한 로그인이 풀린 것처럼 보이고, 온보딩으로 보내면 가족이 있는 사람이
-    가족 만들기를 만난다. 무엇이 안 됐는지(주소가 붙은 네트워크 문장)와 다시 시도만 보여준다
+    보낼 곳을 못 정한 두 경우 — 둘 다 어디로도 보내지 않고 여기서 다시 시도하게 한다. 서로 배타적이다
+    (대기 목록은 me 가 있어야 부르고, 켤 때 실패면 me 가 없다).
+    · 대기 목록을 못 받았다 — 온보딩으로 보내면 이미 요청한 사람이 초대코드 화면을 다시 만나 또 요청한다
+    · 토큰은 있는데 켤 때 /me 가 401 이 아닌 이유로 실패했다 (#67) — 로그인으로 보내면 멀쩡한 로그인이
+      풀린 것처럼 보이고, 온보딩으로 보내면 가족이 있는 사람이 가족 만들기를 만난다.
+      bootError 는 unknown 이라 진릿값으로 보면 throw undefined 같은 것이 온보딩으로 샌다
   */
-  // unknown 이라 진릿값으로 보면 throw undefined 같은 것이 온보딩으로 샌다
-  if (token && bootError !== null) {
+  const retry =
+    noFamily && pending.isError
+      ? { error: pending.error, onRetry: () => void pending.refetch() }
+      : token && bootError !== null
+        ? { error: bootError, onRetry: () => void hydrate() }
+        : null;
+
+  if (retry) {
     return (
       <View style={styles.splash}>
         <Text style={styles.logo}>달살림</Text>
         <View style={styles.errorBox}>
-          <QueryError error={bootError} onRetry={() => void hydrate()} />
+          <QueryError error={retry.error} onRetry={retry.onRetry} />
         </View>
       </View>
     );
