@@ -11,7 +11,7 @@ export const SETTLEMENT_DAY_ROWS: (number | null)[][] = Array.from({ length: 5 }
 );
 
 /** 화면은 30분 단위만 고른다. 서버는 분 단위까지 받지만 칸을 더 늘릴 이유가 없다 */
-export const SETTLEMENT_STEP_MINUTES = 30;
+const SETTLEMENT_STEP_MINUTES = 30;
 
 /**
  * 자주 고를 시각. 칩 24개 + 분 칩 대신 이 넷과 [−][+] 로 고른다 — 한 번에 끝나는 사람이 대부분이고,
