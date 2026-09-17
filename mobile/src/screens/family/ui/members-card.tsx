@@ -7,8 +7,9 @@ import {
   formatSettlement,
 } from '@/entities/family';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
-import { Button, Card, Divider, Muted } from '@/shared/ui';
+import { Button, Card, Divider, ErrorText, Input, Muted } from '@/shared/ui';
 import { confirm } from '@/shared/lib/confirm';
+import { NAME_MAX_LENGTH } from '@/shared/lib/format';
 
 type Member = FamilyDetail['members'][number];
 
@@ -25,6 +26,7 @@ export function MembersCard({
   onRemove,
   onLeave,
   onDeleteFamily,
+  name,
 }: {
   members: Member[];
   familyName: string;
@@ -39,6 +41,16 @@ export function MembersCard({
   onRemove: (membershipId: string) => void;
   onLeave: () => void;
   onDeleteFamily: () => void;
+  /** 이 가족 안 내 이름 편집 (F-FAM-07). draft 가 null 이면 편집 중이 아니다 */
+  name: {
+    draft: string | null;
+    error: string | null;
+    saving: boolean;
+    onEdit: () => void;
+    onChange: (next: string) => void;
+    onCancel: () => void;
+    onSave: () => void;
+  };
 }) {
   const styles = useStyles();
   const { space } = useTheme();
@@ -63,6 +75,42 @@ export function MembersCard({
             </View>
             {member.role === 'OWNER' ? <Text style={styles.ownerTag}>가족장</Text> : null}
           </View>
+
+          {/*
+            내 이름은 내 줄에서 바꾼다 (F-FAM-07). 이 가족 안에서만 쓰이는 이름이라 내 정보가 아니라
+            여기다 — 가족마다 부르는 이름이 다르다. 남의 이름은 가족장도 못 바꾼다
+          */}
+          {member.isMe && name.draft === null ? (
+            <Button label="이름 바꾸기" variant="ghost" disabled={busy} onPress={name.onEdit} />
+          ) : null}
+          {member.isMe && name.draft !== null ? (
+            <View style={{ gap: space.sm }}>
+              <Input
+                value={name.draft}
+                onChangeText={name.onChange}
+                placeholder="아빠"
+                maxLength={NAME_MAX_LENGTH}
+                autoFocus
+              />
+              <ErrorText>{name.error}</ErrorText>
+              <Muted>이 가족 안에서만 쓰이고, 지난 기록에도 새 이름으로 보여요.</Muted>
+              <View style={styles.memberActions}>
+                <Button
+                  label="취소"
+                  variant="ghost"
+                  disabled={name.saving}
+                  style={{ flex: 1 }}
+                  onPress={name.onCancel}
+                />
+                <Button
+                  label="저장"
+                  loading={name.saving}
+                  style={{ flex: 1 }}
+                  onPress={name.onSave}
+                />
+              </View>
+            </View>
+          ) : null}
 
           {iAmOwner && !member.isMe ? (
             <View style={styles.memberActions}>

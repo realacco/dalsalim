@@ -16,6 +16,7 @@ import {
   rejectJoinRequest,
   removeMember,
   transferOwner,
+  updateMyDisplayName,
   updateMySettlement,
   passedMonthHint,
 } from '@/entities/family';
@@ -24,7 +25,7 @@ import { enablePushForThisDevice, usePushStore } from '@/features/push';
 import type { Settlement } from '@/shared/model/types';
 import { MESSAGES } from '@/shared/config/messages';
 import { errorMessage, isSessionExpired } from '@/shared/lib/errors';
-import { currentYearMonth } from '@/shared/lib/format';
+import { NAME_MAX_LENGTH, currentYearMonth, truncateText } from '@/shared/lib/format';
 
 /**
  * 가족 화면의 상태 조립. 화면은 여기서 받은 것을 그리기만 한다.
@@ -43,6 +44,10 @@ export function useFamily() {
   /** 정산일 시트. draft 가 있으면 열려 있다 (F-FAM-10) */
   const [settlementDraft, setSettlementDraft] = useState<Settlement | null>(null);
   const [settlementError, setSettlementError] = useState<string | null>(null);
+  /** 이 가족 안 내 이름 편집 중인 값. null 이면 편집 중이 아니다 (F-FAM-07) */
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
+
   /** 앱 전체의 값 — 앱을 켤 때의 조용한 재등록 결과도 여기로 온다 */
   const pushState = usePushStore((state) => state.state);
 
@@ -162,6 +167,25 @@ export function useFamily() {
     onError: (caught) => setSettlementError(errorMessage(caught, MESSAGES.saveFailed)),
   });
 
+  /**
+   * 내 이름 저장 (F-FAM-07). 실패하면 입력 아래 붉은 한 줄로 남기고 입력은 그대로 둔다 — 폼 안 저장 실패 규칙.
+   * 장부 캐시도 비운다 — 기록에는 이름을 복사해 두지 않아서 지난 달에도 새 이름이 보여야 한다.
+   * /me 도 다시 부른다 — 내 정보의 「내 가족」 목록이 이 이름을 보여준다
+   */
+  const saveName = useMutation({
+    mutationFn: (displayName: string) => updateMyDisplayName(familyId as string, displayName),
+    onSuccess: () => {
+      setNameDraft(null);
+      setNameError(null);
+      void queryClient.invalidateQueries({ queryKey: familyKeys.detail(familyId) });
+      void queryClient.invalidateQueries({ queryKey: bookKeys.family(familyId) });
+      void refreshMe();
+    },
+    onError: (caught) => {
+      if (!isSessionExpired(caught)) setNameError(errorMessage(caught, MESSAGES.saveFailed));
+    },
+  });
+
   async function copyCode() {
     if (!detail.data) return;
     await Clipboard.setStringAsync(detail.data.family.inviteCode);
@@ -211,6 +235,22 @@ export function useFamily() {
     leave: () => myMembership && leave.mutate(myMembership.id),
     deleteFamily: () => removeFamily.mutate(),
     contents: detail.data?.contents ?? null,
+
+    // 이 가족 안 내 이름 (F-FAM-07)
+    nameDraft,
+    nameError,
+    savingName: saveName.isPending,
+    editName: () => {
+      setNameError(null);
+      // 20자 규칙 전에 들어온 이름이 있으면 입력 칸이 못 받는다 — 잘라서 연다
+      setNameDraft(truncateText(myMembership?.displayName ?? '', NAME_MAX_LENGTH));
+    },
+    changeName: (next: string) => setNameDraft(next),
+    cancelName: () => {
+      setNameDraft(null);
+      setNameError(null);
+    },
+    saveName: () => nameDraft !== null && saveName.mutate(nameDraft),
 
     // 정산일 (F-FAM-10)
     mySettlement: myMembership?.settlement ?? null,
