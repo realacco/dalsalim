@@ -181,7 +181,8 @@ export function useFamily() {
 
   /**
    * 내 이름 저장 (F-FAM-07). 실패하면 입력 아래 붉은 한 줄로 남기고 입력은 그대로 둔다 — 폼 안 저장 실패 규칙.
-   * 장부 캐시도 비운다 — 기록에는 이름을 복사해 두지 않아서 지난 달에도 새 이름이 보여야 한다.
+   * 장부 · 월 요약 캐시도 비운다 — 기록에는 이름을 복사해 두지 않아서 지난 달에도 새 이름이 보여야 한다.
+   * 추이는 이름을 싣지 않아 안 비운다.
    * /me 도 다시 부른다 — 내 정보의 「내 가족」 목록이 이 이름을 보여준다
    */
   const saveName = useMutation({
@@ -192,6 +193,7 @@ export function useFamily() {
       setNameEdit(null);
       void queryClient.invalidateQueries({ queryKey: familyKeys.detail(familyId) });
       void queryClient.invalidateQueries({ queryKey: bookKeys.family(familyId) });
+      void queryClient.invalidateQueries({ queryKey: bookKeys.summaries(familyId) });
       void refreshMe();
     },
     onError: (caught) => {

@@ -8,6 +8,8 @@ export const bookKeys = {
   family: (familyId: string | null) => ['book', familyId] as const,
   summary: (familyId: string | null, yearMonth: string) =>
     ['summary', familyId, yearMonth] as const,
+  /** 가족의 월 요약 전부. 루트 키가 'book' 이 아니라서 family() 로는 안 비워진다 */
+  summaries: (familyId: string | null) => ['summary', familyId] as const,
   trend: (familyId: string | null, months: number) => ['trend', familyId, months] as const,
 };
 
