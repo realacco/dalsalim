@@ -23,7 +23,7 @@ describe('F-FIX-02 · F-FIX-03 고정비 편집 초안', () => {
     });
   });
 
-  it('기존 항목을 열면 결제일이 입력창 문자열이 된다', () => {
+  it('기존 항목을 열면 출금일이 입력창 문자열이 된다', () => {
     const draft = draftFromItem(
       {
         id: 'f1',
@@ -41,7 +41,7 @@ describe('F-FIX-02 · F-FIX-03 고정비 편집 초안', () => {
     expect(draft.description).toBe('전세 아니고 월세 · 2027년 만기');
   });
 
-  it('결제일이 없는 항목은 빈 칸으로 연다', () => {
+  it('출금일이 없는 항목은 빈 칸으로 연다', () => {
     const draft = draftFromItem(
       {
         id: 'f2',
@@ -114,7 +114,7 @@ describe('★ F-FIX-07 결산 스위치 기본값은 분류를 따라간다 — 
   });
 });
 
-describe('결제일 입력 가공', () => {
+describe('출금일 입력 가공', () => {
   it('숫자 두 자리까지만 남긴다', () => {
     expect(sanitizeDay('25일')).toBe('25');
     expect(sanitizeDay('123')).toBe('12');
@@ -129,20 +129,20 @@ describe('F-FIX-02 · F-FIX-03 저장 전 검사', () => {
     expect(validateDraft({ ...base, name: '  ' })).toBe('항목 이름을 적어주세요.');
   });
 
-  it('결제일은 비워도 되고, 1~31 이면 통과한다', () => {
+  it('출금일은 비워도 되고, 1~31 이면 통과한다', () => {
     expect(validateDraft({ ...base, dayOfMonth: '' })).toBeNull();
     expect(validateDraft({ ...base, dayOfMonth: '1' })).toBeNull();
     expect(validateDraft({ ...base, dayOfMonth: '31' })).toBeNull();
   });
 
-  it('결제일이 0 이거나 32 이상이면 막는다', () => {
-    expect(validateDraft({ ...base, dayOfMonth: '0' })).toBe('결제일은 1에서 31 사이여야 해요.');
-    expect(validateDraft({ ...base, dayOfMonth: '32' })).toBe('결제일은 1에서 31 사이여야 해요.');
+  it('출금일이 0 이거나 32 이상이면 막는다', () => {
+    expect(validateDraft({ ...base, dayOfMonth: '0' })).toBe('출금일은 1에서 31 사이여야 해요.');
+    expect(validateDraft({ ...base, dayOfMonth: '32' })).toBe('출금일은 1에서 31 사이여야 해요.');
   });
 });
 
 describe('F-FIX-02 · F-FIX-03 서버로 보낼 모양', () => {
-  it('금액을 안 적었으면 0 원, 결제일이 비었으면 null', () => {
+  it('금액을 안 적었으면 0 원, 출금일이 비었으면 null', () => {
     expect(draftToInput({ ...emptyDraft('m1'), name: ' 월세 ' })).toEqual({
       name: '월세',
       description: null,
