@@ -128,8 +128,8 @@ export const useSession = create<SessionState>((set, get) => ({
 
   applyUser: (user) => {
     const me = get().me;
-    // 저장 응답이 오기 전에 로그아웃했으면 되살릴 세션이 없다
-    if (me) set({ me: { ...me, user } });
+    // 저장 응답이 오기 전에 로그아웃했으면 되살릴 세션이 없고, 그사이 다른 사람으로 들어왔으면 남의 것이다
+    if (me && me.user.id === user.id) set({ me: { ...me, user } });
   },
 
   selectFamily: async (familyId) => {

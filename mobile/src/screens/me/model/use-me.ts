@@ -8,6 +8,7 @@ import { disablePushForThisDevice } from '@/features/push';
 import { MESSAGES } from '@/shared/config/messages';
 import { useThemePreference } from '@/shared/config/theme-preference-store';
 import { errorMessage, isSessionExpired } from '@/shared/lib/errors';
+import { NAME_MAX_LENGTH, truncateText } from '@/shared/lib/format';
 import { THEME_PREFERENCES, type ThemePreference } from '@/shared/config/theme-preference';
 
 /** 칩에 붙는 이름. 「시스템」 은 개발자 말이라 폰에서 보이는 말인 「기기 설정」 으로 쓴다 */
@@ -124,7 +125,9 @@ export function useMe() {
     savingNickname,
     editNickname: () => {
       setNicknameError(null);
-      setNicknameDraft(me?.user.nickname ?? '');
+      // 온보딩 기본값과 같은 규칙으로 자른다. 가입 때 받은 카카오 닉네임은 이모지가 섞여 서버 기준
+      // 길이 20 을 넘을 수 있고, 그대로 두면 안 고치고 [저장] 해도 막히거나 입력 칸이 이모지를 반쪽 낸다
+      setNicknameDraft(truncateText(me?.user.nickname ?? '', NAME_MAX_LENGTH));
     },
     changeNickname: (text: string) => setNicknameDraft(text),
     cancelNickname: () => {

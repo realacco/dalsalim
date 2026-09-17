@@ -172,6 +172,14 @@ describe('F-SES-07 applyUser — 닉네임 저장 응답을 세션에 넣기', (
     expect(useSession.getState().familyId).toBe('f1');
   });
 
+  it('그사이 다른 사람으로 로그인했으면 그 사람의 닉네임을 덮지 않는다', () => {
+    signedIn();
+
+    useSession.getState().applyUser({ id: 'u2', nickname: '남의 이름', isDev: false });
+
+    expect(useSession.getState().me?.user.nickname).toBe('아빠');
+  });
+
   it('그사이 로그아웃했으면 세션을 되살리지 않는다', () => {
     useSession.setState({ ready: true, token: null, me: null, familyId: null });
 
