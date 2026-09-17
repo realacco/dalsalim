@@ -166,4 +166,19 @@ describe('F-SES-09 choose — 고르기', () => {
     expect(useThemePreference.getState().preference).toBe('light');
     expect(storage.stored.at(-1)).toBe('light');
   });
+
+  it('같은 값을 다시 골라도 먼저 누른 쓰기의 실패는 알리지 않는다', async () => {
+    const storage = heldStorage();
+
+    const first = useThemePreference.getState().choose('dark');
+    const second = useThemePreference.getState().choose('light');
+    const third = useThemePreference.getState().choose('dark');
+    await storage.failOldest();
+    await storage.finishAll();
+
+    await expect(first).resolves.toBeUndefined();
+    await expect(second).resolves.toBeUndefined();
+    await expect(third).resolves.toBeUndefined();
+    expect(storage.stored.at(-1)).toBe('dark');
+  });
 });

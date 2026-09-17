@@ -38,4 +38,15 @@ export function hideSplash() {
     });
 }
 
-setTimeout(hideSplash, SPLASH_MAX_MS);
+/** 상한 뒤 다시 보는 간격과 횟수. 스플래시가 없는 환경에서는 계속 실패하므로 끝없이 돌지 않게 한다 */
+const RETRY_MS = 500;
+const MAX_RETRIES = 5;
+
+/** 상한 시점에 진행 중인 시도가 있으면 그 결과를 보고 한 번 더 본다 — 겹친 시도가 실패하면 상한이 버려진다 */
+function hideSplashAtDeadline(retriesLeft: number) {
+  if (hidden) return;
+  if (!hiding) hideSplash();
+  if (retriesLeft > 0) setTimeout(() => hideSplashAtDeadline(retriesLeft - 1), RETRY_MS);
+}
+
+setTimeout(() => hideSplashAtDeadline(MAX_RETRIES), SPLASH_MAX_MS);

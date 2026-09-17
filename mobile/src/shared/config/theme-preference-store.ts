@@ -21,6 +21,9 @@ const HYDRATE_TIMEOUT_MS = 1000;
 /** 저장소 쓰기 줄. 앞의 쓰기가 실패해도 뒤의 쓰기는 이어서 돈다 */
 let writes: Promise<void> = Promise.resolve();
 
+/** 몇 번째로 누른 것인가. 마지막으로 누른 것인지를 값이 아니라 순번으로 가른다 */
+let lastChoice = 0;
+
 type ThemePreferenceState = {
   /** 저장값을 읽었는가. 읽기 전에 그리면 "어둡게" 를 고른 사람에게도 밝은 화면이 한 번 비친다 */
   ready: boolean;
@@ -38,8 +41,8 @@ export const useThemePreference = create<ThemePreferenceState>((set, get) => ({
     if (get().ready) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      // 던지지 않고 멈추는 경우까지 막는다. ThemeProvider 가 스플래시를 붙잡고 있어서
-      // 여기서 영영 안 돌아오면 사용자에게는 "앱이 안 켜진다" 로 보인다
+      // 던지지 않고 멈추는 경우까지 막는다. 여기서 안 돌아오면 ThemeProvider 가 아무것도 안 그리고
+      // 스플래시도 앱 셸이 뜬 뒤에야 내려가므로 사용자에게는 "앱이 안 켜진다" 로 보인다
       const raw = await Promise.race([
         SecureStore.getItemAsync(KEY),
         new Promise<never>((_, reject) => {
@@ -56,6 +59,7 @@ export const useThemePreference = create<ThemePreferenceState>((set, get) => ({
   },
 
   choose: async (preference) => {
+    const choice = ++lastChoice;
     set({ preference });
     // 칩을 연달아 누르면 쓰기가 겹친다. 겹친 쓰기는 끝나는 순서가 정해져 있지 않아 앞의 값이
     // 마지막에 닿을 수 있고, 그러면 다음 실행에서 조용히 되돌아간다. 쓰기를 누른 순서대로
@@ -65,9 +69,10 @@ export const useThemePreference = create<ThemePreferenceState>((set, get) => ({
     try {
       await write;
     } catch (caught) {
-      // 그사이 다른 값을 골랐으면 이 쓰기는 이미 낡았다. 실패를 알리면 뒤에 줄 선 마지막 값이
-      // 저장될 텐데도 "안 됐어요" 가 뜬다 — 알리는 것은 사용자가 지금 보고 있는 값의 실패뿐이다
-      if (get().preference === preference) throw caught;
+      // 그사이 또 눌렀으면 이 쓰기는 이미 낡았다. 실패를 알리면 뒤에 줄 선 마지막 쓰기가
+      // 저장될 텐데도 "안 됐어요" 가 뜬다 — 알리는 것은 마지막으로 누른 쓰기의 실패뿐이다.
+      // 값으로 비교하면 어둡게 → 밝게 → 어둡게 에서 첫 쓰기를 마지막 것으로 오인한다
+      if (choice === lastChoice) throw caught;
     }
   },
 }));
