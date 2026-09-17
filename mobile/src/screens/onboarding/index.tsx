@@ -142,10 +142,9 @@ export default function OnboardingScreen() {
       {/*
         가족을 아직 안 만든 사람에게는 여기가 유일한 출구다. 로그아웃을 여기 따로 두는 대신
         내 정보로 보낸다 — 같은 버튼을 세 화면에 복사해 두지 않기 위해서다 (F-SES-06).
+        흐린 글자 한 줄은 출구로 안 읽혀서 승인 대기 화면과 같은 버튼으로 둔다 (실사용 후기 2026-09-17)
       */}
-      <Pressable onPress={() => router.push('/me')}>
-        <Muted style={{ textAlign: 'center' }}>내 정보 · 로그아웃</Muted>
-      </Pressable>
+      <Button label="내 정보 · 로그아웃" variant="ghost" onPress={() => router.push('/me')} />
     </SafeAreaView>
   );
 }
