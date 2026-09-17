@@ -94,7 +94,10 @@ export function MemberActionsSheet({
                   }
                 >
                   <Text style={[styles.actionLabel, styles.danger]}>내보내기</Text>
-                  <Text style={styles.actionHint}>지금까지 적은 기록은 그대로 남아요.</Text>
+                  {/* 기록이 남는다는 말은 확인 다이얼로그가 한다 — 여기서는 거기 없는 것을 말한다 */}
+                  <Text style={styles.actionHint}>
+                    다시 들어오려면 초대코드로 요청하고 승인을 받아야 해요.
+                  </Text>
                 </PressableScale>
               </ScrollView>
             ) : null}
