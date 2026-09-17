@@ -975,13 +975,70 @@ async function main() {
     fixedAfterReject?.map((f) => f.name),
   );
 
-  // 다음 실행을 위해 치운다. 나간 사람은 정원에 안 들므로 혼자인 가족장으로서 없앨 수 있다
-  const fixedOnlyBack = (
-    await call('GET', `/families/${backFamilyId}`, { token: backOwnerToken })
-  ).body.members?.find((m) => m.displayName === '되돌이둘');
-  await call('DELETE', `/families/${backFamilyId}/members/${fixedOnlyBack?.id}`, {
+  /*
+    ★ 「남길 것」은 자식 행만이 아니다 — 정산일(F-FAM-10)은 멤버십 행이 직접 들고 있다.
+    deactivateMember 가 그걸 **일부러 남겨둔다** (잘못 내보냈다 되돌린 사람이 알림을 다시
+    켜야 하면 이상하다). 정산일만 켜두고 기록도 고정비도 없는 사람을 거절이 지워버리면
+    그 의도가 무너진다.
+  */
+  const clockOnlyToken = await login('스모크되돌이셋');
+  const clockOnlyJoin = async () => {
+    await call('POST', '/families/join', {
+      token: clockOnlyToken,
+      body: { inviteCode: backInviteCode, displayName: '되돌이셋' },
+    });
+    const list = await call('GET', `/families/${backFamilyId}/join-requests`, {
+      token: backOwnerToken,
+    });
+    return list.body.requests?.find((r) => r.displayName === '되돌이셋')?.id;
+  };
+
+  await call('POST', `/families/${backFamilyId}/join-requests/${await clockOnlyJoin()}/approve`, {
     token: backOwnerToken,
   });
+
+  // 기록도 고정비도 안 만든다. 정산일만 켠다
+  const setClock = await call('PATCH', `/families/${backFamilyId}/me`, {
+    token: clockOnlyToken,
+    body: { settlement: { day: 15, hour: 8, minute: 30 } },
+  });
+  check(
+    'F-FAM-05 (준비) 정산일만 켠다 — 기록도 고정비도 없다',
+    setClock.status === 200,
+    setClock.body,
+  );
+
+  const clockOnlyRow = (
+    await call('GET', `/families/${backFamilyId}`, { token: backOwnerToken })
+  ).body.members?.find((m) => m.displayName === '되돌이셋');
+  await call('DELETE', `/families/${backFamilyId}/members/${clockOnlyRow?.id}`, {
+    token: backOwnerToken,
+  });
+
+  await call('POST', `/families/${backFamilyId}/join-requests/${await clockOnlyJoin()}/reject`, {
+    token: backOwnerToken,
+  });
+  await call('POST', `/families/${backFamilyId}/join-requests/${await clockOnlyJoin()}/approve`, {
+    token: backOwnerToken,
+  });
+
+  const clockAfterReject = (
+    await call('GET', `/families/${backFamilyId}`, { token: backOwnerToken })
+  ).body.members?.find((m) => m.displayName === '되돌이셋')?.settlement;
+  check(
+    '★ F-FAM-05 거절해도 그 사람의 정산일이 안 지워진다 (F-FAM-10)',
+    clockAfterReject?.day === 15 && clockAfterReject?.hour === 8,
+    clockAfterReject,
+  );
+
+  // 다음 실행을 위해 치운다. 나간 사람은 정원에 안 들므로 혼자인 가족장으로서 없앨 수 있다
+  for (const other of (
+    await call('GET', `/families/${backFamilyId}`, { token: backOwnerToken })
+  ).body.members?.filter((m) => !m.isMe) ?? []) {
+    await call('DELETE', `/families/${backFamilyId}/members/${other.id}`, {
+      token: backOwnerToken,
+    });
+  }
   await call('DELETE', `/families/${backFamilyId}`, { token: backOwnerToken });
 
   console.log('\n[초대코드 재발급]');

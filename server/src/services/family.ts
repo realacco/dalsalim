@@ -123,8 +123,12 @@ export async function cancelJoinRequest(userId: string, membershipId: string) {
  */
 async function discardJoinRequest(membershipId: string) {
   /*
-    「이 멤버십에 딸린 게 하나라도 있나」를 본다. 행을 지우면 Cascade 가 **아래를 다** 쓸어가므로
-    기록만 세면 안 된다 — 고정비 항목도 `Membership` 에 딸려 있어서 같이 사라진다.
+    「이 행에 **남길 게** 하나라도 있나」를 본다. 지우면 Cascade 가 아래를 다 쓸어가고
+    행이 직접 들고 있는 값도 같이 사라지므로, 기록만 세면 안 된다 —
+
+      · 고정비 항목   `Membership` 에 딸린 자식 행
+      · 정산일        행이 직접 들고 있는 값. `deactivateMember` 가 **일부러 남겨두는 것**이라
+                      (잘못 내보냈다 되돌린 사람이 알림을 다시 켜야 하면 이상하다) 여기서 지우면 안 된다
 
     `SUBMITTED` 가 아니라 **행 존재**로 보는 것은 의도다. `MemberEntry` 는 위저드를 열기만
     해도 생기므로(countFamilyContents 주석 참조) 열어만 본 사람도 여기서는 안 지워진다.
@@ -134,7 +138,12 @@ async function discardJoinRequest(membershipId: string) {
   const hasContents = await prisma.membership.count({
     where: {
       id: membershipId,
-      OR: [{ entries: { some: {} } }, { fixedExpenses: { some: {} } }],
+      OR: [
+        { entries: { some: {} } },
+        { fixedExpenses: { some: {} } },
+        // 셋 다 null 이면 안 받는 것이므로 day 하나로 켜짐을 가른다 (F-FAM-10)
+        { settlementDay: { not: null } },
+      ],
     },
   });
 
