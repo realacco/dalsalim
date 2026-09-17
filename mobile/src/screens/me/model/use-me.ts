@@ -80,10 +80,10 @@ export function useMe() {
   /**
    * 앱 테마 (F-SES-09). 누르는 순간 앱 전체가 바뀌고 저장은 뒤따른다 — 저장 버튼이 없다.
    * 저장이 실패해도 이번 실행 동안은 고른 테마가 유지되므로 되돌리지 않고 알리기만 한다.
-   * 카드에 인라인 문구를 붙일 자리는 있지만 정의서(F-SES-09 예외 표)가 알림 한 번으로 정했다
+   * 카드에 인라인 문구를 붙일 자리는 있지만 정의서(F-SES-09 예외 표)가 알림 한 번으로 정했다.
+   * 이미 고른 칩을 다시 눌러도 저장한다 — 저장이 실패한 뒤 같은 칩으로 다시 시도할 길이다
    */
   async function chooseTheme(next: ThemePreference) {
-    if (next === themePreference) return;
     try {
       await chooseThemePreference(next);
     } catch (caught) {

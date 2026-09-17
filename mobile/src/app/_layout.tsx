@@ -1,4 +1,4 @@
-// 기능: F-SES-04 F-SES-05
+// 기능: F-SES-04 F-SES-05 F-SES-09
 import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -8,7 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { ThemeProvider, makeStyles, useTheme } from '@/shared/config/theme-provider';
+import { ThemeProvider, hideSplash, makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { ConfirmHost } from '@/shared/ui';
 import { useNotificationTap, usePushRegistration } from '@/features/push';
 import { useSession } from '@/entities/session';
@@ -98,7 +98,11 @@ function AppShell() {
    * 앱의 루트 배경을 테마 색으로 직접 칠해야 사라진다.
    */
   useEffect(() => {
-    void SystemUI.setBackgroundColorAsync(colors.bg);
+    // 칠하기를 기다린 뒤에 스플래시를 내린다 — 둘 다 기다리지 않는 네이티브 호출이라 순서를 여기서 정한다.
+    // 안 그러면 「어둡게」 로 켤 때 밝은 창 배경이 한 프레임 비친다 (F-SES-09). 칠하기가 실패해도 내린다
+    void SystemUI.setBackgroundColorAsync(colors.bg)
+      .catch(() => undefined)
+      .finally(hideSplash);
   }, [colors.bg]);
 
   return (
