@@ -875,10 +875,13 @@ async function main() {
       afterRejoinReject.perMember?.length === backBefore.perMember?.length,
     { before: backBefore.totals?.income, after: afterRejoinReject.totals?.income },
   );
+  const membersAfterReject = (
+    await call('GET', `/families/${backFamilyId}`, { token: backOwnerToken })
+  ).body.members;
   check(
     'F-FAM-05 거절당한 사람은 구성원 목록에 없다',
-    (await call('GET', `/families/${backFamilyId}`, { token: backOwnerToken })).body.members
-      ?.length === 1,
+    membersAfterReject?.length === 1,
+    membersAfterReject?.map((m) => m.displayName),
   );
 
   // ★ 본인이 무르는 길도 같은 코드로 판정한다 (F-FAM-04)

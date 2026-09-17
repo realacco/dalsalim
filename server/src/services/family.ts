@@ -124,7 +124,14 @@ export async function cancelJoinRequest(userId: string, membershipId: string) {
 export async function discardJoinRequest(membershipId: string) {
   const entries = await prisma.memberEntry.count({ where: { membershipId } });
 
-  // 집계에 한 줄도 안 들어간 행이다 — 지워도 바뀌는 숫자가 없다 (하드룰 6 근거 ①)
+  /*
+    집계에 한 줄도 안 들어간 행이다 — 지워도 바뀌는 숫자가 없다 (하드룰 6 근거 ①).
+
+    `SUBMITTED` 가 아니라 **행 존재**로 보는 것은 의도다. `MemberEntry` 는 위저드를 열기만
+    해도 생기므로(countFamilyContents 주석 참조) 열어만 본 사람도 여기서는 안 지워진다.
+    근거 ① 이 허용하는 것보다 한 뼘 좁지만 **덜 지우는 쪽**이라 안전하고, `DRAFT` 까지
+    가르려면 「이번 달인가」(F-ENT-10)를 여기서 또 판정해야 해서 판단이 둘로 늘어난다.
+  */
   if (entries === 0) return prisma.membership.delete({ where: { id: membershipId } });
 
   // 돌아오려다 만 사람이다. 요청하기 직전 자리인 LEFT 로 되돌린다
