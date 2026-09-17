@@ -1,4 +1,4 @@
-// 기능: F-SES-05
+// 기능: F-SES-05 F-SES-08
 import jwt from 'jsonwebtoken';
 import type { FastifyRequest } from 'fastify';
 

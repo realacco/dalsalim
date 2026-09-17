@@ -2160,7 +2160,7 @@ async function main() {
 
   // 탈퇴는 계정을 지우므로 이름을 다시 쓰면 **새 사람**이 된다 — 지난 실행이 남긴 가족을
   // 이 토큰으로는 못 본다. 그래서 정리는 가족장 쪽에서 한다
-  let quitOwnerToken = await login(QUIT_OWNER);
+  const quitOwnerToken = await login(QUIT_OWNER);
   for (const stale of (
     await call('GET', '/me', { token: quitOwnerToken })
   ).body.memberships?.filter((m) => m.family.name === QUIT_FAMILY) ?? []) {
@@ -2376,9 +2376,6 @@ async function main() {
     finalQuit.status === 200 && finalQuit.body.ok === true,
     finalQuit.body,
   );
-
-  // 다음 실행이 깨끗한 이름으로 시작하도록 토큰을 새로 받아 둔다
-  quitOwnerToken = await login(QUIT_OWNER);
 
   const deletePage = await call('GET', '/account/delete');
   check(

@@ -98,7 +98,9 @@ export default function MeScreen() {
             onPress={() =>
               confirm({
                 title: '탈퇴하기',
-                body: '계정이 지워지고 되돌릴 수 없어요. 가족 장부에 적어둔 기록이 있으면 금액과 사유는 그대로 남아요 — 다른 가족의 지난 달 합계가 바뀌지 않도록요. 적은 게 없으면 남김없이 지워져요.',
+                // ⚠️ 이 문장은 /account/delete 안내 페이지 · 개인정보처리방침과 **같은 말이어야 한다.**
+                // 셋이 다르면 심사에서 걸린다 (routes/account.ts 맨 위 주석)
+                body: '계정이 지워지고 되돌릴 수 없어요.\n\n적어둔 기록이 있으면 금액 · 항목 이름 · 사유 · 특이사항과, 가족 안에서 쓰던 표시 이름이 그대로 남아요 — 다른 가족의 지난 달 합계가 바뀌지 않도록요. 적은 게 없으면 남김없이 지워져요.',
                 confirmLabel: '탈퇴하기',
                 destructive: true,
                 onConfirm: m.removeAccount,

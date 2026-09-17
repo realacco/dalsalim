@@ -27,12 +27,20 @@ import { refreshFamilyBooks } from './family.js';
 export async function deleteAccount(userId: string) {
   const memberships = await prisma.membership.findMany({
     where: { userId, ...ACTIVE_MEMBER },
-    select: { id: true, familyId: true, role: true },
+    select: { familyId: true, role: true },
   });
 
-  // 가족장은 그냥 못 나간다 — 나가기(F-FAM-08)와 같은 가드다. 탈퇴는 모든 가족에서
-  // 한꺼번에 나가는 것이라 한 가족이라도 걸리면 전체를 막는다.
-  // 안 막으면 승인할 가족장이 없는 가족이 남는다 (F-FAM-11 이 막으려던 상태).
+  /*
+    가족장은 그냥 못 나간다 — 나가기(F-FAM-08)와 같은 가드다. 탈퇴는 모든 가족에서
+    한꺼번에 나가는 것이라 한 가족이라도 걸리면 전체를 막는다.
+    안 막으면 승인할 가족장이 없는 가족이 남는다 (F-FAM-11 이 막으려던 상태).
+
+    ⚠️ 알려진 한계: 던지는 문장에 **어느 가족인지가 없다.** 나가기는 주소가
+    `/families/:id/members/:id` 라 맥락이 URL 에 있지만 탈퇴는 `DELETE /me` 라 없다.
+    두 가족의 가족장인 사람은 어느 쪽을 정리해야 하는지 모른 채 문장을 읽는다.
+    이름을 끼우려면 `fail()` 이 못 하는 일(문장 조립)을 열어야 하는데, 두 가족에
+    속한 사람 자체가 드물어 MVP 에서는 값을 안 치른다. 실사용 후기에 올라오면 연다.
+  */
   for (const membership of memberships) {
     if (membership.role !== 'OWNER') continue;
 
