@@ -35,7 +35,7 @@ const DAY_MINUTES = 24 * 60;
 export function stepTime(
   hour: number,
   minute: number,
-  steps: number,
+  steps: -1 | 1,
 ): { hour: number; minute: number } {
   const now = hour * 60 + minute;
   const grid = SETTLEMENT_STEP_MINUTES;
