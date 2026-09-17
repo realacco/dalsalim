@@ -10,6 +10,7 @@ import { Loading, QueryError } from '@/shared/ui';
 
 /**
  * 앱을 열면 여기로 온다. 토큰과 가족 유무만 보고 갈 곳을 정한다.
+ *   서버에 못 닿음    → 여기서 [다시 시도] (로그인은 안 풀린다)
  *   토큰 없음        → 로그인
  *   승인 대기 중     → 대기 화면
  *   가족 없음        → 가족 만들기/참여
@@ -17,7 +18,7 @@ import { Loading, QueryError } from '@/shared/ui';
  */
 export default function Gate() {
   const styles = useStyles();
-  const { ready, token, me } = useSession();
+  const { ready, token, me, bootError, hydrate } = useSession();
 
   const noFamily = Boolean(token) && me !== null && me.memberships.length === 0;
 
@@ -50,6 +51,22 @@ export default function Gate() {
         <Text style={styles.logo}>달살림</Text>
         <View style={styles.errorBox}>
           <QueryError error={pending.error} onRetry={() => void pending.refetch()} />
+        </View>
+      </View>
+    );
+  }
+
+  /*
+    토큰은 있는데 켤 때 /me 가 401 이 아닌 이유로 실패했다 (#67). 어디로도 보내지 않는다 —
+    로그인으로 보내면 멀쩡한 로그인이 풀린 것처럼 보이고, 온보딩으로 보내면 가족이 있는 사람이
+    가족 만들기를 만난다. 무엇이 안 됐는지(주소가 붙은 네트워크 문장)와 다시 시도만 보여준다
+  */
+  if (token && bootError) {
+    return (
+      <View style={styles.splash}>
+        <Text style={styles.logo}>달살림</Text>
+        <View style={styles.errorBox}>
+          <QueryError error={bootError} onRetry={() => void hydrate()} />
         </View>
       </View>
     );
