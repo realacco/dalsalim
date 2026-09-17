@@ -78,6 +78,19 @@ export function useFamily() {
   const others = members.filter((m) => !m.isMe);
 
   /**
+   * 구성원 관리 시트 (F-FAM-08 · F-FAM-09). 누구의 시트인지 id 로만 쥐고 사람은 목록에서 찾는다 —
+   * 당겨서 새로고침으로 그 사람이 빠졌거나(다른 기기에서 내보냄) 가족을 바꿨거나 내가 더는 가족장이
+   * 아니면 찾지 못해 닫힌 것으로 읽는다. 없는 사람의 시트가 열린 채 [내보내기] 가 눌리지 않게.
+   * 이름 편집과 같은 이유로 같은 렌더에서 비운다 — 돌아왔을 때 옛 시트가 다시 열리면 안 된다
+   */
+  const [managing, setManaging] = useState<{ familyId: string | null; id: string } | null>(null);
+  const managedMember =
+    iAmOwner && managing?.familyId === familyId
+      ? (others.find((m) => m.id === managing.id) ?? null)
+      : null;
+  if (managing && !managedMember) setManaging(null);
+
+  /**
    * 들어온 참여 요청. OWNER 만 볼 수 있는 API 라서 가족장일 때만 부른다 —
    * 일반 구성원이 부르면 매번 403 을 받는다.
    */
@@ -250,8 +263,18 @@ export function useFamily() {
     rotateCode: () => rotate.mutate(),
     approve: (membershipId: string) => approve.mutate(membershipId),
     reject: (membershipId: string) => reject.mutate(membershipId),
-    handOver: (membershipId: string) => handOver.mutate(membershipId),
-    remove: (membershipId: string) => remove.mutate(membershipId),
+    // 확인까지 받았으면 시트는 할 일을 다 했다. 실패하면 알림이 뜨고 줄에서 다시 열면 된다
+    handOver: (membershipId: string) => {
+      setManaging(null);
+      handOver.mutate(membershipId);
+    },
+    remove: (membershipId: string) => {
+      setManaging(null);
+      remove.mutate(membershipId);
+    },
+    managedMember,
+    manageMember: (membershipId: string) => setManaging({ familyId, id: membershipId }),
+    closeManage: () => setManaging(null),
     leave: () => myMembership && leave.mutate(myMembership.id),
     deleteFamily: () => removeFamily.mutate(),
     contents: detail.data?.contents ?? null,

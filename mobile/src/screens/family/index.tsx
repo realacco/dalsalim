@@ -17,6 +17,7 @@ import { confirm } from '@/shared/lib/confirm';
 
 import { useFamily } from './model/use-family';
 import { JoinRequestsCard } from './ui/join-requests-card';
+import { MemberActionsSheet } from './ui/member-actions-sheet';
 import { MembersCard } from './ui/members-card';
 import { SettlementCard } from './ui/settlement-card';
 import { SettlementSheet } from './ui/settlement-sheet';
@@ -128,8 +129,7 @@ export default function FamilyScreen() {
                 canLeave={Boolean(f.myMembership)}
                 ownerExit={f.ownerExit}
                 busy={f.busy}
-                onHandOver={f.handOver}
-                onRemove={f.remove}
+                onManage={f.manageMember}
                 onLeave={f.leave}
                 onDeleteFamily={f.deleteFamily}
                 name={{
@@ -154,6 +154,13 @@ export default function FamilyScreen() {
         onChange={f.editSettlement}
         onSave={f.saveSettlement}
         onClose={f.closeSettlement}
+      />
+      <MemberActionsSheet
+        member={f.managedMember}
+        busy={f.busy}
+        onHandOver={f.handOver}
+        onRemove={f.remove}
+        onClose={f.closeManage}
       />
     </SafeAreaView>
   );

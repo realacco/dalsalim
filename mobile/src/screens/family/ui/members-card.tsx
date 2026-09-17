@@ -1,4 +1,4 @@
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import {
   contentsLine,
@@ -22,8 +22,7 @@ export function MembersCard({
   canLeave,
   ownerExit,
   busy,
-  onHandOver,
-  onRemove,
+  onManage,
   onLeave,
   onDeleteFamily,
   name,
@@ -37,8 +36,8 @@ export function MembersCard({
   /** 가족장이 나가기 전에 할 일. 남은 사람이 있으면 넘기고, 나 혼자면 없앤다 (F-FAM-11) */
   ownerExit: 'handover' | 'delete' | null;
   busy: boolean;
-  onHandOver: (membershipId: string) => void;
-  onRemove: (membershipId: string) => void;
+  /** 가족장이 남의 줄에서 [관리] 를 누르면 넘기기·내보내기 시트를 연다 (F-FAM-08 · F-FAM-09) */
+  onManage: (membershipId: string) => void;
   onLeave: () => void;
   onDeleteFamily: () => void;
   /** 이 가족 안 내 이름 편집 (F-FAM-07). draft 가 null 이면 편집 중이 아니다 */
@@ -63,7 +62,7 @@ export function MembersCard({
       {members.map((member) => (
         <View key={member.id} style={styles.member}>
           <View style={styles.memberRow}>
-            <View style={{ gap: space.xxs }}>
+            <View style={styles.memberInfo}>
               <Text style={styles.memberName}>
                 {member.displayName}
                 {member.isMe ? ' (나)' : ''}
@@ -73,16 +72,27 @@ export function MembersCard({
                 <Text style={styles.memberMeta}>{formatSettlement(member.settlement)}</Text>
               ) : null}
             </View>
-            {member.role === 'OWNER' ? <Text style={styles.ownerTag}>가족장</Text> : null}
+            <View style={styles.memberSide}>
+              {member.role === 'OWNER' ? <Text style={styles.ownerTag}>가족장</Text> : null}
+              {/*
+                줄에 붙는 동작은 오른쪽 작은 글자 하나다. 큰 버튼을 줄마다 달면 목록이 버튼 더미가 된다
+                (실사용 후기 2026-09-17). 내 이름은 내 줄에서 바꾼다 (F-FAM-07) — 이 가족 안에서만 쓰이는
+                이름이라 내 정보가 아니라 여기다. 남의 이름은 가족장도 못 바꾼다
+              */}
+              {member.isMe && name.draft === null ? (
+                <LinkText label="이름 바꾸기" disabled={busy} onPress={name.onEdit} />
+              ) : null}
+              {iAmOwner && !member.isMe ? (
+                <LinkText
+                  label="관리"
+                  accessibilityLabel={`${member.displayName}님 관리`}
+                  disabled={busy}
+                  onPress={() => onManage(member.id)}
+                />
+              ) : null}
+            </View>
           </View>
 
-          {/*
-            내 이름은 내 줄에서 바꾼다 (F-FAM-07). 이 가족 안에서만 쓰이는 이름이라 내 정보가 아니라
-            여기다 — 가족마다 부르는 이름이 다르다. 남의 이름은 가족장도 못 바꾼다
-          */}
-          {member.isMe && name.draft === null ? (
-            <Button label="이름 바꾸기" variant="ghost" disabled={busy} onPress={name.onEdit} />
-          ) : null}
           {member.isMe && name.draft !== null ? (
             <View style={{ gap: space.sm }}>
               <Input
@@ -111,40 +121,6 @@ export function MembersCard({
               </View>
             </View>
           ) : null}
-
-          {iAmOwner && !member.isMe ? (
-            <View style={styles.memberActions}>
-              <Button
-                label="가족장 넘기기"
-                variant="ghost"
-                disabled={busy}
-                style={{ flex: 1 }}
-                onPress={() =>
-                  confirm({
-                    title: '가족장 넘기기',
-                    body: `${member.displayName}님이 가족장이 되고, 나는 일반 구성원이 돼요.`,
-                    confirmLabel: '넘기기',
-                    onConfirm: () => onHandOver(member.id),
-                  })
-                }
-              />
-              <Button
-                label="내보내기"
-                variant="ghost"
-                disabled={busy}
-                style={{ flex: 1 }}
-                onPress={() =>
-                  confirm({
-                    title: `${member.displayName}님 내보내기`,
-                    body: '앞으로의 장부에서 빠져요. 지금까지 적은 기록은 그대로 남아요.',
-                    confirmLabel: '내보내기',
-                    destructive: true,
-                    onConfirm: () => onRemove(member.id),
-                  })
-                }
-              />
-            </View>
-          ) : null}
         </View>
       ))}
 
@@ -157,7 +133,7 @@ export function MembersCard({
       */}
       {ownerExit === 'handover' ? (
         <Muted>
-          가족장은 바로 나갈 수 없어요. 위에서 다른 구성원에게 가족장을 넘긴 뒤에 나갈 수 있어요.
+          가족장은 바로 나갈 수 없어요. 구성원 옆 「관리」에서 가족장을 넘긴 뒤에 나갈 수 있어요.
         </Muted>
       ) : ownerExit === 'delete' ? (
         <View style={{ gap: space.sm }}>
@@ -199,10 +175,47 @@ export function MembersCard({
   );
 }
 
+/** 줄 오른쪽에 붙는 글자 버튼. 글자만 작고 누르는 자리는 hitSlop 으로 넓힌다 */
+function LinkText({
+  label,
+  accessibilityLabel,
+  disabled,
+  onPress,
+}: {
+  label: string;
+  accessibilityLabel?: string;
+  disabled: boolean;
+  onPress: () => void;
+}) {
+  const styles = useStyles();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      hitSlop={12}
+      onPress={onPress}
+    >
+      <Text style={[styles.link, disabled && styles.linkDisabled]}>{label}</Text>
+    </Pressable>
+  );
+}
+
 const useStyles = makeStyles((t) => ({
   cardTitle: { ...t.font.bodyLg, fontWeight: t.weight.bold, color: t.colors.ink },
   member: { gap: t.space.sm, paddingVertical: t.space.xs },
-  memberRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  memberRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: t.space.md,
+  },
+  // 이름은 20자까지 받는 입력이라 오른쪽 동작을 밀어낼 수 있다 — 줄어드는 쪽은 이름이다
+  memberInfo: { gap: t.space.xxs, flexShrink: 1 },
+  memberSide: { flexDirection: 'row', alignItems: 'center', gap: t.space.md, flexShrink: 0 },
+  link: { ...t.font.body, fontWeight: t.weight.semibold, color: t.colors.primary },
+  linkDisabled: { opacity: t.opacity.disabled },
   memberActions: { flexDirection: 'row', gap: t.space.sm },
   memberName: { ...t.font.body, fontWeight: t.weight.bold, color: t.colors.ink },
   memberMeta: { ...t.font.caption, color: t.colors.inkFaint },
