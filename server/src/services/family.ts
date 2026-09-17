@@ -68,7 +68,9 @@ export async function requestJoin(userId: string, inviteCode: string, displayNam
     // 나갔던 사람도 다시 승인을 받는다 — 내보낸 사람이 코드만으로 돌아오면 안 되니까.
     membership = await prisma.membership.update({
       where: { id: existing.id },
-      data: { status: 'PENDING', requestedAt: new Date(), leftAt: null, displayName },
+      // leftAt 은 그대로 둔다 — 승인되면 approveJoinRequest 가 지우고,
+      // 거절·취소되면 discardJoinRequest 가 이 행을 LEFT 로 되돌리므로 그때 그대로 맞다
+      data: { status: 'PENDING', requestedAt: new Date(), displayName },
     });
   } else {
     membership = await prisma.membership.create({
@@ -103,8 +105,54 @@ export async function cancelJoinRequest(userId: string, membershipId: string) {
     throw fail('REQUEST_NOT_FOUND');
   }
 
-  // 승인 전이라 이 멤버십에 매달린 기록이 없다. 되살릴 게 없으니 그냥 지운다 (하드룰 6 의 예외).
-  await prisma.membership.delete({ where: { id: mine.id } });
+  await discardJoinRequest(mine.id);
+}
+
+/**
+ * 참여 요청을 없던 일로 만든다 — 취소(F-FAM-04)와 거절(F-FAM-05)이 같이 쓴다.
+ *
+ * ★ 「승인 전이니 매달린 기록이 없다」가 **항상 참이 아니다.**
+ *   `@@unique([familyId, userId])` 라 재참여가 행을 새로 만들지 못하고 requestJoin 이
+ *   있던 행을 되살리므로, **지난 제출본이 달린 PENDING** 이 존재한다. 그 행을 지우면
+ *   `MemberEntry` · `EntryLine` 이 Cascade 로 따라가 그 달 가족 합계가 바뀐다
+ *   (하드룰 6 · F-BOOK-02). 거절은 가족장이 누르는 버튼이라, 그대로 두면 내보내기로는
+ *   절대 못 하는 일을 거절로는 할 수 있게 된다.
+ *
+ * 두 갈래를 여기 한 곳에만 둔다 — 같은 판단이 취소·거절에 복사돼 있었고 둘 다 틀렸다.
+ * 정원은 어느 갈래에서도 안 바뀐다(refreshBookStatus 는 ACTIVE 만 센다)므로 다시 안 센다.
+ */
+async function discardJoinRequest(membershipId: string) {
+  /*
+    「이 행에 **남길 게** 하나라도 있나」를 본다. 지우면 Cascade 가 아래를 다 쓸어가고
+    행이 직접 들고 있는 값도 같이 사라지므로, 기록만 세면 안 된다 —
+
+      · 고정비 항목   `Membership` 에 딸린 자식 행
+      · 정산일        행이 직접 들고 있는 값. `deactivateMember` 가 **일부러 남겨두는 것**이라
+                      (잘못 내보냈다 되돌린 사람이 알림을 다시 켜야 하면 이상하다) 여기서 지우면 안 된다
+
+    `SUBMITTED` 가 아니라 **행 존재**로 보는 것은 의도다. `MemberEntry` 는 위저드를 열기만
+    해도 생기므로(countFamilyContents 주석 참조) 열어만 본 사람도 여기서는 안 지워진다.
+    하드룰 6 근거 ① 이 허용하는 것보다 한 뼘 좁지만 **덜 지우는 쪽**이라 안전하고, `DRAFT` 까지
+    가르려면 「이번 달인가」(F-ENT-10)를 여기서 또 판정해야 해서 판단이 둘로 늘어난다.
+  */
+  const hasContents =
+    (await prisma.membership.count({
+      where: {
+        id: membershipId,
+        OR: [
+          { entries: { some: {} } },
+          { fixedExpenses: { some: {} } },
+          // 셋 다 null 이면 안 받는 것이므로 day 하나로 켜짐을 가른다 (F-FAM-10)
+          { settlementDay: { not: null } },
+        ],
+      },
+    })) > 0;
+
+  // 딸린 게 없으면 집계에 한 줄도 안 들어간 행이다 — 지워도 바뀌는 게 없다 (근거 ①)
+  if (!hasContents) return prisma.membership.delete({ where: { id: membershipId } });
+
+  // 돌아오려다 만 사람이다. 요청하기 직전 자리인 LEFT 로 되돌린다
+  return prisma.membership.update({ where: { id: membershipId }, data: { status: 'LEFT' } });
 }
 
 /** 들어온 참여 요청 목록 — 가족장이 본다 */
@@ -142,9 +190,7 @@ export async function approveJoinRequest(familyId: string, membershipId: string)
 export async function rejectJoinRequest(familyId: string, membershipId: string) {
   const target = await findPendingRequest(familyId, membershipId);
 
-  // 승인 전이라 매달린 기록이 없다. LEFT 로 남기면 "한때 구성원이었던 사람"으로
-  // 잘못 읽히고 다시 요청할 때도 걸리적거린다. 지우는 게 맞다.
-  await prisma.membership.delete({ where: { id: target.id } });
+  await discardJoinRequest(target.id);
   return target;
 }
 
@@ -192,7 +238,7 @@ export async function countFamilyContents(familyId: string) {
  *
  * ★ 여기서는 **실제로 지운다** (하드룰 6 의 세 번째 예외).
  *
- * 앞의 두 예외(PENDING 취소 · DRAFT 삭제)는 「집계에 한 줄도 안 들어간 것」이 근거였다.
+ * 앞의 두 예외(**딸린 게 없는** PENDING 취소 · DRAFT 삭제)는 「집계에 한 줄도 안 들어간 것」이 근거였다.
  * 여기는 들어간 줄이 있는데도 지운다. 근거가 다르다 —
  * **그 집계를 보는 사람이 지우려는 본인뿐이기 때문이다.** 하드룰 6 이 지키려는 것은
  * "내 행동으로 남의 숫자가 바뀌지 않는다"인데, 구성원이 나 하나면 바뀔 남의 숫자가 없다.
