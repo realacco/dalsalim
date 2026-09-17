@@ -2250,6 +2250,66 @@ async function main() {
     membersAfterQuit.body.members?.map((m) => m.displayName),
   );
 
+  /*
+    ★ 다른 갈래 — 한 줄도 안 적은 사람은 `User` 행까지 진짜로 지운다
+      (하드룰 6 **근거 ①** 「집계에 한 줄도 안 들어간 것」).
+
+    행이 정말 지워졌는지는 HTTP 로 보이지 않는다 — 그리고 **안 보이는 것이 이 갈래의 안전 조건
+    자체다.** 밖에서 달라지는 게 있다면 그건 남의 숫자가 바뀌었다는 뜻이다. 그래서 여기서는
+    「지워도 아무 숫자도 안 바뀐다」와 「Cascade 가 걸릴 것 없이 끝까지 돈다」를 본다.
+    고정비 항목을 하나 만들어 두는 것은 Cascade 가 실제로 지울 것을 주기 위해서다.
+  */
+  const emptyToken = await login('스모크빈손');
+  await call('POST', '/families/join', {
+    token: emptyToken,
+    body: { inviteCode: quitInviteCode, displayName: '빈손' },
+  });
+  const emptyRequests = await call('GET', `/families/${quitFamilyId}/join-requests`, {
+    token: quitOwnerToken,
+  });
+  const emptyRequestId = emptyRequests.body.requests?.find((r) => r.displayName === '빈손')?.id;
+  await call('POST', `/families/${quitFamilyId}/join-requests/${emptyRequestId}/approve`, {
+    token: quitOwnerToken,
+  });
+
+  const emptyMembershipId = (
+    await call('GET', `/families/${quitFamilyId}/fixed-expenses`, { token: emptyToken })
+  ).body.groups?.find((g) => g.displayName === '빈손')?.membershipId;
+  await call('POST', `/families/${quitFamilyId}/fixed-expenses`, {
+    token: emptyToken,
+    body: {
+      membershipId: emptyMembershipId,
+      name: '빈손 통신비',
+      category: '통신',
+      defaultAmount: 30_000,
+    },
+  });
+
+  // 기록(my-entry)은 한 번도 안 연다. 그래서 MemberEntry 가 0 이고 갈래가 갈린다
+  const emptyQuit = await call('DELETE', '/me', { token: emptyToken });
+  check(
+    '★ F-SES-08 한 줄도 안 적은 사람도 탈퇴된다 (하드룰 6 근거 ①)',
+    emptyQuit.status === 200 && emptyQuit.body.ok === true,
+    emptyQuit.body,
+  );
+
+  const afterEmptyQuit = (await call('GET', summaryPathQuit, { token: quitOwnerToken })).body;
+  check(
+    '★ F-SES-08 안 적은 사람을 지워도 그 달의 가족 합계가 그대로다',
+    afterEmptyQuit.totals?.income === afterQuit.totals?.income &&
+      afterEmptyQuit.perMember?.length === afterQuit.perMember?.length,
+    { before: afterQuit.totals?.income, after: afterEmptyQuit.totals?.income },
+  );
+
+  const membersAfterEmpty = await call('GET', `/families/${quitFamilyId}`, {
+    token: quitOwnerToken,
+  });
+  check(
+    'F-SES-08 안 적은 사람도 구성원 목록에서 빠진다',
+    membersAfterEmpty.body.members?.length === 1,
+    membersAfterEmpty.body.members?.map((m) => m.displayName),
+  );
+
   // 같은 이름으로 다시 로그인하면 devKey 가 지워져 있어 **새 사용자**가 만들어진다.
   // 가족에 돌아가려면 초대코드부터 다시 밟는다 (하드룰 8)
   quitterToken = await login(QUITTER);

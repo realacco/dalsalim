@@ -98,7 +98,7 @@ export default function MeScreen() {
             onPress={() =>
               confirm({
                 title: '탈퇴하기',
-                body: '계정이 지워지고 되돌릴 수 없어요. 가족 장부에 적은 기록은 남아요 — 다른 가족의 지난 달 합계가 바뀌지 않도록요.',
+                body: '계정이 지워지고 되돌릴 수 없어요. 가족 장부에 적어둔 기록이 있으면 금액과 사유는 그대로 남아요 — 다른 가족의 지난 달 합계가 바뀌지 않도록요. 적은 게 없으면 남김없이 지워져요.',
                 confirmLabel: '탈퇴하기',
                 destructive: true,
                 onConfirm: m.removeAccount,

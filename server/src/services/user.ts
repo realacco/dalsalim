@@ -5,21 +5,24 @@ import { ACTIVE_MEMBER, DELETED_NICKNAME } from '../lib/shared.js';
 import { refreshFamilyBooks } from './family.js';
 
 /**
- * 회원 탈퇴 (F-SES-08).
+ * 회원 탈퇴 (F-SES-08). **적은 것이 있느냐로 갈래가 갈린다.**
  *
- * ★ 지우는 것은 **계정**이지 기록이 아니다.
+ * ★ 아무것도 안 적었으면 `User` 행까지 진짜로 지운다 — 하드룰 6 **근거 ①**
+ *   (집계에 한 줄도 안 들어간 것). `MemberEntry` 가 없으면 그 아래 `EntryLine`(금액 · 사유)도
+ *   특이사항도 없으니, Cascade 가 다 쓸고 가도 남의 달 합계는 한 푼도 안 바뀐다.
+ *   한 번 써보고 그만두는 사람이 탈퇴자의 대부분일 테니 실제로는 이 길이 더 자주 돈다.
  *
- * `User` 행을 통째로 지우지 않는 이유가 이 함수의 전부다 — `Membership.user` 가
- * `onDelete: Cascade` 라, 행을 지우면 멤버십이 따라가고 그 아래 `MemberEntry` ·
- * `EntryLine` 까지 사라진다. 그건 **내가 있던 달의 가족 합계를 바꾸는 일**이고
- * 하드룰 6 이 막는 바로 그것이다 (F-BOOK-02 가 나간 사람에 대해 지키는 것과 같다).
+ * ★ 적어둔 것이 있으면 **계정만** 지우고 행은 남긴다. `Membership.user` 가 `onDelete: Cascade`
+ *   라, 행을 지우면 멤버십이 따라가고 그 아래 `MemberEntry` · `EntryLine` 까지 사라진다.
+ *   그건 **내가 있던 달의 가족 합계를 바꾸는 일**이고 하드룰 6 이 막는 바로 그것이다
+ *   (F-BOOK-02 가 나간 사람에 대해 지키는 것과 같다). 나가기(F-FAM-08)로는 절대 못 바꾸는
+ *   남의 숫자를 탈퇴로는 바꿀 수 있게 되면, 탈퇴가 규칙을 우회하는 수단이 된다.
+ *   남는 것은 이름도 식별자도 없는 행 하나 — 과거 기록을 붙들어 두는 고리일 뿐이다.
+ *   ⚠️ 다만 내가 **적은 글**(사유 · 특이사항 · 항목 이름 · 표시 이름)은 기록의 일부라 남는다.
+ *   탈퇴 확인 문구와 안내 페이지가 이것을 그대로 말한다.
  *
- * 그래서 신원만 지운다. 남는 것은 이름도 식별자도 없는 빈 행 하나이고,
- * 그 행은 더 이상 사람을 가리키지 않는다 — 과거 기록을 붙들어 두는 고리일 뿐이다.
- * 개인정보처리방침에 이 문장을 적는다.
- *
- * 하드룰 8 은 저절로 지켜진다: `kakaoId` 가 없어지므로 다시 로그인하면 **새 사용자**가
- * 만들어지고, 가족에 돌아가려면 초대코드부터 다시 밟아 승인을 받는다.
+ * 하드룰 8 은 두 갈래 모두에서 저절로 지켜진다: `kakaoId` 가 없어지므로 다시 로그인하면
+ * **새 사용자**가 만들어지고, 가족에 돌아가려면 초대코드부터 다시 밟아 승인을 받는다.
  */
 export async function deleteAccount(userId: string) {
   const memberships = await prisma.membership.findMany({
@@ -41,6 +44,23 @@ export async function deleteAccount(userId: string) {
     throw fail(activeCount > 1 ? 'TRANSFER_OWNER_FIRST' : 'LAST_OWNER_MUST_DELETE');
   }
 
+  // 갈래를 가르는 한 줄. 기록이 하나도 없으면 붙들어 둘 이유가 없다
+  const entryCount = await prisma.memberEntry.count({ where: { membership: { userId } } });
+
+  if (entryCount === 0) {
+    // 내가 만든 고정비 항목은 같이 사라진다 — 그것도 내 멤버십에 딸린 것이고,
+    // 그 항목을 참조하는 줄은 내 EntryLine 뿐인데 그게 없다
+    await prisma.user.delete({ where: { id: userId } });
+    await refreshBooksOf(memberships);
+    return;
+  }
+
+  await blankIdentity(userId);
+  await refreshBooksOf(memberships);
+}
+
+/** 적어둔 것이 있는 사람 — 행은 남기고 신원만 지운다 */
+async function blankIdentity(userId: string) {
   await prisma.$transaction([
     // 안 지우면 탈퇴한 폰에 다음 정산일 알림이 그대로 간다 (F-FAM-10)
     prisma.pushToken.deleteMany({ where: { userId } }),
@@ -49,10 +69,18 @@ export async function deleteAccount(userId: string) {
     // LEFT 로 남기면 가족장의 요청 목록에 이름 없는 줄이 남는다
     prisma.membership.deleteMany({ where: { userId, status: 'PENDING' } }),
 
-    // 내보내기와 같다 — 앞으로의 장부에서 빠지고 지난 기록은 그대로 남는다
+    // 내보내기와 같다 — 앞으로의 장부에서 빠지고 지난 기록은 그대로 남는다.
+    // 다만 정산일은 같이 지운다 (F-FAM-10) — 나가기와 달리 돌아올 계정이 없어서,
+    // 남겨두면 아무도 안 쓰는 설정값만 남는다
     prisma.membership.updateMany({
       where: { userId, ...ACTIVE_MEMBER },
-      data: { status: 'LEFT', leftAt: new Date() },
+      data: {
+        status: 'LEFT',
+        leftAt: new Date(),
+        settlementDay: null,
+        settlementHour: null,
+        settlementMinute: null,
+      },
     }),
 
     prisma.user.update({
@@ -66,8 +94,10 @@ export async function deleteAccount(userId: string) {
       },
     }),
   ]);
+}
 
-  // 구성원이 줄었으니 정원이 바뀐다. 완성 판정은 한 곳에서만 한다 (하드룰 7)
+/** 구성원이 줄면 정원이 바뀐다. 완성 판정은 한 곳에서만 한다 (하드룰 7) */
+async function refreshBooksOf(memberships: { familyId: string }[]) {
   for (const familyId of new Set(memberships.map((m) => m.familyId))) {
     await refreshFamilyBooks(familyId);
   }
