@@ -30,6 +30,7 @@ export function Sheet({
   onClose,
   title,
   dismissOnBackdrop = false,
+  capHeight = true,
   children,
 }: {
   visible: boolean;
@@ -42,6 +43,12 @@ export function Sheet({
    * 고르기만 하는 시트(정산일 · 구성원 관리)는 켠다.
    */
   dismissOnBackdrop?: boolean;
+  /**
+   * 화면의 90% 로 높이를 묶나. **안쪽이 ScrollView 인 시트만** 켠다 — 묶인 높이를 넘는 만큼 스크롤로 받는다.
+   * 스크롤이 없는 시트(계산기)에 묶으면 RN 은 줄이지 않고 넘치게 두어서, 큰 글자 설정에서
+   * 맨 아래 [이 금액 쓰기] 가 화면 밖으로 밀린다. 그런 시트는 자기 높이가 곧 뚜껑이다
+   */
+  capHeight?: boolean;
   children: ReactNode;
 }) {
   const styles = useStyles();
@@ -64,7 +71,9 @@ export function Sheet({
           ) : (
             <View style={styles.fill} />
           )}
-          <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
+          <Animated.View
+            style={[styles.sheet, capHeight && styles.capped, { transform: [{ translateY }] }]}
+          >
             {/*
               잡는 영역은 알약(40x4)이 아니라 **제목까지 포함한 머리 전체**다 — 4dp 짜리를 정확히
               짚으라고 할 수 없다. 제스처를 여기에만 걸어야 안쪽 스크롤과 안 싸운다.
@@ -92,12 +101,12 @@ const useStyles = makeStyles((t) => ({
   backdrop: { flex: 1, backgroundColor: t.colors.overlay },
   fill: { flex: 1 },
   sheet: {
-    maxHeight: '90%',
     backgroundColor: t.colors.bg,
     borderTopLeftRadius: t.radius.sheet,
     borderTopRightRadius: t.radius.sheet,
     ...t.shadow.sheet,
   },
+  capped: { maxHeight: '90%' },
   /** 알약과 제목을 함께 담는 **잡는 영역**. 이 띠 전체가 손잡이다 */
   header: { paddingTop: t.space.lg, paddingBottom: t.space.md },
   headerWithTitle: { gap: t.space.md },
