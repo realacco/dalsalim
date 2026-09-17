@@ -94,7 +94,8 @@ export function Sheet({
 
 const useStyles = makeStyles((t) => ({
   gestureRoot: { flex: 1 },
-  backdrop: { flex: 1, backgroundColor: t.colors.overlay },
+  // 넘칠 땐 위로 넘쳐야 한다 — 아래로 넘치면 시트 맨 아래 버튼(계산기의 [이 금액 쓰기])이 화면 밖으로 밀린다
+  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: t.colors.overlay },
   fill: { flex: 1 },
   sheet: {
     backgroundColor: t.colors.bg,
