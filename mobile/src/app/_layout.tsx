@@ -42,7 +42,7 @@ export default function RootLayout() {
   return (
     /*
       gesture-handler 가 요구하는 뿌리. 여태 앱 어디에도 없었고, 제스처를 쓰는 곳이
-      고정비 시트(Modal 안에 따로 심는다) 하나뿐이라 티가 안 났다.
+      아래 시트(`shared/ui/sheet` — Modal 안에 따로 심는다) 하나뿐이라 티가 안 났다.
       루트에 두는 것이 라이브러리가 정한 기본 설치 모양이다.
     */
     <GestureHandlerRootView style={FILL}>

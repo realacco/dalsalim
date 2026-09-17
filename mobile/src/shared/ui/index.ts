@@ -13,6 +13,6 @@ export { PressableScale } from './pressable-scale';
 export { ProgressBar } from './progress-bar';
 export { QueryError } from './query-error';
 export { Divider, Row } from './row';
+export { Sheet } from './sheet';
 export { ErrorText, Muted, SectionTitle } from './text';
 export { Toggle } from './toggle';
-export { useSheetDrag } from './use-sheet-drag';
