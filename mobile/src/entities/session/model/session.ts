@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 
 import { api, onUnauthorized, setAuthToken } from '@/shared/api/client';
+import { isSessionExpired } from '@/shared/lib/errors';
 import type { Me } from './types';
 
 const TOKEN_KEY = 'dalsalim.token';
@@ -43,11 +44,6 @@ function readWithTimeout(key: string): Promise<string | null> {
       timer = setTimeout(() => reject(new Error('storage read timeout')), STORAGE_READ_TIMEOUT_MS);
     }),
   ]).finally(() => clearTimeout(timer));
-}
-
-function statusOf(caught: unknown): number | undefined {
-  if (typeof caught !== 'object' || caught === null || !('status' in caught)) return undefined;
-  return typeof caught.status === 'number' ? caught.status : undefined;
 }
 
 /** 여러 가족에 속할 수 있으므로 마지막에 보던 가족을 기억한다. */
@@ -101,9 +97,9 @@ export const useSession = create<SessionState>((set, get) => ({
         토큰을 지우는 건 서버가 401 로 거절했을 때뿐이다 (#67). 지하철에서 켜서 서버에 못 닿았거나
         서버가 잠깐 500 을 준 것까지 로그아웃으로 받으면, 신호가 돌아와도 로그인을 다시 해야 한다.
         그때는 토큰을 두고 실패만 남긴다 — 게이트가 [다시 시도] 로 이 함수를 다시 부른다.
-        ApiError 를 instanceof 로 보지 않고 status 만 본다 — 세션 테스트가 api 모듈을 통째로 흉내 낸다
+        401 판정은 화면들이 쓰는 isSessionExpired 한 곳이다 — 둘이 갈라지면 아무 경고가 없다
       */
-      if (statusOf(caught) !== 401) {
+      if (!isSessionExpired(caught)) {
         set({ ready: true, me: null, familyId: null, bootError: caught });
         return;
       }

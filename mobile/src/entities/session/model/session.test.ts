@@ -7,8 +7,13 @@ vi.mock('expo-secure-store', () => ({
   setItemAsync: vi.fn(),
   deleteItemAsync: vi.fn(),
 }));
-// ApiError 는 흉내 내지 않는다 — 세션은 클래스가 아니라 status 만 보고 가른다
-vi.mock('@/shared/api/client', () => ({
+// 실물 client 가 부르는 네이티브 모듈 — client.test · errors.test 와 같은 흉내다
+vi.mock('expo-constants', () => ({ default: { expoConfig: null, expoGoConfig: null } }));
+vi.mock('react-native', () => ({ Platform: { OS: 'android' } }));
+// ApiError 는 실물을 쓴다 — 세션이 401 을 가르는 판정(isSessionExpired)이 클래스를 보므로,
+// 모양을 지어내면 ApiError 가 바뀌어도 이 파일은 초록으로 남는다
+vi.mock('@/shared/api/client', async () => ({
+  ...(await vi.importActual<typeof import('@/shared/api/client')>('@/shared/api/client')),
   api: vi.fn(),
   onUnauthorized: vi.fn(),
   setAuthToken: vi.fn(),
@@ -16,16 +21,16 @@ vi.mock('@/shared/api/client', () => ({
 
 import * as SecureStore from 'expo-secure-store';
 
-import { api } from '@/shared/api/client';
+import { ApiError, api } from '@/shared/api/client';
 import { useSession } from './session';
 import type { Me } from './types';
 
 const TOKEN_KEY = 'dalsalim.token';
 const FAMILY_KEY = 'dalsalim.familyId';
 
-/** api() 가 던지는 것과 같은 모양. status 0 은 서버에 못 닿은 것이다 */
+/** status 0 은 서버에 못 닿은 것이다 — api() 가 fetch 실패를 그렇게 던진다 */
 function apiError(status: number, code: string) {
-  return Object.assign(new Error(code), { status, code });
+  return new ApiError(status, code, code);
 }
 
 function signedIn() {
@@ -242,6 +247,17 @@ describe('★ F-SES-03 hydrate — 서버에 못 닿아도 로그인은 안 풀�
 
     expect(vi.mocked(SecureStore.deleteItemAsync)).toHaveBeenCalledWith(TOKEN_KEY);
     expect(useSession.getState()).toMatchObject({ ready: true, token: null, bootError: null });
+  });
+
+  it('다시 시도를 누르면 끝나기 전까지 로딩으로 돌아가 있다', async () => {
+    vi.mocked(api).mockRejectedValueOnce(apiError(0, 'NETWORK'));
+    await useSession.getState().hydrate();
+
+    vi.mocked(api).mockReturnValue(new Promise(() => undefined));
+    void useSession.getState().hydrate();
+
+    // 카드가 그대로 남으면 누른 게 안 보여 계속 누른다
+    expect(useSession.getState()).toMatchObject({ ready: false, bootError: null });
   });
 
   it('다시 시도해서 닿으면 실패가 지워지고 들어간다', async () => {
