@@ -2530,11 +2530,13 @@ async function main() {
     meAfterRename.body.user,
   );
 
-  // 같은 계정으로 다시 로그인해도 바꾼 닉네임이 남는다 — 로그인이 덮으면 바꾼 이름이 사라진다
+  // 같은 계정으로 다시 로그인해도 바꾼 닉네임이 남는다 — 로그인이 덮으면 바꾼 이름이 사라진다.
+  // ⚠️ 이 검사는 개발용 로그인만 탄다. 카카오 콜백이 덮지 않는 것(routes/auth.ts)은 카카오 키가 있어야
+  //    확인되는 3층 몫이다 — 그 줄을 되돌려도 여기는 초록이다
   const nickTokenAgain = await login('스모크닉네임');
   const meAfterRelogin = await call('GET', '/me', { token: nickTokenAgain });
   check(
-    '★ F-SES-07 다시 로그인해도 바꾼 닉네임이 남는다',
+    'F-SES-07 개발용 로그인으로 다시 들어와도 바꾼 닉네임이 남는다',
     meAfterRelogin.body.user?.nickname === '새 닉네임',
     meAfterRelogin.body.user,
   );
