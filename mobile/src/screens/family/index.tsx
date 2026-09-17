@@ -36,11 +36,14 @@ export default function FamilyScreen() {
     <SafeAreaView style={styles.screen} edges={['top']}>
       {/*
         키보드를 피하는 건 화면 전체다 (시행착오 1-5) — 구성원 카드의 이름 입력 칸(F-FAM-07)이
-        화면 아래쪽에 있어 카드만 감싸면 [저장] 이 키보드에 덮인다. 내 정보 화면과 같은 모양이다
+        화면 아래쪽에 있어 카드만 감싸면 [저장] 이 키보드에 덮인다.
+        ⚠️ 안드로이드도 behavior 를 준다. 비워두면 창이 줄어들기(adjustResize)를 기대하는 것인데,
+        edge-to-edge 에서는 창이 안 줄어서 [취소] [저장] 이 키보드 밑에 깔린 채 스크롤로도 못 닿았다.
+        고정비 시트가 'height' 로 같은 문제를 이미 풀었다
       */}
       <KeyboardAvoidingView
         style={styles.fill}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         {/*
         당겨서 새로고침이 필요하다. 가족이 방금 초대코드로 참여했는지 확인하는 건
