@@ -1,7 +1,6 @@
 // 기능: F-ENT-09
 import { useEffect, useState } from 'react';
-import { Animated, Keyboard, Modal, Text, View } from 'react-native';
-import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Keyboard, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
@@ -21,7 +20,7 @@ import {
 import { formatWon } from '@/shared/lib/format';
 import { Button } from './button';
 import { PressableScale } from './pressable-scale';
-import { useSheetDrag } from './use-sheet-drag';
+import { Sheet } from './sheet';
 
 /**
  * 금액 계산기.
@@ -33,9 +32,8 @@ import { useSheetDrag } from './use-sheet-drag';
  * 입력에서 두 번 데였다 — 3자리 콤마로 800000 이 8,000,000 이 된 것(시행착오 1-1),
  * selectTextOnFocus 로 첫 글자가 덮인 것(실사용 후기 8번). 여기서는 둘 다 성립하지 않는다.
  *
- * 시트를 다루는 함정(모달 안 제스처 뿌리 · 다음 프레임 닫기 · 드라이버 끄기)은
- * screens/fixed-expenses/ui/fixed-expense-sheet 가 먼저 겪었고, 세 번째 시트(정산일)가 생기면서
- * 그 껍데기를 `use-sheet-drag` 로 올렸다 (재사용 3회 규칙). 주석의 근거는 거기 있다.
+ * 껍데기(모달 · 끌어내려 닫기 · 손잡이)는 `./sheet` 가 그린다. 그 함정들의 근거는 거기와
+ * `use-sheet-drag` 에 있다.
  */
 export function CalculatorSheet({
   visible,
@@ -71,8 +69,6 @@ export function CalculatorSheet({
     if (visible) Keyboard.dismiss();
   }, [visible]);
 
-  const { translateY, drag } = useSheetDrag(visible, onCancel);
-
   const value = result(state);
   const expression = formatExpression(state);
   /**
@@ -101,85 +97,71 @@ export function CalculatorSheet({
   const bottom = Math.max(insets.bottom, space.md);
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onCancel}>
-      {/* Modal 은 별도의 네이티브 창이라 제스처 뿌리를 이 안에 한 번 더 심어야 돈다 */}
-      <GestureHandlerRootView style={styles.gestureRoot}>
-        <View style={styles.backdrop}>
-          <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
-            <GestureDetector gesture={drag}>
-              <View style={styles.header}>
-                <View style={styles.grabber} />
-              </View>
-            </GestureDetector>
-
-            <View style={[styles.body, { paddingBottom: bottom }]}>
-              {/*
+    // 배경을 눌러 닫지 않는다 — 치던 수식이 한 번의 헛손질에 날아간다
+    <Sheet visible={visible} onClose={onCancel}>
+      <View style={[styles.body, { paddingBottom: bottom }]}>
+        {/*
                 수식과 결과는 늘 같이 보인다. 무엇을 눌러 이 금액이 됐는지 안 보이면
                 틀렸을 때 사람이 못 찾는다.
               */}
-              <View accessible style={styles.display} accessibilityLabel={readout}>
-                {settled ? (
-                  <>
-                    {showsResult ? (
-                      <Text style={styles.sub} numberOfLines={2}>
-                        {expression}
-                      </Text>
-                    ) : null}
-                    <Text style={styles.main}>{formatWon(value ?? 0)}</Text>
-                  </>
-                ) : (
-                  <>
-                    <Text style={styles.main} numberOfLines={2}>
-                      {expression || '0'}
-                    </Text>
-                    {showsResult ? <Text style={styles.sub}>= {formatWon(value ?? 0)}</Text> : null}
-                  </>
-                )}
-                {shown ? (
-                  <Text style={shown === 'negative' ? styles.negative : styles.hint}>
-                    {NOTICES[shown]}
-                  </Text>
-                ) : null}
-              </View>
-
-              <View style={{ gap: space.sm }}>
-                {KEYPAD.map((row) => (
-                  <View key={row.join()} style={styles.row}>
-                    {row.map((key) => (
-                      <PressableScale
-                        key={key}
-                        accessibilityRole="button"
-                        accessibilityLabel={KEY_LABELS[key] ?? key}
-                        onPress={() => setState((prev) => pressKey(prev, key))}
-                        containerStyle={styles.keySlot}
-                        style={[styles.key, TINTED.includes(key) && styles.keyTinted]}
-                      >
-                        <Text
-                          style={[styles.keyLabel, TINTED.includes(key) && styles.keyLabelTint]}
-                        >
-                          {key}
-                        </Text>
-                      </PressableScale>
-                    ))}
-                  </View>
-                ))}
-              </View>
-
-              <View style={styles.actions}>
-                <Button label="취소" variant="ghost" onPress={onCancel} style={styles.action} />
-                <Button
-                  label="이 금액 쓰기"
-                  disabled={value === null || negative}
-                  // 남기는 수식은 친 것이 아니라 계산된 것이다 — 칸의 금액과 갈라지면 안 된다
-                  onPress={() => onConfirm(value ?? 0, confirmedExpression(state))}
-                  style={styles.confirm}
-                />
-              </View>
-            </View>
-          </Animated.View>
+        <View accessible style={styles.display} accessibilityLabel={readout}>
+          {settled ? (
+            <>
+              {showsResult ? (
+                <Text style={styles.sub} numberOfLines={2}>
+                  {expression}
+                </Text>
+              ) : null}
+              <Text style={styles.main}>{formatWon(value ?? 0)}</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.main} numberOfLines={2}>
+                {expression || '0'}
+              </Text>
+              {showsResult ? <Text style={styles.sub}>= {formatWon(value ?? 0)}</Text> : null}
+            </>
+          )}
+          {shown ? (
+            <Text style={shown === 'negative' ? styles.negative : styles.hint}>
+              {NOTICES[shown]}
+            </Text>
+          ) : null}
         </View>
-      </GestureHandlerRootView>
-    </Modal>
+
+        <View style={{ gap: space.sm }}>
+          {KEYPAD.map((row) => (
+            <View key={row.join()} style={styles.row}>
+              {row.map((key) => (
+                <PressableScale
+                  key={key}
+                  accessibilityRole="button"
+                  accessibilityLabel={KEY_LABELS[key] ?? key}
+                  onPress={() => setState((prev) => pressKey(prev, key))}
+                  containerStyle={styles.keySlot}
+                  style={[styles.key, TINTED.includes(key) && styles.keyTinted]}
+                >
+                  <Text style={[styles.keyLabel, TINTED.includes(key) && styles.keyLabelTint]}>
+                    {key}
+                  </Text>
+                </PressableScale>
+              ))}
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.actions}>
+          <Button label="취소" variant="ghost" onPress={onCancel} style={styles.action} />
+          <Button
+            label="이 금액 쓰기"
+            disabled={value === null || negative}
+            // 남기는 수식은 친 것이 아니라 계산된 것이다 — 칸의 금액과 갈라지면 안 된다
+            onPress={() => onConfirm(value ?? 0, confirmedExpression(state))}
+            style={styles.confirm}
+          />
+        </View>
+      </View>
+    </Sheet>
   );
 }
 
@@ -216,22 +198,6 @@ const KEY_LABELS: Record<string, string> = {
 };
 
 const useStyles = makeStyles((t) => ({
-  gestureRoot: { flex: 1 },
-  backdrop: { flex: 1, backgroundColor: t.colors.overlay, justifyContent: 'flex-end' },
-  sheet: {
-    backgroundColor: t.colors.bg,
-    borderTopLeftRadius: t.radius.sheet,
-    borderTopRightRadius: t.radius.sheet,
-    ...t.shadow.sheet,
-  },
-  header: { paddingTop: t.space.lg, paddingBottom: t.space.md },
-  grabber: {
-    alignSelf: 'center',
-    width: t.size.grabberWidth,
-    height: t.size.grabberHeight,
-    borderRadius: t.radius.pill,
-    backgroundColor: t.colors.lineStrong,
-  },
   body: { paddingHorizontal: t.space.lg, gap: t.space.lg },
 
   /*
