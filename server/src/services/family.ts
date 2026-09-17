@@ -69,8 +69,12 @@ export async function requestJoin(userId: string, inviteCode: string, displayNam
     membership = await prisma.membership.update({
       where: { id: existing.id },
       // leftAt 은 그대로 둔다 — 승인되면 approveJoinRequest 가 지우고,
-      // 거절·취소되면 discardJoinRequest 가 이 행을 LEFT 로 되돌리므로 그때 그대로 맞다
-      data: { status: 'PENDING', requestedAt: new Date(), displayName },
+      // 거절·취소되면 discardJoinRequest 가 이 행을 LEFT 로 되돌리므로 그때 그대로 맞다.
+      //
+      // ★ displayName 을 여기서 덮지 않는다. 지난 달 요약의 사람별 이름이 이 행의 displayName 을
+      //   실시간으로 읽어서, 덮는 순간 요청만으로 남이 보는 지난 달 화면이 바뀌고 거절돼도 안 돌아온다.
+      //   새 이름은 requestedDisplayName 에 두었다가 승인될 때 옮긴다 (F-FAM-03 · F-FAM-05)
+      data: { status: 'PENDING', requestedAt: new Date(), requestedDisplayName: displayName },
     });
   } else {
     membership = await prisma.membership.create({
@@ -87,6 +91,17 @@ export async function requestJoin(userId: string, inviteCode: string, displayNam
   }
 
   return { membership, family };
+}
+
+/**
+ * 참여 요청 화면(본인 대기 · 가족장 목록 · 요청 응답)에 보일 이름.
+ * 재참여면 요청에 적은 새 이름이 따로 있고, 승인 전에는 표시 이름에 안 들어간다 (requestJoin 주석 참조).
+ * ⚠️ 가족 데이터를 그리는 화면(구성원 · 요약 · 고정비)은 이걸 쓰지 않는다 — 거기는 승인된 이름만 보인다
+ */
+export function requestDisplayName(
+  membership: Pick<Membership, 'displayName' | 'requestedDisplayName'>,
+) {
+  return membership.requestedDisplayName ?? membership.displayName;
 }
 
 /** 내가 승인을 기다리고 있는 가족들 */
@@ -151,8 +166,11 @@ async function discardJoinRequest(membershipId: string) {
   // 딸린 게 없으면 집계에 한 줄도 안 들어간 행이다 — 지워도 바뀌는 게 없다 (근거 ①)
   if (!hasContents) return prisma.membership.delete({ where: { id: membershipId } });
 
-  // 돌아오려다 만 사람이다. 요청하기 직전 자리인 LEFT 로 되돌린다
-  return prisma.membership.update({ where: { id: membershipId }, data: { status: 'LEFT' } });
+  // 돌아오려다 만 사람이다. 요청하기 직전 자리인 LEFT 로 되돌린다 — 요청에 적은 이름도 같이 버린다
+  return prisma.membership.update({
+    where: { id: membershipId },
+    data: { status: 'LEFT', requestedDisplayName: null },
+  });
 }
 
 /** 들어온 참여 요청 목록 — 가족장이 본다 */
@@ -176,7 +194,14 @@ export async function approveJoinRequest(familyId: string, membershipId: string)
 
   await prisma.membership.update({
     where: { id: target.id },
-    data: { status: 'ACTIVE', joinedAt: new Date(), leftAt: null },
+    data: {
+      status: 'ACTIVE',
+      joinedAt: new Date(),
+      leftAt: null,
+      // 재참여 요청에 적은 이름은 승인되는 지금에서야 표시 이름이 된다 (requestJoin 주석 참조)
+      ...(target.requestedDisplayName ? { displayName: target.requestedDisplayName } : {}),
+      requestedDisplayName: null,
+    },
   });
 
   // 사람이 늘면 "전원 제출"에 필요한 정원도 늘어난다. 다시 계산하지 않으면
