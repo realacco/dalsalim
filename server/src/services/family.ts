@@ -135,20 +135,21 @@ async function discardJoinRequest(membershipId: string) {
     하드룰 6 근거 ① 이 허용하는 것보다 한 뼘 좁지만 **덜 지우는 쪽**이라 안전하고, `DRAFT` 까지
     가르려면 「이번 달인가」(F-ENT-10)를 여기서 또 판정해야 해서 판단이 둘로 늘어난다.
   */
-  const hasContents = await prisma.membership.count({
-    where: {
-      id: membershipId,
-      OR: [
-        { entries: { some: {} } },
-        { fixedExpenses: { some: {} } },
-        // 셋 다 null 이면 안 받는 것이므로 day 하나로 켜짐을 가른다 (F-FAM-10)
-        { settlementDay: { not: null } },
-      ],
-    },
-  });
+  const hasContents =
+    (await prisma.membership.count({
+      where: {
+        id: membershipId,
+        OR: [
+          { entries: { some: {} } },
+          { fixedExpenses: { some: {} } },
+          // 셋 다 null 이면 안 받는 것이므로 day 하나로 켜짐을 가른다 (F-FAM-10)
+          { settlementDay: { not: null } },
+        ],
+      },
+    })) > 0;
 
   // 딸린 게 없으면 집계에 한 줄도 안 들어간 행이다 — 지워도 바뀌는 게 없다 (근거 ①)
-  if (hasContents === 0) return prisma.membership.delete({ where: { id: membershipId } });
+  if (!hasContents) return prisma.membership.delete({ where: { id: membershipId } });
 
   // 돌아오려다 만 사람이다. 요청하기 직전 자리인 LEFT 로 되돌린다
   return prisma.membership.update({ where: { id: membershipId }, data: { status: 'LEFT' } });
@@ -237,7 +238,7 @@ export async function countFamilyContents(familyId: string) {
  *
  * ★ 여기서는 **실제로 지운다** (하드룰 6 의 세 번째 예외).
  *
- * 앞의 두 예외(PENDING 취소 · DRAFT 삭제)는 「집계에 한 줄도 안 들어간 것」이 근거였다.
+ * 앞의 두 예외(**딸린 게 없는** PENDING 취소 · DRAFT 삭제)는 「집계에 한 줄도 안 들어간 것」이 근거였다.
  * 여기는 들어간 줄이 있는데도 지운다. 근거가 다르다 —
  * **그 집계를 보는 사람이 지우려는 본인뿐이기 때문이다.** 하드룰 6 이 지키려는 것은
  * "내 행동으로 남의 숫자가 바뀌지 않는다"인데, 구성원이 나 하나면 바뀔 남의 숫자가 없다.
