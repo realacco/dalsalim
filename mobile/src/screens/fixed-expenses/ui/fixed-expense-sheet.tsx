@@ -160,7 +160,7 @@ export function FixedExpenseSheet({
                 />
               </Field>
 
-              <Field label="결제일 (선택)" hint="1~31 사이 숫자">
+              <Field label="출금일 (선택)" hint="1~31 사이 숫자">
                 <Input
                   value={draft?.dayOfMonth ?? ''}
                   onChangeText={(text) => onChange({ dayOfMonth: sanitizeDay(text) })}

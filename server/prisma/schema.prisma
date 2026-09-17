@@ -92,7 +92,7 @@ model FixedExpense {
   description   String?
   category      String // docs/01-MVP-기획서.md 7.4 의 고정 목록
   defaultAmount Int
-  dayOfMonth    Int? // 결제일 (1~31, 선택)
+  dayOfMonth    Int? // 출금일 (1~31, 선택)
   /// 다음 달 위저드 맨 앞에서 "실제로 얼마 썼나"를 되물을 것인가 (기획서 7.4 · F-FIX-07).
   ///
   /// 통신비·보험처럼 그냥 빠져나가는 돈은 나간 금액이 곧 쓴 금액이라 물을 게 없고,
