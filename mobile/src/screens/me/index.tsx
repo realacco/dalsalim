@@ -1,10 +1,10 @@
-// 기능: F-SES-06 F-SES-04 F-SES-09
+// 기능: F-SES-06 F-SES-04 F-SES-07 F-SES-09
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
-import { BuildInfo, Button, Card, Chip, Muted } from '@/shared/ui';
+import { BuildInfo, Button, Card, Chip, ErrorText, Input, Muted } from '@/shared/ui';
 import { confirm } from '@/shared/lib/confirm';
 
 import { useMe } from './model/use-me';
@@ -37,6 +37,51 @@ export default function MeScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={m.refreshing} onRefresh={m.refresh} />}
       >
+        {/*
+          앱 닉네임 (F-SES-07). 가족 안 이름(표시 이름)과 별개이고 가족 화면에는 안 보인다 —
+          가족을 만들거나 참여할 때 「내 이름」 칸의 처음 값이 된다
+        */}
+        <Card style={{ gap: space.md }}>
+          <Text style={styles.cardTitle}>프로필</Text>
+          {m.nicknameDraft === null ? (
+            <>
+              <View style={styles.profileRow}>
+                <Text style={m.nickname ? styles.nickname : styles.nicknameEmpty}>
+                  {m.nickname || '아직 이름이 없어요'}
+                </Text>
+                <Button label="바꾸기" variant="ghost" onPress={m.editNickname} />
+              </View>
+              <Muted>가족을 만들거나 참여할 때 「내 이름」의 처음 값이에요.</Muted>
+            </>
+          ) : (
+            <>
+              <Input
+                value={m.nicknameDraft}
+                onChangeText={m.changeNickname}
+                placeholder="아빠"
+                maxLength={20}
+                autoFocus
+              />
+              <ErrorText>{m.nicknameError}</ErrorText>
+              <View style={styles.editActions}>
+                <Button
+                  label="취소"
+                  variant="ghost"
+                  onPress={m.cancelNickname}
+                  disabled={m.savingNickname}
+                  style={{ flex: 1 }}
+                />
+                <Button
+                  label="저장"
+                  onPress={m.saveNickname}
+                  loading={m.savingNickname}
+                  style={{ flex: 1 }}
+                />
+              </View>
+            </>
+          )}
+        </Card>
+
         <Card style={{ gap: space.md }}>
           <Text style={styles.cardTitle}>내 가족</Text>
 
@@ -118,6 +163,18 @@ const useStyles = makeStyles((t) => ({
 
   content: { padding: t.space.lg, gap: t.space.lg, paddingBottom: t.space.xxl },
   cardTitle: { ...t.font.bodyLg, fontWeight: t.weight.bold, color: t.colors.ink },
+
+  /* 글자를 키운 폰에서 긴 닉네임이 버튼을 밀어내지 않게 이름 쪽이 줄어든다 */
+  profileRow: { flexDirection: 'row', alignItems: 'center', gap: t.space.md },
+  nickname: {
+    ...t.font.display,
+    fontWeight: t.weight.heavy,
+    color: t.colors.ink,
+    flexShrink: 1,
+    flexGrow: 1,
+  },
+  nicknameEmpty: { ...t.font.body, color: t.colors.inkFaint, flexShrink: 1, flexGrow: 1 },
+  editActions: { flexDirection: 'row', gap: t.space.sm },
 
   /* 가족 탭의 「가족 바꾸기」 카드에서 그대로 옮겨온 모양이다 */
   familyRow: {

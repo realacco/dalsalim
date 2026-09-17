@@ -2508,6 +2508,55 @@ async function main() {
     unregister.body,
   );
 
+  console.log('\n[닉네임 바꾸기]');
+  /*
+    닉네임은 처음 가입할 때만 로그인 플랫폼에서 받고 그 뒤로는 앱의 것이다 (F-SES-07).
+    이 절은 자기 계정만 쓴다 — 가족 없이 돈다. 몇 번을 돌려도 되게 먼저 아는 값으로 바꿔 두고 시작한다.
+  */
+  const nickToken = await login('스모크닉네임');
+  const nickRenamed = await call('PATCH', '/me', {
+    token: nickToken,
+    body: { nickname: '  새 닉네임  ' },
+  });
+  check(
+    '★ F-SES-07 닉네임을 바꾸면 앞뒤 공백을 다듬어 바뀐 사용자를 돌려준다',
+    nickRenamed.status === 200 && nickRenamed.body.user?.nickname === '새 닉네임',
+    nickRenamed.body,
+  );
+  const meAfterRename = await call('GET', '/me', { token: nickToken });
+  check(
+    'F-SES-07 /me 에 바뀐 닉네임이 실린다',
+    meAfterRename.body.user?.nickname === '새 닉네임',
+    meAfterRename.body.user,
+  );
+
+  // 같은 계정으로 다시 로그인해도 바꾼 닉네임이 남는다 — 로그인이 덮으면 바꾼 이름이 사라진다
+  const nickTokenAgain = await login('스모크닉네임');
+  const meAfterRelogin = await call('GET', '/me', { token: nickTokenAgain });
+  check(
+    '★ F-SES-07 다시 로그인해도 바꾼 닉네임이 남는다',
+    meAfterRelogin.body.user?.nickname === '새 닉네임',
+    meAfterRelogin.body.user,
+  );
+
+  const emptyNick = await call('PATCH', '/me', { token: nickToken, body: { nickname: '   ' } });
+  check(
+    'F-SES-07 빈 닉네임은 막는다',
+    emptyNick.status === 400 && emptyNick.body.code === 'VALIDATION',
+    emptyNick.body,
+  );
+  const longNick = await call('PATCH', '/me', {
+    token: nickToken,
+    body: { nickname: '가'.repeat(21) },
+  });
+  check(
+    'F-SES-07 20자를 넘는 닉네임은 막는다',
+    longNick.status === 400 && longNick.body.code === 'VALIDATION',
+    longNick.body,
+  );
+  const unauthNick = await call('PATCH', '/me', { token: null, body: { nickname: '누구' } });
+  check('F-SES-07 로그인 없이는 못 바꾼다', unauthNick.status === 401, unauthNick.body);
+
   console.log('\n[레이트리밋]');
   // 초대코드를 계속 찍어보는 걸 막는다. 이 검사는 그 사람의 한도를 소진하므로 맨 마지막에 둔다.
   const attacker = await call('POST', '/auth/dev', { body: { name: '침입자' } });

@@ -13,6 +13,15 @@ export function fetchMe() {
   return api<Me>('/me');
 }
 
+/** 앱 닉네임 바꾸기 (F-SES-07). 가족 안 이름(표시 이름)은 안 바뀐다 */
+export async function updateNickname(nickname: string) {
+  const { user } = await api<{ user: Me['user'] }>('/me', {
+    method: 'PATCH',
+    body: { nickname },
+  });
+  return user;
+}
+
 /**
  * 카카오 동의 화면으로 가는 시작 주소.
  * 앱은 카카오를 직접 부르지 않는다 — 서버가 열어주는 주소를 브라우저로 띄우고

@@ -3,7 +3,7 @@ import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { useSession } from '@/entities/session';
+import { updateNickname, useSession } from '@/entities/session';
 import { disablePushForThisDevice } from '@/features/push';
 import { MESSAGES } from '@/shared/config/messages';
 import { useThemePreference } from '@/shared/config/theme-preference-store';
@@ -32,6 +32,11 @@ export function useMe() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+
+  /** 닉네임 편집 중인 값. null 이면 편집 중이 아니다 (F-SES-07) */
+  const [nicknameDraft, setNicknameDraft] = useState<string | null>(null);
+  const [nicknameError, setNicknameError] = useState<string | null>(null);
+  const [savingNickname, setSavingNickname] = useState(false);
 
   async function refresh() {
     setRefreshing(true);
@@ -78,6 +83,26 @@ export function useMe() {
   }
 
   /**
+   * 닉네임 저장 (F-SES-07). 실패하면 카드 안 붉은 한 줄로 남기고 입력은 그대로 둔다 — 폼 안 저장 실패 규칙.
+   * 비었거나 20자를 넘는 것은 서버가 막고 그 문장(「이름을 입력해주세요.」)이 그대로 뜬다.
+   * 저장되면 /me 를 다시 받아 화면이 바뀐 이름을 그린다
+   */
+  async function saveNickname() {
+    if (nicknameDraft === null) return;
+    setSavingNickname(true);
+    setNicknameError(null);
+    try {
+      await updateNickname(nicknameDraft);
+      await refreshMe();
+      setNicknameDraft(null);
+    } catch (caught) {
+      if (!isSessionExpired(caught)) setNicknameError(errorMessage(caught, MESSAGES.saveFailed));
+    } finally {
+      setSavingNickname(false);
+    }
+  }
+
+  /**
    * 앱 테마 (F-SES-09). 누르는 순간 앱 전체가 바뀌고 저장은 뒤따른다 — 저장 버튼이 없다.
    * 저장이 실패해도 이번 실행 동안은 고른 테마가 유지되므로 되돌리지 않고 알리기만 한다.
    * 카드에 인라인 문구를 붙일 자리는 있지만 정의서(F-SES-09 예외 표)가 알림 한 번으로 정했다.
@@ -92,6 +117,21 @@ export function useMe() {
   }
 
   return {
+    nickname: me?.user.nickname ?? '',
+    nicknameDraft,
+    nicknameError,
+    savingNickname,
+    editNickname: () => {
+      setNicknameError(null);
+      setNicknameDraft(me?.user.nickname ?? '');
+    },
+    changeNickname: (text: string) => setNicknameDraft(text),
+    cancelNickname: () => {
+      setNicknameDraft(null);
+      setNicknameError(null);
+    },
+    saveNickname: () => void saveNickname(),
+
     families: me?.memberships ?? [],
     familyId,
 
