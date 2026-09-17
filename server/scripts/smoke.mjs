@@ -2559,6 +2559,26 @@ async function main() {
   const unauthNick = await call('PATCH', '/me', { token: null, body: { nickname: '누구' } });
   check('F-SES-07 로그인 없이는 못 바꾼다', unauthNick.status === 401, unauthNick.body);
 
+  /*
+    ★ 닉네임과 가족 안 이름은 별개다. 가족이 있는 아빠의 닉네임을 바꿔도 구성원 목록의 표시 이름은
+    그대로여야 한다 — 누가 renameUser 에 멤버십 갱신을 더하는 순간 여기가 빨개진다.
+    끝나면 닉네임을 되돌려 다음 실행이 같은 상태에서 시작하게 한다.
+  */
+  const dadRenamed = await call('PATCH', '/me', {
+    token: dad.token,
+    body: { nickname: '아빠 새 닉네임' },
+  });
+  const dadFamilyAfterRename = await call('GET', `/families/${dad.familyId}`, {
+    token: dad.token,
+  });
+  const dadMemberAfterRename = dadFamilyAfterRename.body.members?.find((m) => m.isMe);
+  check(
+    '★ F-SES-07 닉네임을 바꿔도 가족 안 표시 이름은 그대로다',
+    dadRenamed.status === 200 && dadMemberAfterRename?.displayName === OWNER,
+    { nickname: dadRenamed.body.user?.nickname, displayName: dadMemberAfterRename?.displayName },
+  );
+  await call('PATCH', '/me', { token: dad.token, body: { nickname: OWNER } });
+
   console.log('\n[레이트리밋]');
   // 초대코드를 계속 찍어보는 걸 막는다. 이 검사는 그 사람의 한도를 소진하므로 맨 마지막에 둔다.
   const attacker = await call('POST', '/auth/dev', { body: { name: '침입자' } });

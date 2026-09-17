@@ -8,7 +8,7 @@ import { fetchKakaoProfile, issueToken, requireUser } from '../lib/auth.js';
 import { fail } from '../lib/http.js';
 import { settlementOf } from '../lib/schedule.js';
 import { displayName } from '../lib/schemas.js';
-import { renameUser } from '../services/user.js';
+import { renameUser, upsertDevUser, upsertKakaoUser } from '../services/user.js';
 
 /**
  * 카카오 로그인은 앱이 아니라 서버가 주도한다.
@@ -106,18 +106,8 @@ export async function authRoutes(app: FastifyInstance) {
 
       const profile = await fetchKakaoProfile(query.code, `${env.publicBaseUrl}${REDIRECT_PATH}`);
 
-      const user = await prisma.user.upsert({
-        where: { kakaoId: profile.kakaoId },
-        // ★ 닉네임은 처음 만들 때만 카카오 값을 쓴다. 이후로는 앱의 것이다 — 내 정보에서 바꿀 수 있고
-        //   (F-SES-07), 로그인할 때마다 덮으면 바꾼 이름이 다음 로그인에 사라진다. 다른 로그인 수단이
-        //   붙어도 같은 모양이다: 처음 값만 그 플랫폼에서 받는다.
-        update: { profileImageUrl: profile.profileImageUrl },
-        create: {
-          kakaoId: profile.kakaoId,
-          nickname: profile.nickname,
-          profileImageUrl: profile.profileImageUrl,
-        },
-      });
+      // 닉네임은 가입할 때만 카카오 값을 쓴다 — 규칙은 services/user.ts 에 있다
+      const user = await upsertKakaoUser(profile);
 
       return reply.redirect(appendToken(returnUrl, issueToken(user.id)));
     },
@@ -136,13 +126,7 @@ export async function authRoutes(app: FastifyInstance) {
       if (!env.devLogin) throw fail('DEV_LOGIN_DISABLED');
 
       const { name } = z.object({ name: z.string().trim().min(1).max(20) }).parse(request.body);
-      const devKey = `dev:${name}`;
-
-      const user = await prisma.user.upsert({
-        where: { devKey },
-        update: {},
-        create: { devKey, nickname: name },
-      });
+      const user = await upsertDevUser(name);
 
       return { token: issueToken(user.id) };
     });
