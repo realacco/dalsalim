@@ -118,7 +118,7 @@ export default function OnboardingScreen() {
 
         <Field
           label="내 이름"
-          hint="가족 안에서 불리는 이름이에요. 가족이 부르는 이름으로 바꿔주세요."
+          hint="가족 안에서 불리는 이름이에요. 가족이 부르는 이름으로 적어주세요."
         >
           <Input
             value={displayName}
