@@ -8,8 +8,8 @@ import { refreshFamilyBooks } from './family.js';
  * 회원 탈퇴 (F-SES-08). **적은 것이 있느냐로 갈래가 갈린다.**
  *
  * ★ 아무것도 안 적었으면 `User` 행까지 진짜로 지운다 — 하드룰 6 **근거 ①**
- *   (집계에 한 줄도 안 들어간 것). `MemberEntry` 가 없으면 그 아래 `EntryLine`(금액 · 사유)도
- *   특이사항도 없으니, Cascade 가 다 쓸고 가도 남의 달 합계는 한 푼도 안 바뀐다.
+ *   (집계에 한 줄도 안 들어간 것). 확정한 금액도 특이사항도 없으면 Cascade 가 다 쓸고 가도
+ *   남의 달 합계는 한 푼도 안 바뀐다. 위저드를 열어만 본 것은 적은 것이 아니다 — 아래 참조.
  *   한 번 써보고 그만두는 사람이 탈퇴자의 대부분일 테니 실제로는 이 길이 더 자주 돈다.
  *
  * ★ 적어둔 것이 있으면 **계정만** 지우고 행은 남긴다. `Membership.user` 가 `onDelete: Cascade`
@@ -44,10 +44,31 @@ export async function deleteAccount(userId: string) {
     throw fail(activeCount > 1 ? 'TRANSFER_OWNER_FIRST' : 'LAST_OWNER_MUST_DELETE');
   }
 
-  // 갈래를 가르는 한 줄. 기록이 하나도 없으면 붙들어 둘 이유가 없다
-  const entryCount = await prisma.memberEntry.count({ where: { membership: { userId } } });
+  /*
+    갈래를 가르는 한 줄. **「위저드를 열었나」가 아니라 「적었나」로 가른다.**
 
-  if (entryCount === 0) {
+    기록(`MemberEntry`)의 존재로 가르면 위저드를 열었다가 금액을 하나도 안 넣고 나온 사람이
+    남는데, 그 사람은 확인창의 "적은 게 없으면 남김없이 지워져요"를 읽고 다 지워질 거라 믿는다.
+    방침 · 안내 페이지 · 확인창 셋이 같은 말을 해야 한다는 건 이 기능이 스스로 세운 조건이라,
+    문구를 코드에 맞추는 대신 코드를 문구에 맞춘다.
+
+    확정한 금액도 특이사항도 없으면 어느 달의 집계에도 한 줄이 안 들어간다 — 요약 · 추이는
+    `SUBMITTED` 만 세고 제출에는 모든 줄의 금액이 필요하다. 그래서 지워도 바뀌는 숫자가 없고,
+    하드룰 6 근거 ① 이 그대로 적용된다.
+
+    ⚠️ 알려진 한계: 이 확인과 아래 삭제가 한 트랜잭션이 아니다. 그 사이에 다른 기기가 제출하면
+    갓 만들어진 `SUBMITTED` 가 Cascade 로 같이 날아간다. 창이 밀리초이고 같은 사람이 두 기기로
+    동시에 탈퇴와 제출을 하는 경우라 MVP 에서는 값을 안 치른다. 남의 합계가 바뀔 수 있는
+    유일한 경로이므로, 실제로 겪으면 여기부터 본다.
+  */
+  const written = await prisma.memberEntry.count({
+    where: {
+      membership: { userId },
+      OR: [{ note: { not: null } }, { lines: { some: { actualAmount: { not: null } } } }],
+    },
+  });
+
+  if (written === 0) {
     // 내가 만든 고정비 항목은 같이 사라진다 — 그것도 내 멤버십에 딸린 것이고,
     // 그 항목을 참조하는 줄은 내 EntryLine 뿐인데 그게 없다
     await prisma.user.delete({ where: { id: userId } });

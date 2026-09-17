@@ -71,9 +71,12 @@ export function useMe() {
   /**
    * 회원 탈퇴 (F-SES-08).
    *
-   * 알림 등록을 **먼저** 무른다 — 탈퇴하고 나면 이 토큰이 막혀서(lib/auth 의 탈퇴 계정 검사)
-   * 무를 수가 없다. 서버도 PushToken 을 지우지만, 앱 안에 남는 등록 상태는 여기서만 지워진다.
-   * 무르기 실패가 탈퇴를 막지는 않는다 — 알림 하나 때문에 계정을 못 지우면 안 된다.
+   * 알림 등록은 **탈퇴가 된 뒤에만** 무른다. 탈퇴가 막히는 경로(가족장이면 TRANSFER_OWNER_FIRST)가
+   * 예외적인 게 아니라 흔한데, 먼저 무르면 계정은 멀쩡히 남은 채로 이 기기의 정산일 알림만
+   * 말없이 꺼진다 (F-FAM-10). 탈퇴 뒤에 불러도 제 일을 한다 — unregisterThisDevice 가
+   * 로컬 상태를 먼저 비우고 서버 호출 실패는 스스로 삼키기 때문이고, 서버의 PushToken 은
+   * 두 갈래 모두에서 이미 지워져 있다.
+   * 무르기 실패가 탈퇴를 되돌리지는 않는다 — 알림 하나 때문에 지운 계정을 되살릴 수는 없다.
    *
    * 실패는 인라인이다. 가족장이면 서버가 「먼저 넘겨주세요」로 막는데, 그 문장은 덮고
    * 사라지면 안 되는 종류다 — 다음에 할 일이 거기 적혀 있다.
@@ -83,13 +86,14 @@ export function useMe() {
     setDeleteError(null);
 
     try {
-      await disablePushForThisDevice().catch(() => {});
       await deleteAccount();
     } catch (caught) {
       setDeleting(false);
       setDeleteError(errorMessage(caught, MESSAGES.deleteAccountFailed));
       return;
     }
+
+    await disablePushForThisDevice().catch(() => {});
 
     // 토큰이 비면 앱 셸이 로그인으로 보낸다. 여기서 화면이 사라지므로 deleting 은 안 되돌린다
     await signOut();

@@ -2285,7 +2285,27 @@ async function main() {
     },
   });
 
-  // 기록(my-entry)은 한 번도 안 연다. 그래서 MemberEntry 가 0 이고 갈래가 갈린다
+  /*
+    경계는 「위저드를 열었나」가 아니라 「적었나」다 — 여기서 기록을 **열기만 한다.**
+    MemberEntry 와 EntryLine 이 만들어지지만 금액을 하나도 확정하지 않으므로
+    어느 집계에도 한 줄이 안 들어간다. 확인창이 "적은 게 없으면"이라고 말하는 그 경계다.
+
+    ⚠️ 이 줄이 붙잡는 것은 **경계 자체가 아니라 그 지점에서 Cascade 가 끝까지 돈다는 것**이다.
+    두 갈래는 HTTP 로 구별되지 않는다(그게 안전 조건이다 — 아래 검사들 참조). 대신 이제
+    지울 것이 실제로 있는 채로 갈래를 타므로, EntryLine → MemberEntry 사슬에 Restrict 가
+    끼거나 순서가 틀리면 여기서 500 으로 터진다. 경계의 판정 자체는 코드를 읽어 확인한다.
+  */
+  const emptyEntry = (
+    await call('POST', `/families/${quitFamilyId}/books/${thisMonth}/my-entry`, {
+      token: emptyToken,
+    })
+  ).body.entry;
+  check(
+    'F-SES-08 (준비) 위저드를 열기만 한다 — 금액은 하나도 안 넣는다',
+    emptyEntry?.lines?.every((l) => l.actualAmount === null) === true,
+    emptyEntry?.lines?.map((l) => l.actualAmount),
+  );
+
   const emptyQuit = await call('DELETE', '/me', { token: emptyToken });
   check(
     '★ F-SES-08 한 줄도 안 적은 사람도 탈퇴된다 (하드룰 6 근거 ①)',

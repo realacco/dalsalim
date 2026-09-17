@@ -54,10 +54,12 @@ export const ERRORS = {
     message: '그 참여 요청을 찾을 수 없어요. 이미 처리됐을 수 있어요.',
   },
   MEMBER_NOT_FOUND: { status: 404, message: '그 구성원을 찾을 수 없어요.' },
-  // 혼자 남은 가족장은 나가는 게 아니라 없애는 것이다 (F-FAM-11)
+  // 혼자 남은 가족장은 나가는 게 아니라 없애는 것이다 (F-FAM-11).
+  // 탈퇴(F-SES-08)도 같은 코드로 막히므로 두 맥락에서 다 성립하는 문장이어야 한다 —
+  // "나가는 대신" 이라고 하면 탈퇴를 누른 사람에게 다음 할 일을 안 알려주는 문장이 된다
   LAST_OWNER_MUST_DELETE: {
     status: 400,
-    message: '혼자 남은 가족이에요. 나가는 대신 가족을 없앨 수 있어요.',
+    message: '혼자 남은 가족이에요. 가족을 먼저 없앤 뒤에 할 수 있어요.',
   },
   MEMBERS_REMAIN: {
     status: 400,
@@ -68,9 +70,10 @@ export const ERRORS = {
     message: '가족장이 없어 승인해줄 사람이 없는 가족이에요. 가족을 새로 만들어 함께 쓰시면 돼요.',
   },
   ALREADY_OWNER: { status: 400, message: '이미 가족장이에요.' },
+  // 나가기(F-FAM-08)와 탈퇴(F-SES-08)가 같이 쓴다 — 위와 같은 이유로 중립 문장이다
   TRANSFER_OWNER_FIRST: {
     status: 400,
-    message: '가족장을 다른 구성원에게 넘긴 뒤에 나갈 수 있어요.',
+    message: '가족장을 다른 구성원에게 넘긴 뒤에 할 수 있어요.',
   },
   BAD_MEMBERSHIP: { status: 400, message: '이 가족의 구성원이 아니에요.' },
 
