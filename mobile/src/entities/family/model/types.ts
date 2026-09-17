@@ -13,8 +13,6 @@ export type FamilyDetail = {
     id: string;
     displayName: string;
     role: Role;
-    nickname: string;
-    profileImageUrl: string | null;
     isMe: boolean;
     /** 남의 정산일도 보인다 — 언제쯤 적을지 서로 안다 (F-FAM-10) */
     settlement: Settlement | null;
@@ -46,7 +44,5 @@ export type MyPendingRequest = {
 export type JoinRequest = {
   id: string;
   displayName: string;
-  nickname: string;
-  profileImageUrl: string | null;
   requestedAt: string | null;
 };

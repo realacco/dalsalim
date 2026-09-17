@@ -128,7 +128,9 @@ export async function fetchKakaoProfile(code: string, redirectUri: string) {
 
   return {
     kakaoId: String(me.id),
-    nickname: me.kakao_account?.profile?.nickname ?? '이름 없음',
+    // 닉네임은 선택 동의라 없을 수 있다. 빈 값으로 둔다 — 앱이 이 값을 「내 이름」 칸 기본값으로
+    // 채우므로, 「이름 없음」 같은 자리표시 문장을 넣으면 그게 가족 안 이름으로 굳는다
+    nickname: me.kakao_account?.profile?.nickname ?? '',
     profileImageUrl: me.kakao_account?.profile?.profile_image_url ?? null,
   };
 }

@@ -86,8 +86,6 @@ export async function joinRequestRoutes(app: FastifyInstance) {
         id: m.id,
         // 가족장은 승인하면 붙을 이름을 보고 고른다
         displayName: requestDisplayName(m),
-        nickname: m.user.nickname,
-        profileImageUrl: m.user.profileImageUrl,
         requestedAt: m.requestedAt,
       })),
     };

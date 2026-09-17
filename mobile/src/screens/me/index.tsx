@@ -1,11 +1,21 @@
-// 기능: F-SES-06 F-SES-04 F-SES-09
-import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+// 기능: F-SES-06 F-SES-04 F-SES-07 F-SES-09
+import { useRef } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
-import { BuildInfo, Button, Card, Chip, Muted } from '@/shared/ui';
+import { BuildInfo, Button, Card, Chip, ErrorText, Input, Muted } from '@/shared/ui';
 import { confirm } from '@/shared/lib/confirm';
+import { NAME_MAX_LENGTH } from '@/shared/lib/format';
 
 import { useMe } from './model/use-me';
 
@@ -20,6 +30,16 @@ export default function MeScreen() {
   const { space } = useTheme();
   const router = useRouter();
   const m = useMe();
+  const scroll = useRef<ScrollView>(null);
+
+  /**
+   * 프로필 카드는 맨 위에 있다. 아래로 내린 상태에서 [바꾸기] 를 누르면 입력 칸과 [저장] 이
+   * 화면 밖이나 키보드 뒤에 놓이므로, 편집을 열면서 맨 위로 올린다
+   */
+  function editNickname() {
+    scroll.current?.scrollTo({ y: 0, animated: true });
+    m.editNickname();
+  }
 
   return (
     // 탭 화면이 아니라 위에서 올라오는 화면이라 아래 인셋도 우리가 먹는다 (탭 바가 없다)
@@ -32,85 +52,136 @@ export default function MeScreen() {
         <View style={styles.backSpacer} />
       </View>
 
-      {/* 가족 이름은 다른 사람이 바꾼다. 목록이 있는 화면이라 당겨서 새로고침을 단다 */}
-      <ScrollView
-        contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={m.refreshing} onRefresh={m.refresh} />}
+      {/*
+        키보드를 피하는 건 화면 전체다 (시행착오 1-5) — 닉네임 입력 칸이 생기면서 이 화면에도 키보드가 뜬다.
+        카드만 감싸면 줄어들 여지가 없어 [저장] 이 덮인다. 위저드와 같은 모양으로 헤더 아래 전체를 감싼다
+      */}
+      <KeyboardAvoidingView
+        style={styles.fill}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <Card style={{ gap: space.sm }}>
-          <Text style={styles.cardTitle}>프로필</Text>
-          <Text style={styles.nickname}>{m.nickname}</Text>
-          {/* 「가족 탭에서 바꿀 수 있어요」를 안 붙인다 — F-FAM-07 이 아직 화면에 안 연결돼 있다 */}
-          <Muted>가족 안에서 불리는 이름은 가족마다 따로 있어요.</Muted>
-        </Card>
-
-        <Card style={{ gap: space.md }}>
-          <Text style={styles.cardTitle}>내 가족</Text>
-
-          {m.families.length === 0 ? (
-            <Muted>아직 속한 가족이 없어요.</Muted>
-          ) : (
-            m.families.map((membership) => (
-              <Pressable
-                key={membership.id}
-                onPress={() => m.switchFamily(membership.family.id)}
-                style={[
-                  styles.familyRow,
-                  membership.family.id === m.familyId && styles.familyRowActive,
-                ]}
-              >
-                <Text style={styles.familyName}>{membership.family.name}</Text>
-                <Muted>{membership.displayName}</Muted>
-              </Pressable>
-            ))
-          )}
-        </Card>
-
-        {/* 계정이 아니라 이 기기에 걸리는 설정. 로그아웃해도 남는다 (F-SES-09) */}
-        <Card style={{ gap: space.md }}>
-          <Text style={styles.cardTitle}>이 폰</Text>
-          <View style={styles.settingGroup}>
-            <Text style={styles.settingLabel}>화면 모드</Text>
-            <View style={styles.chips}>
-              {m.themeOptions.map((option) => (
-                <Chip
-                  key={option.value}
-                  label={option.label}
-                  selected={option.selected}
-                  onPress={() => m.chooseTheme(option.value)}
+        {/* 가족 이름은 다른 사람이 바꾼다. 목록이 있는 화면이라 당겨서 새로고침을 단다 */}
+        <ScrollView
+          ref={scroll}
+          contentContainerStyle={styles.content}
+          // 키보드가 떠 있을 때 [저장] 을 누르면 첫 탭이 키보드 내리기로 먹히지 않게 한다
+          keyboardShouldPersistTaps="handled"
+          refreshControl={<RefreshControl refreshing={m.refreshing} onRefresh={m.refresh} />}
+        >
+          {/*
+          앱 닉네임 (F-SES-07). 가족 안 이름(표시 이름)과 별개이고 가족 화면에는 안 보인다 —
+          가족을 만들거나 참여할 때 「내 이름」 칸의 처음 값이 된다
+        */}
+          <Card style={{ gap: space.md }}>
+            <Text style={styles.cardTitle}>프로필</Text>
+            {m.nicknameDraft === null ? (
+              <>
+                <View style={styles.profileRow}>
+                  <Text style={m.nickname ? styles.nickname : styles.nicknameEmpty}>
+                    {m.nickname || '아직 이름이 없어요'}
+                  </Text>
+                  <Button label="바꾸기" variant="ghost" onPress={editNickname} />
+                </View>
+                <Muted>가족을 만들거나 참여할 때 「내 이름」의 처음 값이에요.</Muted>
+              </>
+            ) : (
+              <>
+                <Input
+                  value={m.nicknameDraft}
+                  onChangeText={m.changeNickname}
+                  placeholder="아빠"
+                  maxLength={NAME_MAX_LENGTH}
+                  autoFocus
                 />
-              ))}
-            </View>
-            <Muted>이 폰에만 적용돼요.</Muted>
-          </View>
-        </Card>
+                <ErrorText>{m.nicknameError}</ErrorText>
+                <View style={styles.editActions}>
+                  <Button
+                    label="취소"
+                    variant="ghost"
+                    onPress={m.cancelNickname}
+                    disabled={m.savingNickname}
+                    style={{ flex: 1 }}
+                  />
+                  <Button
+                    label="저장"
+                    onPress={m.saveNickname}
+                    loading={m.savingNickname}
+                    style={{ flex: 1 }}
+                  />
+                </View>
+              </>
+            )}
+          </Card>
 
-        <Card style={{ gap: space.md }}>
-          <Text style={styles.cardTitle}>앱 정보</Text>
-          {/* 지금 이 폰이 어느 번들을 보고 있는지. OTA 가 닿았는지 가리는 유일한 창구다 */}
-          <BuildInfo />
-          <Button
-            label="로그아웃"
-            variant="ghost"
-            loading={m.signingOut}
-            onPress={() =>
-              confirm({
-                title: '로그아웃',
-                body: '다시 로그인하면 그대로예요.',
-                confirmLabel: '로그아웃',
-                destructive: true,
-                onConfirm: m.signOut,
-              })
-            }
-          />
-        </Card>
-      </ScrollView>
+          <Card style={{ gap: space.md }}>
+            <Text style={styles.cardTitle}>내 가족</Text>
+
+            {m.families.length === 0 ? (
+              <Muted>아직 속한 가족이 없어요.</Muted>
+            ) : (
+              m.families.map((membership) => (
+                <Pressable
+                  key={membership.id}
+                  onPress={() => m.switchFamily(membership.family.id)}
+                  style={[
+                    styles.familyRow,
+                    membership.family.id === m.familyId && styles.familyRowActive,
+                  ]}
+                >
+                  <Text style={styles.familyName}>{membership.family.name}</Text>
+                  <Muted>{membership.displayName}</Muted>
+                </Pressable>
+              ))
+            )}
+          </Card>
+
+          {/* 계정이 아니라 이 기기에 걸리는 설정. 로그아웃해도 남는다 (F-SES-09) */}
+          <Card style={{ gap: space.md }}>
+            <Text style={styles.cardTitle}>이 폰</Text>
+            <View style={styles.settingGroup}>
+              <Text style={styles.settingLabel}>화면 모드</Text>
+              <View style={styles.chips}>
+                {m.themeOptions.map((option) => (
+                  <Chip
+                    key={option.value}
+                    label={option.label}
+                    selected={option.selected}
+                    onPress={() => m.chooseTheme(option.value)}
+                  />
+                ))}
+              </View>
+              <Muted>이 폰에만 적용돼요.</Muted>
+            </View>
+          </Card>
+
+          <Card style={{ gap: space.md }}>
+            <Text style={styles.cardTitle}>앱 정보</Text>
+            {/* 지금 이 폰이 어느 번들을 보고 있는지. OTA 가 닿았는지 가리는 유일한 창구다 */}
+            <BuildInfo />
+            <Button
+              label="로그아웃"
+              variant="ghost"
+              loading={m.signingOut}
+              onPress={() =>
+                confirm({
+                  title: '로그아웃',
+                  body: '다시 로그인하면 그대로예요.',
+                  confirmLabel: '로그아웃',
+                  destructive: true,
+                  onConfirm: m.signOut,
+                })
+              }
+            />
+          </Card>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const useStyles = makeStyles((t) => ({
   screen: { flex: 1, backgroundColor: t.colors.bg },
+  fill: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -125,7 +196,18 @@ const useStyles = makeStyles((t) => ({
 
   content: { padding: t.space.lg, gap: t.space.lg, paddingBottom: t.space.xxl },
   cardTitle: { ...t.font.bodyLg, fontWeight: t.weight.bold, color: t.colors.ink },
-  nickname: { ...t.font.display, fontWeight: t.weight.heavy, color: t.colors.ink },
+
+  /* 글자를 키운 폰에서 긴 닉네임이 버튼을 밀어내지 않게 이름 쪽이 줄어든다 */
+  profileRow: { flexDirection: 'row', alignItems: 'center', gap: t.space.md },
+  nickname: {
+    ...t.font.display,
+    fontWeight: t.weight.heavy,
+    color: t.colors.ink,
+    flexShrink: 1,
+    flexGrow: 1,
+  },
+  nicknameEmpty: { ...t.font.body, color: t.colors.inkFaint, flexShrink: 1, flexGrow: 1 },
+  editActions: { flexDirection: 'row', gap: t.space.sm },
 
   /* 가족 탭의 「가족 바꾸기」 카드에서 그대로 옮겨온 모양이다 */
   familyRow: {

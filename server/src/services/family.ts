@@ -177,7 +177,6 @@ async function discardJoinRequest(membershipId: string) {
 export function listJoinRequests(familyId: string) {
   return prisma.membership.findMany({
     where: { familyId, status: 'PENDING' },
-    include: { user: true },
     orderBy: { requestedAt: 'asc' },
   });
 }
@@ -226,7 +225,6 @@ export function getFamilyWithMembers(familyId: string) {
     include: {
       memberships: {
         where: ACTIVE_MEMBER,
-        include: { user: true },
         orderBy: { sortOrder: 'asc' },
       },
     },

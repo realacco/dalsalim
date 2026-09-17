@@ -1,4 +1,4 @@
-// 기능: F-SES-01 F-SES-02 F-SES-03 F-FAM-10
+// 기능: F-SES-01 F-SES-02 F-SES-03 F-SES-07 F-FAM-10
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
@@ -7,6 +7,8 @@ import { prisma } from '../lib/db.js';
 import { fetchKakaoProfile, issueToken, requireUser } from '../lib/auth.js';
 import { fail } from '../lib/http.js';
 import { settlementOf } from '../lib/schedule.js';
+import { displayName } from '../lib/schemas.js';
+import { renameUser, upsertDevUser, upsertKakaoUser } from '../services/user.js';
 
 /**
  * 카카오 로그인은 앱이 아니라 서버가 주도한다.
@@ -104,16 +106,8 @@ export async function authRoutes(app: FastifyInstance) {
 
       const profile = await fetchKakaoProfile(query.code, `${env.publicBaseUrl}${REDIRECT_PATH}`);
 
-      const user = await prisma.user.upsert({
-        where: { kakaoId: profile.kakaoId },
-        // 닉네임/프로필은 카카오가 원본이므로 로그인할 때마다 최신으로 맞춘다
-        update: { nickname: profile.nickname, profileImageUrl: profile.profileImageUrl },
-        create: {
-          kakaoId: profile.kakaoId,
-          nickname: profile.nickname,
-          profileImageUrl: profile.profileImageUrl,
-        },
-      });
+      // 닉네임은 가입할 때만 카카오 값을 쓴다 — 규칙은 services/user.ts 에 있다
+      const user = await upsertKakaoUser(profile);
 
       return reply.redirect(appendToken(returnUrl, issueToken(user.id)));
     },
@@ -132,17 +126,29 @@ export async function authRoutes(app: FastifyInstance) {
       if (!env.devLogin) throw fail('DEV_LOGIN_DISABLED');
 
       const { name } = z.object({ name: z.string().trim().min(1).max(20) }).parse(request.body);
-      const devKey = `dev:${name}`;
-
-      const user = await prisma.user.upsert({
-        where: { devKey },
-        update: {},
-        create: { devKey, nickname: name },
-      });
+      const user = await upsertDevUser(name);
 
       return { token: issueToken(user.id) };
     });
   }
+
+  /**
+   * 앱 닉네임 바꾸기 (F-SES-07). 규칙은 표시 이름과 같다 — 비지 않게, 20자까지.
+   * 바뀐 리소스(사용자)를 돌려준다 (응답 형태 규칙).
+   */
+  app.patch('/me', async (request) => {
+    const user = await requireUser(request);
+    const body = z.object({ nickname: displayName }).parse(request.body);
+
+    const renamed = await renameUser(user.id, body.nickname);
+    return {
+      user: {
+        id: renamed.id,
+        nickname: renamed.nickname,
+        isDev: renamed.devKey !== null,
+      },
+    };
+  });
 
   app.get('/me', async (request) => {
     const user = await requireUser(request);
@@ -157,7 +163,6 @@ export async function authRoutes(app: FastifyInstance) {
       user: {
         id: user.id,
         nickname: user.nickname,
-        profileImageUrl: user.profileImageUrl,
         isDev: user.devKey !== null,
       },
       memberships: memberships.map((m) => ({

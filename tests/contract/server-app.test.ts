@@ -13,6 +13,7 @@ import {
   shiftYearMonth as serverShiftYearMonth,
 } from '../../server/src/lib/shared.js';
 import { effectiveDay as serverEffectiveDay } from '../../server/src/lib/schedule.js';
+import { displayName as serverDisplayName } from '../../server/src/lib/schemas.js';
 
 import { needsReason as appNeedsReason } from '../../mobile/src/entities/entry/model/reason';
 import { shortMonthHint as appShortMonthHint } from '../../mobile/src/entities/family/model/settlement';
@@ -20,8 +21,10 @@ import { palettes } from '../../mobile/src/shared/config/theme';
 import { settlementDelta as appSettlementDelta } from '../../mobile/src/entities/entry/model/settlement';
 import { defaultSettles as appDefaultSettles } from '../../mobile/src/entities/fixed-expense/model/settles';
 import {
+  NAME_MAX_LENGTH as APP_NAME_MAX_LENGTH,
   currentYearMonth as appCurrentYearMonth,
   shiftYearMonth as appShiftYearMonth,
+  truncateText as appTruncateText,
 } from '../../mobile/src/shared/lib/format';
 import { CATEGORIES as APP_CATEGORIES, type LineKind } from '../../mobile/src/shared/model/types';
 
@@ -224,5 +227,17 @@ describe('알림 아이콘 색 — app.json 과 theme 토큰이 같다', () => {
     );
 
     expect(plugin?.[1].color).toBe(palettes.light.primary);
+  });
+});
+
+describe('이름 길이 한도 — 앱 NAME_MAX_LENGTH 와 서버 displayName zod', () => {
+  it('앱 한도만큼은 서버가 받고, 한 글자 더는 거절한다', () => {
+    expect(serverDisplayName.safeParse('가'.repeat(APP_NAME_MAX_LENGTH)).success).toBe(true);
+    expect(serverDisplayName.safeParse('가'.repeat(APP_NAME_MAX_LENGTH + 1)).success).toBe(false);
+  });
+
+  it('앱이 기본값을 자른 결과는 이모지가 섞여도 서버가 받는다 — 길이를 같은 기준으로 센다', () => {
+    const cut = appTruncateText('😀'.repeat(APP_NAME_MAX_LENGTH), APP_NAME_MAX_LENGTH);
+    expect(serverDisplayName.safeParse(cut).success).toBe(true);
   });
 });

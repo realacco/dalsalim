@@ -1,7 +1,7 @@
 import type { Role, Settlement } from '@/shared/model/types';
 
 export type Me = {
-  user: { id: string; nickname: string; profileImageUrl: string | null; isDev: boolean };
+  user: { id: string; nickname: string; isDev: boolean };
   memberships: {
     id: string;
     role: Role;

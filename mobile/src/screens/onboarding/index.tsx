@@ -12,6 +12,7 @@ import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Button, Card, ErrorText, Field, Input, Muted } from '@/shared/ui';
 import { MESSAGES } from '@/shared/config/messages';
 import { errorMessage } from '@/shared/lib/errors';
+import { NAME_MAX_LENGTH, truncateText } from '@/shared/lib/format';
 
 type Mode = 'create' | 'join';
 
@@ -25,7 +26,11 @@ export default function OnboardingScreen() {
   const [mode, setMode] = useState<Mode>('create');
   const [familyName, setFamilyName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
-  const [displayName, setDisplayName] = useState('');
+  // 카카오 닉네임은 화면에 안 보여주고 이 칸의 처음 값으로만 쓴다 — 가족 안의 이름은 본인이 고친다.
+  // 서버가 20자까지 받으므로 긴 닉네임은 잘라서 넣는다 (이모지를 반쪽으로 자르지 않게 truncateText)
+  const [displayName, setDisplayName] = useState(() =>
+    truncateText(me?.user.nickname ?? '', NAME_MAX_LENGTH),
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,10 +84,7 @@ export default function OnboardingScreen() {
     <SafeAreaView style={styles.screen}>
       <View style={{ gap: space.sm }}>
         <Text style={styles.title}>우리 가족 만들기</Text>
-        <Muted>
-          {me?.user.nickname ? `${me.user.nickname}님, ` : ''}
-          가족을 새로 만들거나 이미 있는 가족에 들어갈 수 있어요.
-        </Muted>
+        <Muted>가족을 새로 만들거나 이미 있는 가족에 들어갈 수 있어요.</Muted>
       </View>
 
       <View style={styles.tabs}>
@@ -116,13 +118,13 @@ export default function OnboardingScreen() {
 
         <Field
           label="내 이름"
-          hint="가족 안에서 불리는 이름이에요. 카카오 닉네임과 달라도 괜찮아요."
+          hint="가족 안에서 불리는 이름이에요. 가족이 부르는 이름으로 적어주세요."
         >
           <Input
             value={displayName}
             onChangeText={setDisplayName}
             placeholder="아빠"
-            maxLength={20}
+            maxLength={NAME_MAX_LENGTH}
           />
         </Field>
 
