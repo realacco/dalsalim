@@ -11,9 +11,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   SETTLEMENT_DAYS,
+  SETTLEMENT_DAY_LABELS,
   SETTLEMENT_TIMES,
+  SETTLEMENT_TIME_LABELS,
   formatSettlement,
-  formatTime,
   settlesOnDragEnd,
   MONTH_END_HINT,
   timeIndex,
@@ -29,7 +30,7 @@ import { Button, ErrorText, Muted, Sheet } from '@/shared/ui';
  * 스냅 간격 · `scrollTo` · 띠 위치 · 칸 높이가 **전부 같은 값**을 봐야 해서 한 곳에서 받아 내려보낸다.
  * 한 군데만 딴 값을 보면 굴린 자리와 고른 값이 조용히 어긋난다.
  */
-type Metrics = { itemHeight: number; visible: number };
+type Metrics = ReturnType<typeof wheelMetrics>;
 
 /**
  * 정산일을 고르는 아래 시트. draft 가 없으면 닫혀 있다.
@@ -63,7 +64,6 @@ export function SettlementSheet({
     selectedLineHeight: font.title.lineHeight,
     padding: space.sm,
   });
-  const bandOffset = metrics.itemHeight * ((metrics.visible - 1) / 2);
 
   return (
     <Sheet visible={draft !== null} onClose={onClose} title="정산일" dismissOnBackdrop>
@@ -78,19 +78,19 @@ export function SettlementSheet({
           */}
           <View style={[styles.wheels, { height: metrics.itemHeight * metrics.visible }]}>
             <View
-              style={[styles.band, { top: bandOffset, height: metrics.itemHeight }]}
+              style={[styles.band, { top: metrics.padOffset, height: metrics.itemHeight }]}
               pointerEvents="none"
             />
             <Wheel
               label="날짜"
-              items={SETTLEMENT_DAYS.map((day) => `${day}일`)}
+              items={SETTLEMENT_DAY_LABELS}
               index={draft.day - 1}
               metrics={metrics}
               onSelect={(index) => onChange({ day: SETTLEMENT_DAYS[index] })}
             />
             <Wheel
               label="시각"
-              items={SETTLEMENT_TIMES.map((time) => formatTime(time.hour, time.minute))}
+              items={SETTLEMENT_TIME_LABELS}
               index={timeIndex(draft.hour, draft.minute)}
               metrics={metrics}
               onSelect={(index) => onChange(SETTLEMENT_TIMES[index])}
@@ -128,7 +128,12 @@ function Wheel({
 }) {
   const styles = useStyles();
   const scroll = useRef<ScrollView>(null);
-  const placed = useRef(false);
+  /**
+   * 마지막으로 첫 정렬을 놓을 때 쓴 칸 높이. boolean 으로 「놓았다」만 기억하면, 시트가 열려
+   * 있는 동안 글자 배율이 바뀌었을 때 스크롤 위치만 옛 높이에 남아 띠와 어긋난다.
+   * 높이를 기억하면 **배율이 바뀐 렌더에서만** 다시 놓여, 굴리는 중 되돌리는 싸움도 안 생긴다.
+   */
+  const placedAt = useRef(0);
 
   const settle = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const next = wheelIndex(event.nativeEvent.contentOffset.y, metrics.itemHeight, items.length);
@@ -139,16 +144,20 @@ function Wheel({
     <ScrollView
       ref={scroll}
       style={styles.wheel}
+      // 스크린리더가 굴리는 중에도 「지금 고른 값」을 읽을 수 있어야 한다 — 미리보기 글자는 초점 밖이다.
+      // ScrollView 는 기본적으로 초점 대상이 아니라 안쪽 Text 들이 하나씩 잡히므로,
+      // accessible 로 한 덩어리로 묶고 「굴려서 값을 고르는 것」이라고 역할을 준다
+      accessible
+      accessibilityRole="adjustable"
       accessibilityLabel={label}
-      // 스크린리더가 굴리는 중에도 「지금 고른 값」을 읽을 수 있어야 한다 — 미리보기 글자는 초점 밖이다
       accessibilityValue={{ text: items[index] }}
       showsVerticalScrollIndicator={false}
       snapToInterval={metrics.itemHeight}
       decelerationRate="fast"
-      contentContainerStyle={{ paddingVertical: metrics.itemHeight * ((metrics.visible - 1) / 2) }}
+      contentContainerStyle={{ paddingVertical: metrics.padOffset }}
       onLayout={() => {
-        if (placed.current) return;
-        placed.current = true;
+        if (placedAt.current === metrics.itemHeight) return;
+        placedAt.current = metrics.itemHeight;
         scroll.current?.scrollTo({ y: index * metrics.itemHeight, animated: false });
       }}
       onMomentumScrollEnd={settle}

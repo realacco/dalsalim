@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   SETTLEMENT_DAYS,
+  SETTLEMENT_DAY_LABELS,
   SETTLEMENT_TIMES,
+  SETTLEMENT_TIME_LABELS,
   formatSettlement,
   formatTime,
   passedMonthHint,
@@ -28,7 +30,7 @@ describe('F-FAM-10 정산일 표시', () => {
   it('★ F-FAM-10 글자를 키우면 칸도 커지되 보이는 칸을 줄여 판을 늦춘다', () => {
     const tokens = { touchSize: 44, selectedLineHeight: 28, padding: 8 };
     // 기본 배율에서는 터치 최소 크기 그대로, 위아래 두 칸씩 보인다
-    expect(wheelMetrics(1, tokens)).toEqual({ itemHeight: 44, visible: 5 });
+    expect(wheelMetrics(1, tokens)).toEqual({ itemHeight: 44, visible: 5, padOffset: 88 });
     // 글자가 커지면 칸도 커진다 — 안 그러면 선택 칸 글자가 칸을 넘는다
     expect(wheelMetrics(2, tokens).itemHeight).toBeGreaterThan(44);
     // 대신 보이는 칸을 줄여 판이 길어지는 것을 늦춘다
@@ -37,6 +39,25 @@ describe('F-FAM-10 정산일 표시', () => {
     expect(wheelMetrics(3, tokens).visible).toBe(3);
     // 토큰을 바꾸면 따라간다 — 값을 복사해두면 여기가 안 움직인다
     expect(wheelMetrics(1, { ...tokens, selectedLineHeight: 40 }).itemHeight).toBe(48);
+  });
+
+  it('★ F-FAM-10 띠 위치와 휠 여백은 한 값에서 나온다', () => {
+    // 둘이 같아야 띠와 칸이 맞는다 — 화면 두 곳에서 따로 세우면 한쪽만 고쳐도 조용히 어긋난다
+    const { itemHeight, visible, padOffset } = wheelMetrics(2, {
+      touchSize: 44,
+      selectedLineHeight: 28,
+      padding: 8,
+    });
+    expect(padOffset).toBe(itemHeight * ((visible - 1) / 2));
+  });
+
+  it('칸 글자는 한 번만 만들어 둔다', () => {
+    expect(SETTLEMENT_DAY_LABELS).toHaveLength(SETTLEMENT_DAYS.length);
+    expect(SETTLEMENT_DAY_LABELS[0]).toBe('1일');
+    expect(SETTLEMENT_DAY_LABELS.at(-1)).toBe('31일');
+    expect(SETTLEMENT_TIME_LABELS).toHaveLength(SETTLEMENT_TIMES.length);
+    expect(SETTLEMENT_TIME_LABELS[0]).toBe('오전 12:00');
+    expect(SETTLEMENT_TIME_LABELS.at(-1)).toBe('오후 11:30');
   });
 
   it('★ F-FAM-10 튕겨 놓은 손가락에서는 값을 확정하지 않는다', () => {

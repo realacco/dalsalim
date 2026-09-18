@@ -46,18 +46,23 @@ export function wheelIndex(offsetY: number, itemHeight: number, count: number): 
  * 이웃 칸이 하나씩은 보여야 굴릴 수 있다는 게 읽히므로 3 아래로는 줄이지 않는다 —
  * 아주 큰 배율(2.7 쯤)에서는 상한을 넘는데, 그때는 시트가 **위로** 밀려 저장 버튼은 남는다.
  *
- * 값은 전부 인자로 받는다. 디자인 토큰을 여기 복사하면 `font.title` 을 고쳤을 때
- * 칸 높이만 조용히 어긋난다.
+ * **디자인 토큰은 전부 인자로 받는다.** 여기 복사하면 `font.title` 을 고쳤을 때 칸 높이만
+ * 조용히 어긋난다. `WHEEL_MAX_HEIGHT` 만 안에 있는 것은 그것이 토큰이 아니라 **이 함수의
+ * 정책**이어서다 — 어느 화면의 값도 아니고 보이는 칸을 줄이는 기준일 뿐이다.
+ *
+ * `padOffset` 도 같이 돌려준다. 띠 위치와 휠의 위아래 여백이 **같은 값이어야만** 띠와 칸이
+ * 맞는데, 화면 두 곳에서 같은 식을 따로 세우면 한쪽만 고쳐도 아무 경고 없이 어긋난다.
  */
 export function wheelMetrics(
   fontScale: number,
   tokens: { touchSize: number; selectedLineHeight: number; padding: number },
-): { itemHeight: number; visible: number } {
+): { itemHeight: number; visible: number; padOffset: number } {
   const itemHeight = Math.max(
     tokens.touchSize,
     Math.ceil(tokens.selectedLineHeight * fontScale) + tokens.padding,
   );
-  return { itemHeight, visible: itemHeight * 5 <= WHEEL_MAX_HEIGHT ? 5 : 3 };
+  const visible = itemHeight * 5 <= WHEEL_MAX_HEIGHT ? 5 : 3;
+  return { itemHeight, visible, padOffset: itemHeight * ((visible - 1) / 2) };
 }
 
 /** 판이 이보다 길어지면 큰 글자에서 시트가 화면을 넘기 시작한다 */
@@ -102,10 +107,20 @@ export function formatTime(hour: number, minute: number): string {
   return `${p.label} ${p.hour12}:${String(minute).padStart(2, '0')}`;
 }
 
+/**
+ * 휠에 그리는 칸 글자. **한 번만 만든다** — 79개를 렌더마다 다시 만들면 값이 바뀔 때마다
+ * 두 휠이 새 배열을 받고, 포맷팅이 JSX 안으로 들어가 「컴포넌트는 그리기만 한다」도 깨진다.
+ */
+export const SETTLEMENT_DAY_LABELS: string[] = SETTLEMENT_DAYS.map((day) => `${day}일`);
+
 /** "매달 25일 · 오전 9:00" — 카드와 구성원 목록이 같은 문장을 쓴다 */
 export function formatSettlement(settlement: Settlement): string {
   return `매달 ${settlement.day}일 · ${formatTime(settlement.hour, settlement.minute)}`;
 }
+
+export const SETTLEMENT_TIME_LABELS: string[] = SETTLEMENT_TIMES.map((time) =>
+  formatTime(time.hour, time.minute),
+);
 
 /**
  * 이번 달 알림이 이미 갔거나, 오늘 지난 시각으로 정해 서버가 이번 달을 건너뛴 사람에게.

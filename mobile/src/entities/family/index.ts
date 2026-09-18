@@ -28,7 +28,9 @@ export {
 export {
   DEFAULT_SETTLEMENT,
   SETTLEMENT_DAYS,
+  SETTLEMENT_DAY_LABELS,
   SETTLEMENT_TIMES,
+  SETTLEMENT_TIME_LABELS,
   formatSettlement,
   formatTime,
   passedMonthHint,
