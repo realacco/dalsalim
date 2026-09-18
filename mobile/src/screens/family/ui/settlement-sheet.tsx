@@ -160,7 +160,7 @@ function Wheel({
       accessibilityActions={ADJUST_ACTIONS}
       onAccessibilityAction={(event) => {
         const step = event.nativeEvent.actionName === 'increment' ? 1 : -1;
-        const next = stepIndex(index, step, metrics.itemHeight, items.length);
+        const next = stepIndex(index, step, items.length);
         if (next === index) return;
         // 이 경로에는 스크롤 이벤트가 오지 않아 휠이 저절로 따라오지 않는다
         scroll.current?.scrollTo({ y: next * metrics.itemHeight, animated: false });

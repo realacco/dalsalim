@@ -29,7 +29,14 @@ export function timeIndex(hour: number, minute: number): number {
  * 반올림하고 목록 밖으로 안 나가게 묶는다. 화면이 아니라 계산이라 여기서 판정한다.
  */
 export function wheelIndex(offsetY: number, itemHeight: number, count: number): number {
-  const index = Math.round(offsetY / itemHeight);
+  return clampIndex(Math.round(offsetY / itemHeight), count);
+}
+
+/**
+ * 목록 밖으로 나가지 않게 묶는다. **끝 칸 처리가 여기 한 곳에만 있다** —
+ * 굴려서 멈춘 자리와 스크린리더의 한 칸 이동이 같은 끝에서 멈추는 근거다.
+ */
+function clampIndex(index: number, count: number): number {
   return Math.min(Math.max(index, 0), count - 1);
 }
 
@@ -70,12 +77,10 @@ const WHEEL_MAX_HEIGHT = 240;
 
 /**
  * 스크린리더가 한 칸 올리거나 내릴 때의 다음 칸.
- *
- * 굴릴 때와 **같은 `wheelIndex()`** 를 지나가게 해서 끝 칸 넘김 처리가 한 곳에서 나온다 —
- * 여기서 따로 묶으면 손가락으로 굴린 끝과 스크린리더로 간 끝이 다르게 걸린다.
+ * 굴릴 때와 **같은 `clampIndex()`** 를 지나므로 손가락으로 간 끝과 여기서 간 끝이 같다.
  */
-export function stepIndex(index: number, step: number, itemHeight: number, count: number): number {
-  return wheelIndex((index + step) * itemHeight, itemHeight, count);
+export function stepIndex(index: number, step: number, count: number): number {
+  return clampIndex(index + step, count);
 }
 
 /**
