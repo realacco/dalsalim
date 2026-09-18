@@ -103,7 +103,7 @@ POST /auth/dev { "name": "아빠" }  →  토큰 발급
 
 ---
 
-## 3. 서버를 세상에 올리기 — ✅ 끝났다 (2026-09-07)
+## 3. 서버를 세상에 올리기 — ✅ 올라갔다 · 🔴 **백업은 남았다**
 
 Railway 에 올라가 있고 Postgres 를 본다. `https://dalsalim-production.up.railway.app`
 실제로 걸린 함정 셋은 `README.md` 「배포 (Railway)」 4절에 적어뒀다.
@@ -153,8 +153,8 @@ preview APK 를 EAS 로 구워 가족이 쓰고 있다. 설정은 `mobile/eas.js
 - [x] **`eas update`(OTA)** — `.github/workflows/ota.yml` 의 **수동 실행** 버튼이다.
       머지에 걸지 않은 이유가 그 파일 주석에 있다: CI 는 1·2층만 보므로 자동 발행하면
       3층을 건너뛴 번들이 가족 폰에 내려가고, **다음에 앱을 켤 때까지** 깨진 화면을 본다
-- [ ] `version` / `versionCode` **올리는 규칙** — 값은 잡혀 있다(`mobile/app.json` 의 `version` ·
-      `android.versionCode` · `expo.runtimeVersion`). 언제 무엇을 올리는지가 아직 말로만 있다.
+- [ ] `version` / `versionCode` **올리는 규칙** — 값은 잡혀 있다(`mobile/app.json` 의 `expo.version` ·
+      `expo.android.versionCode` · `expo.runtimeVersion`). 언제 무엇을 올리는지가 아직 말로만 있다.
       ⚠️ 네이티브가 바뀌면 `runtimeVersion` 을 올려야 하고, 그때는 OTA 로 못 내려가 APK 를 다시 굽는다
 - [ ] **실기기에서 남은 확인 둘** — 폭 360dp 에서 위저드 버튼이 잘리는지 ·
       시스템 글자 크기를 키웠을 때 레이아웃. CLAUDE.md 「화면 원칙」이 함정으로 적어둔 자리다
@@ -292,6 +292,8 @@ JWT 90일, 리프레시 없음. 만료되면 조용히 로그아웃된다.
    `cd server && npm run db:export` 를 **언제 돌릴지**를 정해야 한다 — 자동화해 저장소에 올리면 안 된다
 2. 🟡 **실기기에서 남은 확인 둘** — 폭 360dp 위저드 버튼 · 큰 글자 레이아웃 (5장)
 3. 🟡 **`version` / `versionCode` 올리는 규칙** (5장). 지금은 말로만 있다
-4. 🟡 있으면 좋은 것 — 제출 알림(`F-ENT-13`) · 토큰 만료 안내 · 에러 리포팅 (6장)
+4. 🟡 **참여 요청 알림** — 가족장이 요청이 들어온 줄 모른다 (2-5). 홈 안내만으로는 안 알려주면 못 본다.
+   정산일 알림(`F-FAM-10`)이 판 푸시 기반 위에 얹으면 된다
+5. 🟡 있으면 좋은 것 — 제출 알림(`F-ENT-13`) · 토큰 만료 안내 · 에러 리포팅 (6장)
 
 > 원래 여기 적혀 있던 셋(요약 게이트 · `DEV_LOGIN` · 서버 배포)과 그 뒤의 APK 굽기는 전부 끝났다.
