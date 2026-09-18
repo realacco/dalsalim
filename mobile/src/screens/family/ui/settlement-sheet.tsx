@@ -2,10 +2,10 @@ import { useRef } from 'react';
 import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
-  PixelRatio,
   ScrollView,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -14,12 +14,12 @@ import {
   SETTLEMENT_TIMES,
   formatSettlement,
   formatTime,
+  settlesOnDragEnd,
   MONTH_END_HINT,
   timeIndex,
   wheelIndex,
   wheelMetrics,
 } from '@/entities/family';
-import { size } from '@/shared/config/theme';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import type { Settlement } from '@/shared/model/types';
 import { Button, ErrorText, Muted, Sheet } from '@/shared/ui';
@@ -54,9 +54,15 @@ export function SettlementSheet({
   onClose: () => void;
 }) {
   const styles = useStyles();
-  const { space } = useTheme();
+  const { font, size, space } = useTheme();
   const insets = useSafeAreaInsets();
-  const metrics = wheelMetrics(PixelRatio.getFontScale(), size.touch);
+  // 글자 배율은 앱이 떠 있는 동안에도 바뀔 수 있다 — 훅으로 받아야 따라온다
+  const { fontScale } = useWindowDimensions();
+  const metrics = wheelMetrics(fontScale, {
+    touchSize: size.touch,
+    selectedLineHeight: font.title.lineHeight,
+    padding: space.sm,
+  });
   const bandOffset = metrics.itemHeight * ((metrics.visible - 1) / 2);
 
   return (
@@ -145,15 +151,21 @@ function Wheel({
         placed.current = true;
         scroll.current?.scrollTo({ y: index * metrics.itemHeight, animated: false });
       }}
-      // 손가락으로 굴린 것과 튕겨서 멈춘 것, 둘 다 「고른 것」이다
       onMomentumScrollEnd={settle}
-      onScrollEndDrag={settle}
+      // 튕겨 놓았으면 아직 날아가는 중이라 멈출 때까지 기다린다 — 판정은 settlesOnDragEnd()
+      onScrollEndDrag={(event) => {
+        if (settlesOnDragEnd(event.nativeEvent.velocity?.y)) settle(event);
+      }}
     >
       {items.map((item, itemIndex) => (
         <View key={item} style={[styles.item, { height: metrics.itemHeight }]}>
           <Text
             style={[styles.itemLabel, itemIndex === index && styles.itemLabelSelected]}
             numberOfLines={1}
+            // 칸 높이는 wheelMetrics 가 키워 막고, 폭은 이 둘이 막는다 —
+            // 큰 글자에서 "오전 12:00" 이 두 칸 폭(≈156dp)을 넘어 잘린다
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
           >
             {item}
           </Text>

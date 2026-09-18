@@ -37,31 +37,46 @@ export function wheelIndex(offsetY: number, itemHeight: number, count: number): 
  * 시스템 글자 배율에 맞춘 휠의 칸 높이와 보이는 칸 수.
  *
  * 칸 높이만 dp 로 못 박으면 글자는 배율을 따라 커지는데 칸은 그대로라, 배율 1.8 쯤에서
- * 글자가 칸을 넘는다 (`adjustsFontSizeToFit` 은 `numberOfLines=1` 에서 **폭**으로만 줄여
- * 높이를 못 막는다). 그래서 칸을 같이 키운다.
+ * 글자가 칸을 넘는다. 그래서 칸을 같이 키운다 (폭은 `adjustsFontSizeToFit` 이 맡는다 —
+ * 그 프롭은 `numberOfLines=1` 에서 폭으로만 줄여 높이는 못 막는다).
  *
- * 대신 **보이는 칸 수를 줄여 판 전체 높이를 묶는다.** 칸만 키우면 판이 그만큼 길어져
+ * 대신 **보이는 칸 수를 줄여 판이 길어지는 것을 늦춘다.** 칸만 키우면 판이 그만큼 길어져
  * 큰 글자에서 시트가 화면을 넘는다 — 휠은 안쪽이 이미 세로 스크롤이라 바깥을 또
  * 스크롤로 감쌀 수 없어서, 높이를 늘리지 않는 것이 유일한 길이다.
- * 가운데 칸이 있어야 하므로 홀수로만 줄인다.
+ * 이웃 칸이 하나씩은 보여야 굴릴 수 있다는 게 읽히므로 3 아래로는 줄이지 않는다 —
+ * 아주 큰 배율(2.7 쯤)에서는 상한을 넘는데, 그때는 시트가 **위로** 밀려 저장 버튼은 남는다.
+ *
+ * 값은 전부 인자로 받는다. 디자인 토큰을 여기 복사하면 `font.title` 을 고쳤을 때
+ * 칸 높이만 조용히 어긋난다.
  */
 export function wheelMetrics(
   fontScale: number,
-  touchSize: number,
+  tokens: { touchSize: number; selectedLineHeight: number; padding: number },
 ): { itemHeight: number; visible: number } {
-  // 가장 큰 칸 글자(선택된 칸)의 줄 높이에 위아래 숨통을 더한 값. 터치 최소 크기보다 작아지지 않는다
   const itemHeight = Math.max(
-    touchSize,
-    Math.ceil(SELECTED_LINE_HEIGHT * fontScale) + ITEM_PADDING,
+    tokens.touchSize,
+    Math.ceil(tokens.selectedLineHeight * fontScale) + tokens.padding,
   );
   return { itemHeight, visible: itemHeight * 5 <= WHEEL_MAX_HEIGHT ? 5 : 3 };
 }
 
-/** `font.title` 의 줄 높이. 칸 글자 중 가장 큰 것이라 칸 높이를 여기에 맞춘다 */
-const SELECTED_LINE_HEIGHT = 28;
-const ITEM_PADDING = 8;
-/** 판이 이보다 길어지면 큰 글자에서 시트가 화면을 넘는다 */
+/** 판이 이보다 길어지면 큰 글자에서 시트가 화면을 넘기 시작한다 */
 const WHEEL_MAX_HEIGHT = 240;
+
+/**
+ * 손가락을 뗀 자리에서 고른 값을 확정해도 되나.
+ *
+ * `onScrollEndDrag` 는 **손가락을 뗀 순간**에 오고 그때 위치는 아직 날아가는 중이라,
+ * 세게 튕기면 중간 칸이 한 번 잡혔다가 멈춘 뒤 다시 고쳐진다 — 미리보기가 깜빡인다.
+ * 그렇다고 이 신호를 버릴 수도 없다. 느리게 놓으면 튕김이 없어서 `onMomentumScrollEnd`
+ * 가 아예 안 온다. 그래서 **멈춘 채로 놓았을 때만** 여기서 확정한다.
+ */
+export function settlesOnDragEnd(velocityY: number | undefined): boolean {
+  return Math.abs(velocityY ?? 0) < FLING_VELOCITY;
+}
+
+/** 이보다 빠르면 아직 날아가는 중이다 (RN 의 velocity 는 dp/ms) */
+const FLING_VELOCITY = 0.1;
 
 /**
  * 저장된 값을 휠 칸 위로 당긴다. 서버는 분을 0~59 로 받으므로 9:15 처럼 칸 밖 값이 올 수 있는데,

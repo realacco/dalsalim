@@ -32,6 +32,7 @@ export {
   formatSettlement,
   formatTime,
   passedMonthHint,
+  settlesOnDragEnd,
   snapSettlement,
   MONTH_END_HINT,
   timeIndex,

@@ -6,6 +6,7 @@ import {
   formatSettlement,
   formatTime,
   passedMonthHint,
+  settlesOnDragEnd,
   snapSettlement,
   timeIndex,
   wheelIndex,
@@ -24,17 +25,27 @@ describe('F-FAM-10 정산일 표시', () => {
     expect(formatSettlement({ day: 25, hour: 9, minute: 0 })).toBe('매달 25일 · 오전 9:00');
   });
 
-  it('★ F-FAM-10 글자를 키우면 칸도 커지되 판 높이는 묶인다', () => {
+  it('★ F-FAM-10 글자를 키우면 칸도 커지되 보이는 칸을 줄여 판을 늦춘다', () => {
+    const tokens = { touchSize: 44, selectedLineHeight: 28, padding: 8 };
     // 기본 배율에서는 터치 최소 크기 그대로, 위아래 두 칸씩 보인다
-    expect(wheelMetrics(1, 44)).toEqual({ itemHeight: 44, visible: 5 });
+    expect(wheelMetrics(1, tokens)).toEqual({ itemHeight: 44, visible: 5 });
     // 글자가 커지면 칸도 커진다 — 안 그러면 선택 칸 글자가 칸을 넘는다
-    expect(wheelMetrics(2, 44).itemHeight).toBeGreaterThan(44);
-    // 대신 보이는 칸을 줄여 판이 길어지지 않게 한다 (큰 글자에서 시트가 화면을 넘는다)
-    expect(wheelMetrics(2, 44).visible).toBe(3);
-    const tall = wheelMetrics(2, 44);
-    expect(tall.itemHeight * tall.visible).toBeLessThanOrEqual(44 * 5 + 20);
-    // 가운데 칸이 있어야 하므로 짝수로 줄지 않는다
-    expect(wheelMetrics(3, 44).visible % 2).toBe(1);
+    expect(wheelMetrics(2, tokens).itemHeight).toBeGreaterThan(44);
+    // 대신 보이는 칸을 줄여 판이 길어지는 것을 늦춘다
+    expect(wheelMetrics(2, tokens).visible).toBe(3);
+    // 가운데 칸이 있어야 하므로 짝수로 줄지 않고, 이웃이 보여야 하므로 3 아래로도 안 간다
+    expect(wheelMetrics(3, tokens).visible).toBe(3);
+    // 토큰을 바꾸면 따라간다 — 값을 복사해두면 여기가 안 움직인다
+    expect(wheelMetrics(1, { ...tokens, selectedLineHeight: 40 }).itemHeight).toBe(48);
+  });
+
+  it('★ F-FAM-10 튕겨 놓은 손가락에서는 값을 확정하지 않는다', () => {
+    // 멈춘 채로 놓으면 튕김이 없어 여기서 확정해야 한다
+    expect(settlesOnDragEnd(0)).toBe(true);
+    expect(settlesOnDragEnd(undefined)).toBe(true);
+    // 날아가는 중이면 중간 칸이 잡혀 미리보기가 깜빡인다 — 멈출 때까지 기다린다
+    expect(settlesOnDragEnd(1.2)).toBe(false);
+    expect(settlesOnDragEnd(-1.2)).toBe(false);
   });
 
   it('★ F-FAM-10 칸 밖 시각으로 열면 휠이 서는 칸으로 맞춰 준다', () => {
