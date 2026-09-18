@@ -9,6 +9,7 @@ import { execFileSync } from 'node:child_process';
 
 const FEATURE_ID = /F-[A-Z]+-\d{2}/;
 const PROCESS_DOC = '.claude/process/start-task.md';
+const DESIGN_DOC = '.claude/process/start-design.md';
 
 function emit(text) {
   process.stdout.write(
@@ -28,7 +29,9 @@ try {
   if (branch === 'main' || branch === 'master') {
     emit(
       `브랜치 ${branch} — 코드를 고치기 전에 기능 ID 를 정하고 브랜치를 만들어야 해요. ` +
-        `기능 작업이면 ${PROCESS_DOC} 의 절차를 밟으세요.`,
+        `기능 작업이면 ${PROCESS_DOC} 의 절차를 밟으세요. ` +
+        // /design 은 브랜치를 만들기 전에 오는 절차라 이 자리(main)에서 도는 게 정상이다
+        `화면을 그리는 중이면 ${DESIGN_DOC} 예요.`,
     );
   } else {
     const id = FEATURE_ID.exec(branch);
