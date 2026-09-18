@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { committable, inside, isIgnored, realPath } from '../../.claude/hooks/guard-branch.mjs';
 
@@ -102,12 +102,26 @@ describe('★ 심볼릭 링크를 지나도 같은 답을 낸다', () => {
   /**
    * git 은 물리 경로를(`rev-parse --show-toplevel`), 훅은 논리 경로를 받는다.
    * 둘을 그냥 비교하면 링크를 지나는 저장소에서 「밖이다」가 되어 훅이 조용히 꺼진다.
+   *
+   * ⚠️ 만드는 것은 `beforeAll` 이다. `describe` 본문은 **수집 단계**에 돌아서,
+   * `-t` 로 다른 케이스만 골라 돌려도 디렉터리가 생긴다. 1층은 매 커밋에 도는 층이라
+   * 흔적을 남기면 그만큼 쌓인다.
    */
-  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'guard-branch-'));
-  const physical = path.join(temp, 'physical');
-  const link = path.join(temp, 'link');
-  fs.mkdirSync(path.join(physical, 'docs'), { recursive: true });
-  fs.symlinkSync(physical, link);
+  let temp;
+  let physical;
+  let link;
+
+  beforeAll(() => {
+    temp = fs.mkdtempSync(path.join(os.tmpdir(), 'guard-branch-'));
+    physical = path.join(temp, 'physical');
+    link = path.join(temp, 'link');
+    fs.mkdirSync(path.join(physical, 'docs'), { recursive: true });
+    fs.symlinkSync(physical, link);
+  });
+
+  afterAll(() => {
+    fs.rmSync(temp, { recursive: true, force: true });
+  });
 
   it('링크로 들어온 파일도 저장소 안이다', () => {
     // git 은 물리 경로를 주고, 편집 요청은 링크 경로로 온다
