@@ -8,6 +8,7 @@ export type {
   MyPendingRequest,
 } from './model/types';
 export { contentsLine } from './model/contents';
+export { approvedFamilyId, exitWithoutRequests, waitingFamilyIds } from './model/pending';
 export {
   approveJoinRequest,
   cancelJoinRequest,
