@@ -30,7 +30,7 @@ export function dayIndex(day: number): number {
  */
 export function timeIndex(hour: number, minute: number): number {
   const slot = Math.round((hour * 60 + minute) / STEP_MINUTES);
-  return Math.min(slot, SETTLEMENT_TIMES.length - 1);
+  return clampIndex(slot, SETTLEMENT_TIMES.length);
 }
 
 /**

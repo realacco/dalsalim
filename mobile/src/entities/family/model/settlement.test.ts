@@ -81,7 +81,7 @@ describe('F-FAM-10 정산일 표시', () => {
     expect(stepIndex(30, 1, 31)).toBe(30);
   });
 
-  it('칸 글자는 한 번만 만들어 둔다', () => {
+  it('칸 글자는 칸 개수만큼 있고 양 끝이 맞는다', () => {
     expect(SETTLEMENT_DAY_LABELS).toHaveLength(SETTLEMENT_DAYS.length);
     expect(SETTLEMENT_DAY_LABELS[0]).toBe('1일');
     expect(SETTLEMENT_DAY_LABELS.at(-1)).toBe('31일');

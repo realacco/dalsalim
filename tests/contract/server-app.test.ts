@@ -15,6 +15,7 @@ import {
 import { displayName as serverDisplayName } from '../../server/src/lib/schemas.js';
 import { effectiveDay as serverEffectiveDay } from '../../server/src/lib/schedule.js';
 
+import { MONTH_END_HINT as appMonthEndHint } from '../../mobile/src/entities/family/model/settlement';
 import { needsReason as appNeedsReason } from '../../mobile/src/entities/entry/model/reason';
 import { palettes } from '../../mobile/src/shared/config/theme';
 import { settlementDelta as appSettlementDelta } from '../../mobile/src/entities/entry/model/settlement';
@@ -197,16 +198,19 @@ describe('결산 차액 — 서버가 남은 돈에서 빼는 금액과 앱이 �
 });
 
 /**
- * 앱의 `MONTH_END_HINT` 는 "고른 날이 없는 달에는 그 달 **말일에** 알려드려요" 라고
- * 서버 규칙을 문장으로 주장한다. 문자열은 잠글 수 없지만 **규칙의 모양**은 잠글 수 있다 —
- * 서버가 이것을 「건너뛴다」나 「다음 달로 넘긴다」로 바꾸면 앱 문구만 조용히 틀려지고,
- * 앱에 문턱이 없어진 뒤로는 그걸 잡는 것이 아무것도 없다. 그 자리를 이 한 줄이 메운다.
+ * 앱의 `MONTH_END_HINT` 는 서버 규칙을 **문장으로 주장한다** — "그 달 말일에 알려드려요".
+ * 앱에서 29일 문턱이 없어진 뒤로는 그 주장이 틀려지는 것을 잡는 것이 없다.
+ *
+ * 그래서 **양쪽을 같이** 본다. 서버만 보면 `schedule.test.ts` 와 중복이고 이 층의 축
+ * (두 사본의 일치)도 아니다 — 앱 문구를 「다음 달에 알려드려요」로 바꿔도 안 걸린다.
  */
-describe('말일 보정 — 앱 안내가 주장하는 모양', () => {
-  it('없는 날은 그 달 말일로 당긴다 (0 도 다음 달도 아니다)', () => {
+describe('말일 보정 — 앱이 말하는 것과 서버가 하는 것', () => {
+  it('앱은 「말일」이라 말하고, 서버는 실제로 말일로 당긴다', () => {
+    expect(appMonthEndHint).toContain('말일');
     expect(serverEffectiveDay(31, 28)).toBe(28);
     expect(serverEffectiveDay(31, 30)).toBe(30);
-    // 있는 날은 그대로 — 당기는 것은 없는 달에서만이다
+    // 앱이 「다음 달」이 아니라 「그 달」이라 말하는 근거 — 있는 날은 그대로다
+    expect(appMonthEndHint).not.toContain('다음 달');
     expect(serverEffectiveDay(25, 31)).toBe(25);
   });
 });
