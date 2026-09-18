@@ -20,6 +20,22 @@ function git(...args) {
   }).trim();
 }
 
+/**
+ * 커밋될 수 없는 파일 — gitignore 대상이거나 아예 저장소 밖에 있다.
+ *
+ * 저장소 밖을 같이 보는 이유: `/design` 이 시안 아티팩트의 원본을 스크래치패드에 쓰는데,
+ * 그 절차는 브랜치를 만들기 전(보통 `main`)에 돈다. `check-ignore` 는 저장소 밖 경로를
+ * 1 이 아니라 128(오류)로 알려서, 그냥 catch 로 묶으면 커밋될 리 없는 파일까지 막힌다.
+ */
+function committable(filePath) {
+  try {
+    execFileSync('git', ['check-ignore', '-q', filePath], { stdio: 'ignore' });
+    return false; // 무시되는 파일
+  } catch (caught) {
+    return caught?.status !== 128; // 128 = 저장소 밖
+  }
+}
+
 function deny(reason) {
   process.stdout.write(
     JSON.stringify({
@@ -45,13 +61,8 @@ function main(input) {
   }
 
   if (branch === 'main' || branch === 'master') {
-    // git 이 추적하지 않는 파일은 커밋될 일이 없으므로 막을 이유도 없다
-    try {
-      execFileSync('git', ['check-ignore', '-q', filePath], { stdio: 'ignore' });
-      return;
-    } catch {
-      /* 무시되지 않는 파일 — 계속 검사한다 */
-    }
+    // 커밋될 일이 없는 파일은 막을 이유도 없다
+    if (!committable(filePath)) return;
 
     deny(
       `${branch} 에서는 파일을 고치지 않아요. 브랜치를 먼저 만들어야 해요.\n` +
