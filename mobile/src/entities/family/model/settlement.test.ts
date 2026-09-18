@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  SETTLEMENT_DAY_ROWS,
-  SETTLEMENT_TIME_PRESETS,
-  formatPreset,
+  SETTLEMENT_DAYS,
+  SETTLEMENT_TIMES,
   formatSettlement,
   formatTime,
   passedMonthHint,
   shortMonthHint,
-  stepTime,
+  timeIndex,
+  wheelIndex,
 } from './settlement';
 
 describe('F-FAM-10 정산일 표시', () => {
@@ -37,35 +37,34 @@ describe('F-FAM-10 정산일 표시', () => {
 });
 
 describe('F-FAM-10 정산일 고르기', () => {
-  it('날짜는 7칸 격자에 1일부터 31일까지 빠짐없이 한 번씩 — 모자란 칸은 빈 칸', () => {
-    expect(SETTLEMENT_DAY_ROWS.every((row) => row.length === 7)).toBe(true);
-    expect(SETTLEMENT_DAY_ROWS.flat().filter((day) => day !== null)).toEqual(
-      Array.from({ length: 31 }, (_, i) => i + 1),
-    );
+  it('날짜 칸은 1일부터 31일까지 빠짐없이 한 번씩', () => {
+    expect(SETTLEMENT_DAYS).toEqual(Array.from({ length: 31 }, (_, i) => i + 1));
   });
 
-  it('시각은 30분씩 옮긴다', () => {
-    expect(stepTime(9, 0, 1)).toEqual({ hour: 9, minute: 30 });
-    expect(stepTime(9, 30, 1)).toEqual({ hour: 10, minute: 0 });
-    expect(stepTime(9, 0, -1)).toEqual({ hour: 8, minute: 30 });
+  it('시각 칸은 자정부터 30분씩 하루 전체다', () => {
+    expect(SETTLEMENT_TIMES).toHaveLength(48);
+    expect(SETTLEMENT_TIMES[0]).toEqual({ hour: 0, minute: 0 });
+    expect(SETTLEMENT_TIMES[18]).toEqual({ hour: 9, minute: 0 });
+    expect(SETTLEMENT_TIMES[47]).toEqual({ hour: 23, minute: 30 });
   });
 
-  it('자정을 넘으면 반대편으로 돈다', () => {
-    expect(stepTime(23, 30, 1)).toEqual({ hour: 0, minute: 0 });
-    expect(stepTime(0, 0, -1)).toEqual({ hour: 23, minute: 30 });
+  it('칸 위의 시각은 그 칸을 가리킨다', () => {
+    expect(timeIndex(0, 0)).toBe(0);
+    expect(timeIndex(9, 0)).toBe(18);
+    expect(timeIndex(23, 30)).toBe(47);
   });
 
-  it('칸 사이 값(9:15)은 누른 방향의 가까운 칸으로 붙는다 — 한 칸을 건너뛰지 않는다', () => {
-    expect(stepTime(9, 15, 1)).toEqual({ hour: 9, minute: 30 });
-    expect(stepTime(9, 15, -1)).toEqual({ hour: 9, minute: 0 });
+  it('칸 사이 값은 가까운 칸으로 붙는다 — 마지막 칸을 넘어 자정으로 돌지 않는다', () => {
+    expect(timeIndex(9, 14)).toBe(18);
+    expect(timeIndex(9, 15)).toBe(19);
+    expect(timeIndex(23, 45)).toBe(47);
   });
 
-  it('자주 고를 시각은 하루의 때로 말하고 정각이다', () => {
-    expect(SETTLEMENT_TIME_PRESETS.map(formatPreset)).toEqual([
-      '아침 9시',
-      '점심 12시',
-      '저녁 6시',
-      '밤 9시',
-    ]);
+  it('휠이 멈춘 자리는 반올림하고 목록 밖으로 안 나간다', () => {
+    expect(wheelIndex(0, 44, 31)).toBe(0);
+    expect(wheelIndex(65, 44, 31)).toBe(1);
+    expect(wheelIndex(90, 44, 31)).toBe(2);
+    expect(wheelIndex(-20, 44, 31)).toBe(0);
+    expect(wheelIndex(9999, 44, 31)).toBe(30);
   });
 });

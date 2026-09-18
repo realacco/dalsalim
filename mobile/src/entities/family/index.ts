@@ -27,12 +27,12 @@ export {
 } from './api/family';
 export {
   DEFAULT_SETTLEMENT,
-  SETTLEMENT_DAY_ROWS,
-  SETTLEMENT_TIME_PRESETS,
-  formatPreset,
+  SETTLEMENT_DAYS,
+  SETTLEMENT_TIMES,
   formatSettlement,
   formatTime,
   passedMonthHint,
   shortMonthHint,
-  stepTime,
+  timeIndex,
+  wheelIndex,
 } from './model/settlement';
