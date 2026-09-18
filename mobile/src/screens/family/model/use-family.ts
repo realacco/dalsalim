@@ -7,6 +7,7 @@ import * as Clipboard from 'expo-clipboard';
 import { bookKeys } from '@/entities/book';
 import {
   DEFAULT_SETTLEMENT,
+  snapSettlement,
   approveJoinRequest,
   deleteFamily,
   familyKeys,
@@ -303,7 +304,8 @@ export function useFamily() {
     pushState,
     openSettlement: () => {
       setSettlementError(null);
-      setSettlementDraft(myMembership?.settlement ?? DEFAULT_SETTLEMENT);
+      // 휠은 30분 칸 위에만 선다 — 칸 밖 값으로 열면 띠 안의 값과 저장값이 갈린다
+      setSettlementDraft(snapSettlement(myMembership?.settlement ?? DEFAULT_SETTLEMENT));
     },
     editSettlement: (patch: Partial<Settlement>) =>
       setSettlementDraft((draft) => (draft ? { ...draft, ...patch } : draft)),

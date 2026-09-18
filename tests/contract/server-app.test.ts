@@ -12,11 +12,11 @@ import {
   settlementOverspend as serverSettlementOverspend,
   shiftYearMonth as serverShiftYearMonth,
 } from '../../server/src/lib/shared.js';
-import { effectiveDay as serverEffectiveDay } from '../../server/src/lib/schedule.js';
 import { displayName as serverDisplayName } from '../../server/src/lib/schemas.js';
+import { effectiveDay as serverEffectiveDay } from '../../server/src/lib/schedule.js';
 
+import { MONTH_END_HINT as appMonthEndHint } from '../../mobile/src/entities/family/model/settlement';
 import { needsReason as appNeedsReason } from '../../mobile/src/entities/entry/model/reason';
-import { shortMonthHint as appShortMonthHint } from '../../mobile/src/entities/family/model/settlement';
 import { palettes } from '../../mobile/src/shared/config/theme';
 import { settlementDelta as appSettlementDelta } from '../../mobile/src/entities/entry/model/settlement';
 import { defaultSettles as appDefaultSettles } from '../../mobile/src/entities/fixed-expense/model/settles';
@@ -198,15 +198,20 @@ describe('결산 차액 — 서버가 남은 돈에서 빼는 금액과 앱이 �
 });
 
 /**
- * 정산일의 말일 보정(서버)과 "짧은 달엔 말일에" 안내(앱)가 같은 날짜부터 갈린다.
- * 같은 함수는 아니지만 같은 규칙이다 — 서버가 규칙을 바꾸면 앱 안내만 조용히 틀려지는 모양이라 묶어둔다.
+ * 앱의 `MONTH_END_HINT` 는 서버 규칙을 **문장으로 주장한다** — "그 달 말일에 알려드려요".
+ * 앱에서 29일 문턱이 없어진 뒤로는 그 주장이 틀려지는 것을 잡는 것이 없다.
+ *
+ * 그래서 **양쪽을 같이** 본다. 서버만 보면 `schedule.test.ts` 와 중복이고 이 층의 축
+ * (두 사본의 일치)도 아니다 — 앱 문구를 「다음 달에 알려드려요」로 바꿔도 안 걸린다.
  */
-describe('정산일 말일 보정 — 서버 규칙과 앱 안내 문턱이 같다', () => {
-  it('가장 짧은 달(28일)에서 날짜가 바뀌는 날에만 안내가 붙는다', () => {
-    for (let day = 1; day <= 31; day += 1) {
-      const clamped = serverEffectiveDay(day, 28) !== day;
-      expect(appShortMonthHint(day) !== null, `${day}일`).toBe(clamped);
-    }
+describe('말일 보정 — 앱이 말하는 것과 서버가 하는 것', () => {
+  it('앱은 「말일」이라 말하고, 서버는 실제로 말일로 당긴다', () => {
+    expect(appMonthEndHint).toContain('말일');
+    expect(serverEffectiveDay(31, 28)).toBe(28);
+    expect(serverEffectiveDay(31, 30)).toBe(30);
+    // 앱이 「다음 달」이 아니라 「그 달」이라 말하는 근거 — 있는 날은 그대로다
+    expect(appMonthEndHint).not.toContain('다음 달');
+    expect(serverEffectiveDay(25, 31)).toBe(25);
   });
 });
 

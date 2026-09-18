@@ -1,6 +1,6 @@
 import { Text, View } from 'react-native';
 
-import { formatSettlement, shortMonthHint } from '@/entities/family';
+import { MONTH_END_HINT, formatSettlement } from '@/entities/family';
 import type { PushState } from '@/features/push';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import type { Settlement } from '@/shared/model/types';
@@ -31,7 +31,6 @@ export function SettlementCard({
 }) {
   const styles = useStyles();
   const { space } = useTheme();
-  const shortMonth = settlement ? shortMonthHint(settlement.day) : null;
 
   return (
     <Card style={{ gap: space.md }}>
@@ -41,7 +40,7 @@ export function SettlementCard({
         <View style={{ gap: space.xxs }}>
           <Text style={styles.value}>{formatSettlement(settlement)}</Text>
           <Muted>{hint ?? '이날 이 시각에 알림으로 알려드려요.'}</Muted>
-          {shortMonth ? <Muted>{shortMonth}</Muted> : null}
+          <Muted>{MONTH_END_HINT}</Muted>
         </View>
       ) : (
         <Muted>정산일을 정해두면 그날 알림으로 알려드려요. 사람마다 달라도 돼요.</Muted>
