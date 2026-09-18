@@ -39,10 +39,15 @@ permissions:
   id-token: write
 
 concurrency:
-  # 같은 PR 에 리뷰를 연달아 부르면 앞의 것은 버린다 — 구독 사용량을 두 번 쓸 이유가 없다.
   # issue_comment 로 들어오면 PR 번호가 issue.number 에 있다
   group: review-${{ github.event.pull_request.number || github.event.issue.number }}
-  cancel-in-progress: true
+  # 🔴 `/review` 로 들어온 것은 **취소하지 않는다.** 리뷰는 시작하면서 PR 에 추적 코멘트를 남기는데,
+  #    그 코멘트가 또 issue_comment 이벤트를 일으켜 같은 그룹의 실행을 만든다. 그 실행은
+  #    `/review` 로 시작하지 않아 job 이 skip 되지만, **concurrency 는 job 의 if 와 무관하게
+  #    워크플로 수준에서 먼저 적용된다** — 그래서 앞서 돌던 진짜 리뷰가 취소된다.
+  #    89 번 PR 에서 실제로 그랬다: 리뷰가 16초 만에 자기 코멘트에 죽었다 (cancelled + skipped 한 쌍).
+  #    `/review` 를 연달아 부르면 둘 다 돌지만, 그건 사람이 두 번 부른 것이라 의도다.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   review:
