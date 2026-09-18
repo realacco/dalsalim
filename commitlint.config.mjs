@@ -69,17 +69,18 @@ function featureTrailer(parsed) {
 /**
  * scope = 변경의 무대.
  *
- * 도메인 5개는 기획서의 기능 ID(F-SES · F-FAM · F-FIX · F-BOOK · F-ENT)와 1:1 이다.
+ * 도메인은 기획서의 기능 ID(F-SES · F-FAM · F-FIX · F-BOOK · F-ENT · F-PER)와 1:1 이다.
  * 나머지는 "도메인 이름으로는 못 부르는 무대"만 최소로 열어둔다 —
  * scope 가 늘어나면 아무도 고르지 못하고 결국 생략하게 된다.
  */
 const SCOPES = [
-  // ── 도메인 5 (server/routes·services · mobile/entities 와 같은 축) ──────────
+  // ── 도메인 (server/routes·services · mobile/entities 와 같은 축) ────────────
   'session', //       로그인 · 토큰 · 게이트          auth.ts · entities/session
   'family', //        가족 · 초대코드 · 승인 · 구성원  families.ts · entities/family
   'fixed-expense', // 고정비 항목(매달 템플릿이 되는 것) fixedExpenses.ts
   'book', //          월 장부 · 요약 · 추이 · 상태     books.ts · services/book.ts
   'entry', //         기록 · 줄 · 사유 · 제출          entries.ts · services/entry.ts
+  'personal', //      개인 장부 — 가족과 섞이지 않는 층 (기획서 5장 · F-PER)
 
   // ── 화면 ────────────────────────────────────────────────────────────────
   'wizard', //        입력 위저드. entry 도메인이지만 앱에서 가장 큰 슬라이스라 따로 부른다

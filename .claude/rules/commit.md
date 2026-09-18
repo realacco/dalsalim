@@ -17,16 +17,17 @@ Co-Authored-By: ...
 ```
 
 - **type** — `feat` / `fix` / `refactor` / `test` / `docs` / `style` / `perf` / `chore`
-- **scope** — 변경의 무대. 아래 15개만 쓴다 (`commitlint.config.mjs` 가 막는다).
+- **scope** — 변경의 무대. 아래 목록에 있는 것만 쓴다 (`commitlint.config.mjs` 가 막는다).
   여러 영역에 걸치면 생략한다. 자꾸 걸치면 커밋을 쪼갤 신호다.
 
   | 묶음 | scope | 무엇을 |
   |---|---|---|
-  | **도메인 5** | `session` | 로그인 · 토큰 · 게이트 (`F-SES`) |
+  | **도메인** | `session` | 로그인 · 토큰 · 게이트 (`F-SES`) |
   | | `family` | 가족 · 초대코드 · 승인 · 구성원 (`F-FAM`) |
   | | `fixed-expense` | 고정비 항목 — 매달 템플릿이 되는 것 (`F-FIX`) |
   | | `book` | 월 장부 · 요약 · 추이 · 상태 (`F-BOOK`) |
   | | `entry` | 기록 · 줄 · 사유 · 제출 (`F-ENT`) |
+  | | `personal` | 개인 장부 — 가족과 섞이지 않는 층 (`F-PER` · 기획서 5장) |
   | **화면** | `wizard` | 입력 위저드. entry 도메인이지만 앱에서 가장 큰 슬라이스라 따로 부른다 |
   | | `ui` | `shared/ui` 공용 컴포넌트 · `shared/config` 디자인 토큰 |
   | **무대** | `server` `mobile` | 도메인 하나에 안 붙는 전반 변경 |
@@ -37,7 +38,7 @@ Co-Authored-By: ...
   | | `deps` | 의존성 추가 · 갱신 |
   | **문서** | `plan` | 기획서 · 출시 체크리스트 · 태스크 문서 |
 
-  도메인 5개는 기획서의 기능 ID · `server/routes` · `mobile/entities` 와 모두 같은 축이다.
+  도메인 scope 는 기획서의 기능 ID · `server/routes` · `mobile/entities` 와 모두 같은 축이다.
   같은 변경이 `entry` 인지 `wizard` 인지 헷갈리면: **서버는 `entry`, 앱의 위저드 화면은 `wizard`.**
 - **제목** — 50자 내외, 마침표 없음, 체언 종결(`~ 추가`, `~ 수정`). 코드 식별자는 영어 그대로.
 - **본문은 "왜"를 쓴다.** 한 줄로 자명한 변경은 생략 가능하지만,
