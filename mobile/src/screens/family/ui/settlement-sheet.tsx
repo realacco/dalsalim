@@ -10,6 +10,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
+  MONTH_END_HINT,
   SETTLEMENT_DAYS,
   SETTLEMENT_DAY_LABELS,
   SETTLEMENT_TIMES,
@@ -17,7 +18,6 @@ import {
   formatSettlement,
   settlesOnDragEnd,
   stepIndex,
-  MONTH_END_HINT,
   timeIndex,
   wheelIndex,
   wheelMetrics,

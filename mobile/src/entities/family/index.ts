@@ -27,17 +27,16 @@ export {
 } from './api/family';
 export {
   DEFAULT_SETTLEMENT,
+  MONTH_END_HINT,
   SETTLEMENT_DAYS,
   SETTLEMENT_DAY_LABELS,
   SETTLEMENT_TIMES,
   SETTLEMENT_TIME_LABELS,
   formatSettlement,
-  formatTime,
   passedMonthHint,
   settlesOnDragEnd,
   snapSettlement,
   stepIndex,
-  MONTH_END_HINT,
   timeIndex,
   wheelIndex,
   wheelMetrics,
