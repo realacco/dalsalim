@@ -36,6 +36,18 @@ const NO_DIRECT_API = {
   message: '화면에서 api() 를 직접 부르지 않는다. entities/<domain>/api 를 거친다 (CLAUDE.md)',
 };
 
+/**
+ * 키보드 회피는 `shared/ui` 의 KeyboardAvoidingArea 한 곳에서만 만든다.
+ * 같은 삼항식이 네 곳에 복사되면서 안드로이드 값이 갈렸고, 두 화면에서 버튼이 키보드에 덮였다
+ * (#78 · #86). 규칙을 CLAUDE.md 에만 적으면 다음 화면에서 또 갈린다.
+ */
+const NO_DIRECT_KEYBOARD_AVOIDING_VIEW = {
+  name: 'react-native',
+  importNames: ['KeyboardAvoidingView'],
+  message:
+    'KeyboardAvoidingView 를 직접 쓰지 않는다. <KeyboardAvoidingArea> (shared/ui) 를 쓴다 (CLAUDE.md)',
+};
+
 /** entities 의 model 은 순수해야 한다 — 도메인 규칙은 화면 없이도 검증 가능해야 한다. */
 const NO_REACT_IN_MODEL = [
   { name: 'react', message: 'entities/model 은 순수 함수만 둔다 (CLAUDE.md)' },
@@ -59,14 +71,30 @@ function restrictedImports(layer, paths = []) {
   };
 }
 
-// 화면 계열(app~features)은 레이어 규칙 + api() 금지를 **함께** 받는다
+/**
+ * 레이어 규칙에 별도 제약을 얹는다. **한 덩어리로 준다** (위 ⚠️ 참조).
+ *
+ *  - api() 직접 호출 금지는 화면 계열(app~features)만.
+ *  - KeyboardAvoidingView 금지는 **shared 까지 포함해 전부**. 갈라졌던 네 곳 중 하나가
+ *    `shared/ui/sheet.tsx` 였다 — 화면만 막으면 다음 공용 시트가 또 직접 들고 온다.
+ *    유일한 예외인 KeyboardAvoidingArea 는 아래에서 따로 빼준다.
+ */
 const layerRules = LAYERS.map((layer) => ({
   files: [`src/${layer}/**/*.{ts,tsx}`],
-  rules: restrictedImports(
-    layer,
-    ['app', 'screens', 'widgets', 'features'].includes(layer) ? [NO_DIRECT_API] : [],
-  ),
+  rules: restrictedImports(layer, [
+    ...(['app', 'screens', 'widgets', 'features'].includes(layer) ? [NO_DIRECT_API] : []),
+    NO_DIRECT_KEYBOARD_AVOIDING_VIEW,
+  ]),
 }));
+
+/**
+ * KeyboardAvoidingView 를 실제로 부르는 **단 하나의 파일**. 여기서까지 막으면 껍데기를 못 만든다.
+ * 금지를 뺀 shared 레이어 규칙으로 통째로 다시 선언한다 — 규칙을 덧붙이면 방향 검사가 날아간다.
+ */
+const keyboardAvoidingAreaException = {
+  files: ['src/shared/ui/keyboard-avoiding-area.tsx'],
+  rules: restrictedImports('shared'),
+};
 
 export default tseslint.config(
   { ignores: ['node_modules/**', '.expo/**', 'dist/**', 'web-build/**', 'scripts/**', '*.mjs'] },
@@ -114,9 +142,11 @@ export default tseslint.config(
   },
 
   ...layerRules,
+  keyboardAvoidingAreaException,
 
   {
     // entities/model 은 레이어 규칙에 더해 react 임포트까지 막는다 (한 덩어리로 준다)
+    // react-native 를 통째로 막으므로 KeyboardAvoidingView 금지는 따로 안 붙여도 된다
     files: ['src/entities/*/model/**/*.ts'],
     rules: restrictedImports('entities', NO_REACT_IN_MODEL),
   },

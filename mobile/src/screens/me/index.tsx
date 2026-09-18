@@ -1,19 +1,20 @@
 // 기능: F-SES-06 F-SES-04 F-SES-07 F-SES-09
 import { useRef } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
-import { BuildInfo, Button, Card, Chip, ErrorText, Input, Muted } from '@/shared/ui';
+import {
+  BuildInfo,
+  Button,
+  Card,
+  Chip,
+  ErrorText,
+  Input,
+  KeyboardAvoidingArea,
+  Muted,
+} from '@/shared/ui';
 import { confirm } from '@/shared/lib/confirm';
 import { NAME_MAX_LENGTH } from '@/shared/lib/format';
 
@@ -53,13 +54,10 @@ export default function MeScreen() {
       </View>
 
       {/*
-        키보드를 피하는 건 화면 전체다 (시행착오 1-5) — 닉네임 입력 칸이 생기면서 이 화면에도 키보드가 뜬다.
-        카드만 감싸면 줄어들 여지가 없어 [저장] 이 덮인다. 위저드와 같은 모양으로 헤더 아래 전체를 감싼다
+        닉네임 입력 칸이 생기면서 이 화면에도 키보드가 뜬다. 카드만 감싸면 [저장] 이 덮인다 —
+        위저드와 같은 모양으로 헤더 아래 전체를 감싼다
       */}
-      <KeyboardAvoidingView
-        style={styles.fill}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoidingArea>
         {/* 가족 이름은 다른 사람이 바꾼다. 목록이 있는 화면이라 당겨서 새로고침을 단다 */}
         <ScrollView
           ref={scroll}
@@ -174,14 +172,13 @@ export default function MeScreen() {
             />
           </Card>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingArea>
     </SafeAreaView>
   );
 }
 
 const useStyles = makeStyles((t) => ({
   screen: { flex: 1, backgroundColor: t.colors.bg },
-  fill: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

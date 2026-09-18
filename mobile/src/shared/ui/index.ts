@@ -7,6 +7,7 @@ export { Card } from './card';
 export { Chip } from './chip';
 export { ConfirmHost } from './confirm-dialog';
 export { Field, Input } from './field';
+export { KeyboardAvoidingArea } from './keyboard-avoiding-area';
 export { Loading } from './loading';
 export { Notice } from './notice';
 export { PressableScale } from './pressable-scale';

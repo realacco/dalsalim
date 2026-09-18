@@ -219,7 +219,8 @@ mobile/src/   app → screens → widgets → features → entities → shared
   지출 자체는 잘못이 아니므로 지출에 경고색을 쓰지 않는다.
 - 공용 컴포넌트는 `src/shared/ui/`
   (`Card` `Button` `Input` `AmountInput` `Field` `Row` `Divider` `Chip` `ProgressBar` `Notice`
-  `PressableScale` `Muted` `ErrorText` `SectionTitle` `Loading` `QueryError` `ConfirmHost` `BuildInfo` `Toggle` `Sheet`).
+  `PressableScale` `Muted` `ErrorText` `SectionTitle` `Loading` `QueryError` `ConfirmHost` `BuildInfo` `Toggle` `Sheet`
+  `KeyboardAvoidingArea`).
   화면에서 같은 모양을 다시 만들기 전에 여기부터 본다.
 - **`shared/config`의 토큰과 `shared/ui` 공용 컴포넌트의 수정·삭제는 사용자에게 먼저 허락받는다.**
   모든 화면에 파급된다. 신규 추가는 허락 없이 가능하되 추가 후 보고한다.
@@ -229,8 +230,10 @@ mobile/src/   app → screens → widgets → features → entities → shared
 - ⚠️ **입력 중에는 표시 형식을 바꾸지 않는다.** 컨트롤드 입력에서 우리가 문자열 길이를 바꾸면
   (3자리 콤마 같은) 커서가 밀리고 다음 글자가 엉뚱한 자리에 들어간다. **포맷은 포커스가 빠질 때 붙인다.**
   실제로 `800000`을 치면 `8,000,000`이 되는 버그가 있었다. (시행착오 1-1)
-- **키보드를 피하는 건 화면 전체다.** `KeyboardAvoidingView`로 시트나 카드만 감싸면 줄어들 여지가
-  없어서 주요 버튼이 그대로 덮인다. 바깥 컨테이너를 감싼다. (시행착오 1-5)
+- **키보드를 피하는 건 화면 전체다.** 시트나 카드만 감싸면 줄어들 여지가 없어서 주요 버튼이
+  그대로 덮인다. 바깥 컨테이너를 `<KeyboardAvoidingArea>` (`shared/ui`) 로 감싼다. (시행착오 1-5)
+  `KeyboardAvoidingView` 를 화면에서 직접 쓰지 않는다 — 안드로이드 `behavior` 를 비워두면
+  edge-to-edge 에서 아무 일도 안 일어나는데, 그 이유가 공용 조각 한 곳에만 적혀 있다.
 - **목록 화면에는 당겨서 새로고침을 단다.** 가족·장부는 다른 사람이 바꾸는 데이터다.
 - **위저드는 한 화면에 질문 하나.** 스텝을 합치지 않는다. 이 앱에서 가장 많이 쓰이는 화면이다.
 - **기본값이 이미 채워져 있는 상태가 정상이다.** 사용자가 할 일은 입력이 아니라 **다른 줄만 고치는 것**이다.

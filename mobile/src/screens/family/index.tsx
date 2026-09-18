@@ -1,18 +1,18 @@
 // 기능: F-FAM-02 F-FAM-06 F-FAM-07 F-FAM-08 F-FAM-09 F-FAM-10 F-FAM-11 F-SES-06
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
-import { Button, Card, Loading, Muted, PressableScale, QueryError } from '@/shared/ui';
+import {
+  Button,
+  Card,
+  KeyboardAvoidingArea,
+  Loading,
+  Muted,
+  PressableScale,
+  QueryError,
+} from '@/shared/ui';
 import { confirm } from '@/shared/lib/confirm';
 
 import { useFamily } from './model/use-family';
@@ -35,16 +35,10 @@ export default function FamilyScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       {/*
-        키보드를 피하는 건 화면 전체다 (시행착오 1-5) — 구성원 카드의 이름 입력 칸(F-FAM-07)이
-        화면 아래쪽에 있어 카드만 감싸면 [저장] 이 키보드에 덮인다.
-        ⚠️ 안드로이드도 behavior 를 준다. 비워두면 창이 줄어들기(adjustResize)를 기대하는 것인데,
-        edge-to-edge 에서는 창이 안 줄어서 [취소] [저장] 이 키보드 밑에 깔린 채 스크롤로도 못 닿았다.
-        고정비 시트가 'height' 로 같은 문제를 이미 풀었다
+        구성원 카드의 이름 입력 칸(F-FAM-07)이 화면 아래쪽에 있어
+        카드만 감싸면 [취소] [저장] 이 키보드에 덮인다 (#78)
       */}
-      <KeyboardAvoidingView
-        style={styles.fill}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      <KeyboardAvoidingArea>
         {/*
         당겨서 새로고침이 필요하다. 가족이 방금 초대코드로 참여했는지 확인하는 건
         이 앱에서 가장 자주 하는 동작인데, 없으면 앱을 껐다 켜는 수밖에 없다.
@@ -158,7 +152,7 @@ export default function FamilyScreen() {
             </>
           ) : null}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingArea>
 
       <SettlementSheet
         draft={f.settlementDraft}
@@ -181,7 +175,6 @@ export default function FamilyScreen() {
 
 const useStyles = makeStyles((t) => ({
   screen: { flex: 1, backgroundColor: t.colors.bg },
-  fill: { flex: 1 },
   content: { padding: t.space.lg, gap: t.space.lg, paddingBottom: t.space.xxl },
   header: {
     flexDirection: 'row',
