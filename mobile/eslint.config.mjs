@@ -36,6 +36,18 @@ const NO_DIRECT_API = {
   message: '화면에서 api() 를 직접 부르지 않는다. entities/<domain>/api 를 거친다 (CLAUDE.md)',
 };
 
+/**
+ * 키보드 회피는 `shared/ui` 의 KeyboardAvoidingArea 한 곳에서만 만든다.
+ * 같은 삼항식이 네 곳에 복사되면서 안드로이드 값이 갈렸고, 두 화면에서 버튼이 키보드에 덮였다
+ * (#78 · #86). 규칙을 CLAUDE.md 에만 적으면 다음 화면에서 또 갈린다.
+ */
+const NO_DIRECT_KEYBOARD_AVOIDING_VIEW = {
+  name: 'react-native',
+  importNames: ['KeyboardAvoidingView'],
+  message:
+    '화면에서 KeyboardAvoidingView 를 직접 쓰지 않는다. <KeyboardAvoidingArea> (shared/ui) 를 쓴다 (CLAUDE.md)',
+};
+
 /** entities 의 model 은 순수해야 한다 — 도메인 규칙은 화면 없이도 검증 가능해야 한다. */
 const NO_REACT_IN_MODEL = [
   { name: 'react', message: 'entities/model 은 순수 함수만 둔다 (CLAUDE.md)' },
@@ -59,12 +71,14 @@ function restrictedImports(layer, paths = []) {
   };
 }
 
-// 화면 계열(app~features)은 레이어 규칙 + api() 금지를 **함께** 받는다
+// 화면 계열(app~features)은 레이어 규칙 + api()·KeyboardAvoidingView 금지를 **함께** 받는다
 const layerRules = LAYERS.map((layer) => ({
   files: [`src/${layer}/**/*.{ts,tsx}`],
   rules: restrictedImports(
     layer,
-    ['app', 'screens', 'widgets', 'features'].includes(layer) ? [NO_DIRECT_API] : [],
+    ['app', 'screens', 'widgets', 'features'].includes(layer)
+      ? [NO_DIRECT_API, NO_DIRECT_KEYBOARD_AVOIDING_VIEW]
+      : [],
   ),
 }));
 
