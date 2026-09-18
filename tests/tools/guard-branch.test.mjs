@@ -1,7 +1,9 @@
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { committable, inside } from '../../.claude/hooks/guard-branch.mjs';
+import { committable, inside, isIgnored, realPath } from '../../.claude/hooks/guard-branch.mjs';
 
 /**
  * 관문 훅이 `main` 에서 무엇을 막고 무엇을 놓아주는지의 판정.
@@ -62,5 +64,61 @@ describe('committable — main 에서 막을 값어치가 있나', () => {
 
   it('저장소 루트를 못 읽어도 막는 쪽으로 떨어진다', () => {
     expect(committable(`${root}/README.md`, { repoRoot: null, isIgnored: failing })).toBe(true);
+  });
+});
+
+describe('isIgnored — check-ignore 의 종료 코드를 판정으로 옮긴다', () => {
+  /**
+   * 🔴 **실제로 틀렸던 줄이 여기다.** 예전에는 128(치명적 오류)을 「저장소 밖」으로 읽어서,
+   * git 이 다른 이유로 터지는 날 main 편집이 통째로 열렸다. 「아니다」는 1 뿐이다.
+   */
+  const exiting = (status) => () => {
+    if (status === 0) return;
+    throw Object.assign(new Error(`check-ignore exit ${status}`), { status });
+  };
+
+  it('0 이면 무시되는 파일이다', () => {
+    expect(isIgnored('docs/개발-노트.md', exiting(0))).toBe(true);
+  });
+
+  it('1 이면 무시되지 않는 파일이다 — 이것만이 「아니다」다', () => {
+    expect(isIgnored('README.md', exiting(1))).toBe(false);
+  });
+
+  it('★ 128 은 「아니다」가 아니라 오류다 — 삼켜서 통과시키지 않는다', () => {
+    expect(() => isIgnored('/tmp/x', exiting(128))).toThrow();
+  });
+
+  it('종료 코드가 없는 실패(git 실행 자체 실패)도 던진다', () => {
+    expect(() =>
+      isIgnored('README.md', () => {
+        throw new Error('ENOENT');
+      }),
+    ).toThrow();
+  });
+});
+
+describe('★ 심볼릭 링크를 지나도 같은 답을 낸다', () => {
+  /**
+   * git 은 물리 경로를(`rev-parse --show-toplevel`), 훅은 논리 경로를 받는다.
+   * 둘을 그냥 비교하면 링크를 지나는 저장소에서 「밖이다」가 되어 훅이 조용히 꺼진다.
+   */
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'guard-branch-'));
+  const physical = path.join(temp, 'physical');
+  const link = path.join(temp, 'link');
+  fs.mkdirSync(path.join(physical, 'docs'), { recursive: true });
+  fs.symlinkSync(physical, link);
+
+  it('링크로 들어온 파일도 저장소 안이다', () => {
+    // git 은 물리 경로를 주고, 편집 요청은 링크 경로로 온다
+    expect(inside(physical, path.join(link, 'docs/05.md'))).toBe(true);
+  });
+
+  it('아직 없는 파일도 있는 조상까지 풀어서 판정한다', () => {
+    expect(inside(physical, path.join(link, 'docs/새-파일.md'))).toBe(true);
+  });
+
+  it('realPath 는 풀 수 있는 조상이 없으면 논리 경로를 그대로 준다', () => {
+    expect(realPath('/없는뿌리/x.md')).toBe(path.resolve('/없는뿌리/x.md'));
   });
 });

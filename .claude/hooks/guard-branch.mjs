@@ -9,6 +9,7 @@
  * 막는 것은 둘뿐이다. 나머지는 다 통과시킨다 — 훅이 성가시면 우회당한다.
  */
 import { execFileSync } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -22,10 +23,35 @@ function git(...args) {
   }).trim();
 }
 
+/**
+ * 심볼릭 링크를 푼 경로. **경로 둘을 비교하기 전에 둘 다 여기를 지난다.**
+ *
+ * 🔴 논리 경로와 물리 경로를 섞어 비교하면 안 된다. `rev-parse --show-toplevel` 은 git 이
+ * `getcwd()` 로 얻은 **물리** 경로고, 훅이 받는 `file_path` 와 Node 의 `argv[1]` 은 **논리**
+ * 경로다. 저장소가 링크를 지나는 자리에 있으면(`~/dev` → `/Volumes/Data/dev` 같은 흔한 모양)
+ * 둘이 갈리고, 갈린 결과는 늘 「밖이다 · 아니다」 쪽으로 떨어져 **훅이 조용히 꺼진다.**
+ *
+ * 대상 파일은 아직 없을 수 있어서(`Write` 로 새로 만들 때) **있는 조상까지만** 푼다.
+ */
+export function realPath(target) {
+  let current = path.resolve(target);
+  const rest = [];
+  for (;;) {
+    try {
+      return path.join(fs.realpathSync(current), ...rest);
+    } catch {
+      const parent = path.dirname(current);
+      if (parent === current) return path.resolve(target); // 풀 수 있는 조상이 없다
+      rest.unshift(path.basename(current));
+      current = parent;
+    }
+  }
+}
+
 /** 저장소 안에 있는 경로인가 — 종료 코드가 아니라 경로로 판정한다 */
 export function inside(repoRoot, filePath) {
-  const root = path.resolve(repoRoot);
-  const target = path.resolve(filePath);
+  const root = realPath(repoRoot);
+  const target = realPath(filePath);
   return target === root || target.startsWith(root + path.sep);
 }
 
@@ -50,10 +76,18 @@ export function committable(filePath, { repoRoot, isIgnored }) {
   }
 }
 
-/** gitignore 대상인가. 「아니다」(1) 외의 실패는 그대로 던져 위에서 막는 쪽으로 보낸다 */
-function isIgnored(filePath) {
+const checkIgnore = (args) => execFileSync('git', args, { stdio: 'ignore' });
+
+/**
+ * gitignore 대상인가 — `check-ignore` 의 종료 코드를 판정으로 옮기는 자리.
+ *
+ * 0 = 무시됨 · 1 = 아님 · 그 밖 = 오류. **「아니다」는 1 뿐이고** 나머지는 그대로 던져
+ * 위에서 막는 쪽으로 보낸다. 실제로 틀렸던 줄이 여기라 `exec` 를 주입받는다 — 이 번역만
+ * 떼어 테스트하기 위해서다.
+ */
+export function isIgnored(filePath, exec = checkIgnore) {
   try {
-    execFileSync('git', ['check-ignore', '-q', filePath], { stdio: 'ignore' });
+    exec(['check-ignore', '-q', filePath]);
     return true;
   } catch (caught) {
     if (caught?.status === 1) return false;
@@ -128,5 +162,7 @@ function run() {
   });
 }
 
-// 테스트가 위 판정 함수만 떼어 쓸 수 있게, 훅으로 불릴 때만 stdin 을 연다
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) run();
+// 테스트가 위 판정 함수만 떼어 쓸 수 있게, 훅으로 불릴 때만 stdin 을 연다.
+// 양쪽 다 realPath 를 지난다 — Node 는 모듈 경로의 링크를 풀지만 argv[1] 은 안 푼다
+if (process.argv[1] && realPath(process.argv[1]) === realPath(fileURLToPath(import.meta.url)))
+  run();
