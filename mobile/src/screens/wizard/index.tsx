@@ -1,6 +1,6 @@
 // 기능: F-ENT-01 F-ENT-02 F-ENT-03 F-ENT-04 F-ENT-05 F-ENT-06 F-ENT-07 F-ENT-09 F-ENT-11 F-ENT-12
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,7 +9,7 @@ import { bookKeys } from '@/entities/book';
 import { entryKeys } from '@/entities/entry';
 import { useSession } from '@/entities/session';
 import { makeStyles } from '@/shared/config/theme-provider';
-import { Button, ErrorText, Loading, ProgressBar } from '@/shared/ui';
+import { Button, ErrorText, KeyboardAvoidingArea, Loading, ProgressBar } from '@/shared/ui';
 import { formatYearMonth } from '@/shared/lib/format';
 import { MESSAGES } from '@/shared/config/messages';
 import { errorMessage } from '@/shared/lib/errors';
@@ -94,10 +94,11 @@ export default function WizardScreen() {
         </Pressable>
       </View>
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      {/*
+        금액 칸 바로 아래에 [다음] 이 있다 — 이 앱에서 가장 많이 쓰는 화면이라
+        여기서 버튼이 덮이면 기록이 거기서 멈춘다. 헤더 아래 전체를 감싼다
+      */}
+      <KeyboardAvoidingArea>
         {step?.kind === 'settlement' ? (
           <SettlementStep
             key={step.line.id}
@@ -149,7 +150,7 @@ export default function WizardScreen() {
             }}
           />
         ) : null}
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingArea>
     </SafeAreaView>
   );
 }

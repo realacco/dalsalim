@@ -1,16 +1,9 @@
 import type { ReactNode } from 'react';
-import {
-  Animated,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  Text,
-  View,
-} from 'react-native';
+import { Animated, Modal, Pressable, Text, View } from 'react-native';
 import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { makeStyles } from '@/shared/config/theme-provider';
+import { KeyboardAvoidingArea } from './keyboard-avoiding-area';
 import { useSheetDrag } from './use-sheet-drag';
 
 /**
@@ -58,14 +51,11 @@ export function Sheet({
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <GestureHandlerRootView style={styles.gestureRoot}>
         {/*
-          키보드를 피하는 건 시트가 아니라 **화면 전체**여야 한다 (시행착오 1-5).
-          시트만 감싸면 줄어들 여지가 없어서 [저장] 이 키보드에 그대로 덮인다.
-          바깥을 줄여야 아래 정렬된 시트가 키보드 위로 올라온다. 입력이 없는 시트에는 아무 일도 안 한다.
+          감싸는 것이 시트가 아니라 **배경 전체**인 게 핵심이다 (시행착오 1-5) — 시트만 감싸면
+          줄어들 여지가 없어서 [저장] 이 덮인다. 바깥을 줄여야 아래 정렬된 시트가 키보드 위로
+          올라온다. 입력이 없는 시트에는 아무 일도 안 한다.
         */}
-        <KeyboardAvoidingView
-          style={styles.backdrop}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
+        <KeyboardAvoidingArea style={styles.backdrop}>
           {dismissOnBackdrop ? (
             <Pressable style={styles.fill} onPress={onClose} accessibilityLabel="닫기" />
           ) : (
@@ -86,7 +76,7 @@ export function Sheet({
             </GestureDetector>
             {children}
           </Animated.View>
-        </KeyboardAvoidingView>
+        </KeyboardAvoidingArea>
       </GestureHandlerRootView>
     </Modal>
   );
