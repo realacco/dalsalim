@@ -23,10 +23,10 @@ describe('F-FAM-10 정산일 표시', () => {
     expect(formatSettlement({ day: 25, hour: 9, minute: 0 })).toBe('매달 25일 · 오전 9:00');
   });
 
-  it('29일부터는 짧은 달 안내가 붙는다', () => {
+  it('29일부터는 안내가 붙고, 고른 날을 그대로 말한다', () => {
     expect(shortMonthHint(28)).toBeNull();
-    expect(shortMonthHint(29)).not.toBeNull();
-    expect(shortMonthHint(31)).not.toBeNull();
+    expect(shortMonthHint(29)).toBe('29일이 없는 달에는 그 달 말일에 알려드려요.');
+    expect(shortMonthHint(31)).toBe('31일이 없는 달에는 그 달 말일에 알려드려요.');
   });
 
   it('이번 달에 이미 갔거나 건너뛴 달이면 "다음 달부터" 안내가 붙는다', () => {

@@ -59,7 +59,11 @@ export function passedMonthHint(notifiedFor: string | null, yearMonth: string): 
   return notifiedFor === yearMonth ? '이번 달 알림은 지났어요. 다음 달부터 알려드려요.' : null;
 }
 
-/** 29일 이상은 짧은 달에 그 달 말일로 보낸다 (서버 규칙). 고를 때 미리 알려준다 */
+/**
+ * 29일부터는 그 날이 없는 달이 있다. **고른 날을 그대로 넣어** 말한다 —
+ * 「짧은 달」 만으로는 31일을 고른 사람이 자기 얘기인 줄 모르고 넘어갔다 (실사용 후기).
+ * 서버 규칙(말일 보정)을 카드와 시트가 같은 문장으로 되풀이한다.
+ */
 export function shortMonthHint(day: number): string | null {
-  return day >= 29 ? '2월처럼 짧은 달에는 그 달 말일에 알려드려요.' : null;
+  return day >= 29 ? `${day}일이 없는 달에는 그 달 말일에 알려드려요.` : null;
 }
