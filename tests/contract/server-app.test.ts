@@ -12,11 +12,9 @@ import {
   settlementOverspend as serverSettlementOverspend,
   shiftYearMonth as serverShiftYearMonth,
 } from '../../server/src/lib/shared.js';
-import { effectiveDay as serverEffectiveDay } from '../../server/src/lib/schedule.js';
 import { displayName as serverDisplayName } from '../../server/src/lib/schemas.js';
 
 import { needsReason as appNeedsReason } from '../../mobile/src/entities/entry/model/reason';
-import { shortMonthHint as appShortMonthHint } from '../../mobile/src/entities/family/model/settlement';
 import { palettes } from '../../mobile/src/shared/config/theme';
 import { settlementDelta as appSettlementDelta } from '../../mobile/src/entities/entry/model/settlement';
 import { defaultSettles as appDefaultSettles } from '../../mobile/src/entities/fixed-expense/model/settles';
@@ -194,19 +192,6 @@ describe('결산 차액 — 서버가 남은 돈에서 빼는 금액과 앱이 �
       }),
     ).toBe(0);
     expect(appSettlementDelta(300000, 250000)).toEqual({ kind: 'under', amount: 50000 });
-  });
-});
-
-/**
- * 정산일의 말일 보정(서버)과 "짧은 달엔 말일에" 안내(앱)가 같은 날짜부터 갈린다.
- * 같은 함수는 아니지만 같은 규칙이다 — 서버가 규칙을 바꾸면 앱 안내만 조용히 틀려지는 모양이라 묶어둔다.
- */
-describe('정산일 말일 보정 — 서버 규칙과 앱 안내 문턱이 같다', () => {
-  it('가장 짧은 달(28일)에서 날짜가 바뀌는 날에만 안내가 붙는다', () => {
-    for (let day = 1; day <= 31; day += 1) {
-      const clamped = serverEffectiveDay(day, 28) !== day;
-      expect(appShortMonthHint(day) !== null, `${day}일`).toBe(clamped);
-    }
   });
 });
 

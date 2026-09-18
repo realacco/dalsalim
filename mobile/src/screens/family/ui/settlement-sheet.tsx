@@ -13,7 +13,7 @@ import {
   SETTLEMENT_TIMES,
   formatSettlement,
   formatTime,
-  shortMonthHint,
+  MONTH_END_HINT,
   timeIndex,
   wheelIndex,
 } from '@/entities/family';
@@ -51,14 +51,13 @@ export function SettlementSheet({
   const styles = useStyles();
   const { space } = useTheme();
   const insets = useSafeAreaInsets();
-  const hint = draft ? shortMonthHint(draft.day) : null;
 
   return (
     <Sheet visible={draft !== null} onClose={onClose} title="정산일" dismissOnBackdrop>
       {draft ? (
         <View style={[styles.content, { paddingBottom: insets.bottom + space.lg }]}>
           <Text style={styles.preview}>{formatSettlement(draft)}</Text>
-          {hint ? <Muted>{hint}</Muted> : null}
+          <Muted>{MONTH_END_HINT}</Muted>
 
           {/*
             가운데 띠는 휠 **뒤에** 깔고 손가락은 통과시킨다 — 위에 덮으면 띠가 스크롤을 먹는다.

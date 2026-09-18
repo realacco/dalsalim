@@ -32,7 +32,7 @@ export {
   formatSettlement,
   formatTime,
   passedMonthHint,
-  shortMonthHint,
+  MONTH_END_HINT,
   timeIndex,
   wheelIndex,
 } from './model/settlement';
