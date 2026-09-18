@@ -146,7 +146,7 @@ PR 이 기록이다. 즉흥으로 부탁한 작은 수정에까지 문서와 이
 | 이슈·PR 제목 | `[F-ID] 기능 이름` | `[F-FAM-05] 참여 요청 승인·거절` |
 | 커밋 트레일러 | `Feature: F-ID` (여럿이면 쉼표) | `Feature: F-FAM-05, F-BOOK-04` |
 | 테스트 이름 | `★ F-ID 행동` | `★ F-ENT-04 금액이 달라지면 사유 없이는 막힌다` |
-| 이슈 라벨 | 도메인 5개 | `session` `family` `fixed-expense` `book` `entry` |
+| 이슈 라벨 | 도메인 | `session` `family` `fixed-expense` `book` `entry` `personal` |
 
 `feat/` 만 기능 ID 가 필수다. **`chore/` `docs/` `ci/` `deps/` 는 없어도 된다** —
 오타 수정·의존성 갱신에까지 이슈를 요구하면 규칙이 우회당하므로, 구멍의 모양을 미리 정해 둔 것이다.
