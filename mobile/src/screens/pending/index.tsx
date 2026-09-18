@@ -5,7 +5,14 @@ import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { cancelJoinRequest, familyKeys, fetchMyPendingRequests } from '@/entities/family';
+import {
+  approvedFamilyId,
+  cancelJoinRequest,
+  exitWithoutRequests,
+  familyKeys,
+  fetchMyPendingRequests,
+  waitingFamilyIds,
+} from '@/entities/family';
 import { useSession } from '@/entities/session';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import { Button, Card, Loading, Muted, Notice, QueryError } from '@/shared/ui';
@@ -26,7 +33,10 @@ export default function PendingScreen() {
   const { space } = useTheme();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { refreshMe, selectFamily } = useSession();
+  const { me, refreshMe, selectFamily } = useSession();
+
+  /** 이미 가족이 있는 사람도 이 화면에 온다 (F-FAM-12). 거절돼도 그 가족은 그대로 있다 */
+  const hasFamily = (me?.memberships.length ?? 0) > 0;
 
   /**
    * 확인 버튼이 스스로 상태를 가진다.
@@ -46,15 +56,29 @@ export default function PendingScreen() {
     refetchInterval: 10_000,
   });
 
+  /**
+   * 어느 가족을 기다리고 있었는지 — **승인되면 목록에서 사라지므로** 화면이 따로 들고 있어야 한다.
+   * 이게 없으면 판정할 것이 "목록에 뭐라도 있나"밖에 안 남는다 (하드룰 8 · F-FAM-04).
+   */
+  const waiting = useRef<string[]>([]);
+  useEffect(() => {
+    const requests = pending.data;
+    if (requests && requests.length > 0) waiting.current = waitingFamilyIds(requests);
+  }, [pending.data]);
+
   /** 승인이 났는지 확인한다. 났으면 그때부터는 구성원이므로 바로 들여보낸다. */
   const checkApproved = useCallback(async () => {
     setChecking(true);
     try {
       const next = await refreshMe();
-      const joined = next?.memberships[0];
+      const approved = approvedFamilyId(
+        waiting.current,
+        (next?.memberships ?? []).map((m) => m.family.id),
+      );
 
-      if (joined) {
-        await selectFamily(joined.family.id);
+      if (approved) {
+        // 목록의 첫 번째가 아니라 **기다리던 그 가족**으로 간다
+        await selectFamily(approved);
         queryClient.clear();
         /*
           이 확인은 10초마다 뒤에서도 돈다. 그 사이 이 화면 위에 다른 화면(내 정보)이
@@ -106,8 +130,10 @@ export default function PendingScreen() {
   const cancel = useMutation({
     mutationFn: cancelJoinRequest,
     onSuccess: async () => {
-      await pending.refetch();
-      router.replace('/onboarding');
+      const { data } = await pending.refetch();
+      // 남은 요청이 있으면 그대로 기다린다. 다 없어졌을 때만 이 화면을 뜬다
+      if (data && data.length > 0) return;
+      router.replace(exitWithoutRequests(hasFamily));
     },
     onError: (caught) => {
       if (isSessionExpired(caught)) return;
@@ -115,7 +141,18 @@ export default function PendingScreen() {
     },
   });
 
-  const request = pending.data?.[0];
+  /** 요청마다 붙는 동작이라 실패 문구를 어느 줄 아래 붙일지 정할 수 없다 — 위의 Alert 이 받는다 */
+  const askCancel = (membershipId: string, familyName: string) =>
+    confirm({
+      title: '요청 취소',
+      body: `${familyName}에 보낸 참여 요청을 무를까요? 다시 요청할 수 있어요.`,
+      confirmLabel: '취소하기',
+      cancelLabel: '그대로 두기',
+      destructive: true,
+      onConfirm: () => cancel.mutate(membershipId),
+    });
+
+  const requests = pending.data ?? [];
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -128,20 +165,34 @@ export default function PendingScreen() {
           <QueryError error={pending.error} onRetry={() => void pending.refetch()} />
         ) : null}
 
-        {request ? (
+        {requests.length > 0 ? (
           <>
             <View style={{ gap: space.sm }}>
               <Text style={styles.title}>승인을 기다리는 중이에요</Text>
-              <Muted>
-                {request.family.name}에 <Text style={styles.strong}>{request.displayName}</Text>
-                (으)로 참여를 요청했어요.
-              </Muted>
+              <Muted>가족장이 승인하면 바로 시작할 수 있어요.</Muted>
             </View>
 
             <Notice>
               가족장이 승인해야 들어갈 수 있어요. 초대코드만으로는 아무나 우리 가계부를 볼 수 없게
               하기 위해서예요.
             </Notice>
+
+            {/* 여러 가족에 요청했으면 요청한 순서대로 모두 보인다 — 한 건만 그리면 나머지는 취소할 길도 없다 */}
+            {requests.map((request) => (
+              <Card key={request.membershipId} style={{ gap: space.md }}>
+                <Muted>
+                  <Text style={styles.strong}>{request.family.name}</Text>에{' '}
+                  <Text style={styles.strong}>{request.displayName}</Text>
+                  (으)로 참여를 요청했어요.
+                </Muted>
+                <Button
+                  label="요청 취소하기"
+                  variant="ghost"
+                  loading={cancel.isPending && cancel.variables === request.membershipId}
+                  onPress={() => askCancel(request.membershipId, request.family.name)}
+                />
+              </Card>
+            ))}
 
             <Card style={{ gap: space.md }}>
               <Text style={styles.cardTitle}>가족장에게 알려주세요</Text>
@@ -159,30 +210,23 @@ export default function PendingScreen() {
                 </Muted>
               ) : null}
             </View>
-
-            <Button
-              label="요청 취소하기"
-              variant="ghost"
-              loading={cancel.isPending}
-              onPress={() =>
-                confirm({
-                  title: '요청 취소',
-                  body: '참여 요청을 무를까요? 다시 요청할 수 있어요.',
-                  confirmLabel: '취소하기',
-                  cancelLabel: '그대로 두기',
-                  destructive: true,
-                  onConfirm: () => cancel.mutate(request.membershipId),
-                })
-              }
-            />
           </>
         ) : null}
 
-        {!pending.isLoading && !pending.isError && !resolving && !request ? (
+        {!pending.isLoading && !pending.isError && !resolving && requests.length === 0 ? (
           <>
             <Text style={styles.title}>기다리는 요청이 없어요</Text>
-            <Muted>거절됐거나 이미 처리된 요청이에요. 다시 참여를 요청할 수 있어요.</Muted>
-            <Button label="가족 참여하기" onPress={() => router.replace('/onboarding')} />
+            {hasFamily ? (
+              <>
+                <Muted>거절됐거나 이미 처리된 요청이에요. 보던 가족은 그대로 있어요.</Muted>
+                <Button label="가족으로 돌아가기" onPress={() => router.replace('/(tabs)')} />
+              </>
+            ) : (
+              <>
+                <Muted>거절됐거나 이미 처리된 요청이에요. 다시 참여를 요청할 수 있어요.</Muted>
+                <Button label="가족 참여하기" onPress={() => router.replace('/onboarding')} />
+              </>
+            )}
           </>
         ) : null}
 

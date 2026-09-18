@@ -11,8 +11,8 @@ type(scope): 한국어 한 줄 요약
 왜 이렇게 했는지. 판단의 근거, 버린 대안, 알려진 한계.
 diff를 읽으면 아는 "무엇을 바꿨는지"는 반복하지 않는다.
 
-Feature: F-FAM-05, F-BOOK-04
 Closes #12
+Feature: F-FAM-05, F-BOOK-04
 Co-Authored-By: ...
 ```
 
@@ -53,7 +53,11 @@ Co-Authored-By: ...
 - **`Feature:` 트레일러**로 기능 ID 를 남긴다. 제목에 넣으면 50자 규칙과 싸우고,
   트레일러는 `git log --format='%(trailers:key=Feature,valueonly)' -- <경로>` 로 기계가 읽는다.
   **애매하면 생략해도 된다** — 억지로 붙인 ID 는 나중에 검색을 오염시킨다.
-- 이슈를 닫는 커밋에는 `Closes #12` 를 같이 적는다.
+- 이슈를 닫는 커밋에는 `Closes #12` 를 같이 적고, ⚠️ **`Feature:` 보다 위에 둔다.**
+  commitlint 의 파서가 `Closes #12` 를 **푸터의 시작**으로 읽어서, 그 위에 빈 줄 없이 붙은
+  `Feature:` 줄은 본문이 되어 버린다 — `footer-leading-blank` 로 막힌다. 순서를 바꾸거나
+  둘 사이에 빈 줄을 넣으면 지나가는데, **머지된 커밋들이 이미 `Closes` 를 먼저 적고 있어**
+  그쪽으로 맞춘다. (이 문서가 반대 순서로 적혀 있어 실제로 한 번 막혔다)
 - 에이전트가 작성한 커밋은 `Co-Authored-By` 트레일러를 남긴다.
 
 ### 커밋할 때 자동으로 도는 것 (husky)
