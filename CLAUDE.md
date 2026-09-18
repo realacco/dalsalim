@@ -324,7 +324,7 @@ Conventional Commits, 제목과 본문은 한국어. **본문에 "왜"를 쓴다
 
 ```
 type(scope): 한국어 한 줄 요약        type   feat fix refactor test docs style perf chore
-                                    scope  15개만 (commitlint 가 막는다)
+                                    scope  정해둔 목록만 (commitlint 가 막는다)
 왜 이렇게 했는지. 버린 대안. 한계.      제목   50자 내외 · 마침표 없음 · 체언 종결
 
 Feature: F-FAM-05
@@ -340,7 +340,7 @@ Closes #12
 - **코드 리뷰는 PR 을 열 때 한 번만 자동으로 돈다.** 다시 보려면 PR 에 `/review` 라고 코멘트한다
   (주문을 붙이려면 `/review 방금 반영한 것만 봐줘`). push 마다 돌지 않는다.
 
-📖 전문: `.claude/rules/commit.md` — scope 15개 표, 훅이 도는 것, CI 와 코드 리뷰
+📖 전문: `.claude/rules/commit.md` — scope 표, 훅이 도는 것, CI 와 코드 리뷰
 
 ## 스키마 변경 규칙
 
