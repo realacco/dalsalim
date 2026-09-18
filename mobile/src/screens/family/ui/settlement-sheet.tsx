@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -133,11 +133,25 @@ function Wheel({
   const styles = useStyles();
   const scroll = useRef<ScrollView>(null);
   /**
-   * 마지막으로 첫 정렬을 놓을 때 쓴 칸 높이. boolean 으로 「놓았다」만 기억하면, 시트가 열려
+   * 마지막으로 정렬을 놓을 때 쓴 칸 높이. boolean 으로 「놓았다」만 기억하면, 시트가 열려
    * 있는 동안 글자 배율이 바뀌었을 때 스크롤 위치만 옛 높이에 남아 띠와 어긋난다.
-   * 높이를 기억하면 **배율이 바뀐 렌더에서만** 다시 놓여, 굴리는 중 되돌리는 싸움도 안 생긴다.
+   * 0 은 「아직 한 번도 안 놓았다」 — 첫 배치는 `onLayout` 이 맡는다.
    */
   const placedAt = useRef(0);
+
+  /**
+   * 배율이 바뀐 뒤의 **재배치**는 효과가 맡는다. `onLayout` 에만 맡길 수 없다 —
+   * 그것은 프레임이 바뀔 때만 오는데, 칸이 커지면 보이는 칸을 줄이므로
+   * **판 높이가 같아지는 배율 짝**(48×5 = 80×3 = 240)이 실제로 있다. 그 사이로 배율이
+   * 바뀌면 칸 높이는 달라졌는데 `onLayout` 이 안 와서 옛 자리에 그대로 남는다.
+   * `index` 는 의존성에 넣지 않는다 — 굴리는 중에 되돌려 놓는 싸움이 난다.
+   */
+  useEffect(() => {
+    if (placedAt.current === 0 || placedAt.current === metrics.itemHeight) return;
+    placedAt.current = metrics.itemHeight;
+    scroll.current?.scrollTo({ y: index * metrics.itemHeight, animated: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [metrics.itemHeight]);
 
   const settle = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const next = wheelIndex(event.nativeEvent.contentOffset.y, metrics.itemHeight, items.length);

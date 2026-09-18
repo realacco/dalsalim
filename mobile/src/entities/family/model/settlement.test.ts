@@ -42,6 +42,16 @@ describe('F-FAM-10 정산일 표시', () => {
     expect(wheelMetrics(1, { ...tokens, selectedLineHeight: 40 }).itemHeight).toBe(48);
   });
 
+  it('판 높이가 같아지는 배율 짝이 있다 — 재배치를 onLayout 에만 맡길 수 없는 근거', () => {
+    const tokens = { touchSize: 44, selectedLineHeight: 28, padding: 8 };
+    const small = wheelMetrics(1.42, tokens);
+    const large = wheelMetrics(2.55, tokens);
+    // 칸 높이는 다른데
+    expect(small.itemHeight).not.toBe(large.itemHeight);
+    // 판 높이(= ScrollView 프레임)는 같다. 그래서 onLayout 이 안 온다
+    expect(small.itemHeight * small.visible).toBe(large.itemHeight * large.visible);
+  });
+
   it('★ F-FAM-10 띠 위치와 휠 여백은 한 값에서 나온다', () => {
     // 둘이 같아야 띠와 칸이 맞는다 — 화면 두 곳에서 따로 세우면 한쪽만 고쳐도 조용히 어긋난다
     const { itemHeight, visible, padOffset } = wheelMetrics(2, {
