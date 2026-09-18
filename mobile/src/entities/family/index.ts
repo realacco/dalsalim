@@ -32,6 +32,7 @@ export {
   formatSettlement,
   formatTime,
   passedMonthHint,
+  snapSettlement,
   MONTH_END_HINT,
   timeIndex,
   wheelIndex,

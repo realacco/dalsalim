@@ -33,6 +33,17 @@ export function wheelIndex(offsetY: number, itemHeight: number, count: number): 
   return Math.min(Math.max(index, 0), count - 1);
 }
 
+/**
+ * 저장된 값을 휠 칸 위로 당긴다. 서버는 분을 0~59 로 받으므로 9:15 처럼 칸 밖 값이 올 수 있는데,
+ * 그대로 열면 띠 안에는 9:30 이 서고 미리보기와 저장값은 9:15 인 채로 갈린다.
+ * 게다가 휠을 9:30 칸에 맞춰도 이미 그 칸이라 아무 일도 안 일어나 빠져나올 길이 화면에 없다.
+ * 열 때 한 번 맞춰두면 보이는 값과 저장되는 값이 처음부터 같다.
+ */
+export function snapSettlement(settlement: Settlement): Settlement {
+  const time = SETTLEMENT_TIMES[timeIndex(settlement.hour, settlement.minute)];
+  return { day: settlement.day, hour: time.hour, minute: time.minute };
+}
+
 /** 처음 여는 시트의 기본값 — 월급날로 흔한 25일, 출근 전 아침 */
 export const DEFAULT_SETTLEMENT: Settlement = { day: 25, hour: 9, minute: 0 };
 

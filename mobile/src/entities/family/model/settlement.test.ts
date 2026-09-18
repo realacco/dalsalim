@@ -6,6 +6,7 @@ import {
   formatSettlement,
   formatTime,
   passedMonthHint,
+  snapSettlement,
   timeIndex,
   wheelIndex,
 } from './settlement';
@@ -20,6 +21,27 @@ describe('F-FAM-10 정산일 표시', () => {
 
   it('카드와 구성원 목록이 같은 문장을 쓴다', () => {
     expect(formatSettlement({ day: 25, hour: 9, minute: 0 })).toBe('매달 25일 · 오전 9:00');
+  });
+
+  it('★ F-FAM-10 칸 밖 시각으로 열면 휠이 서는 칸으로 맞춰 준다', () => {
+    // 띠 안에 9:30 이 서는데 저장값이 9:15 로 남으면 한 화면에서 두 값이 보인다
+    expect(snapSettlement({ day: 25, hour: 9, minute: 15 })).toEqual({
+      day: 25,
+      hour: 9,
+      minute: 30,
+    });
+    // 마지막 칸을 넘는 값이 자정으로 돌아가면 날이 바뀐 것처럼 보인다
+    expect(snapSettlement({ day: 1, hour: 23, minute: 45 })).toEqual({
+      day: 1,
+      hour: 23,
+      minute: 30,
+    });
+    // 이미 칸 위에 있으면 건드리지 않는다
+    expect(snapSettlement({ day: 31, hour: 9, minute: 0 })).toEqual({
+      day: 31,
+      hour: 9,
+      minute: 0,
+    });
   });
 
   it('이번 달에 이미 갔거나 건너뛴 달이면 "다음 달부터" 안내가 붙는다', () => {

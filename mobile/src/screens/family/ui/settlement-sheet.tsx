@@ -17,12 +17,14 @@ import {
   timeIndex,
   wheelIndex,
 } from '@/entities/family';
+import { size } from '@/shared/config/theme';
 import { makeStyles, useTheme } from '@/shared/config/theme-provider';
 import type { Settlement } from '@/shared/model/types';
 import { Button, ErrorText, Muted, Sheet } from '@/shared/ui';
 
-/** 한 칸의 높이. 터치 최소 크기와 같다 — 굴리다 멈춘 칸이 곧 누를 수 있는 크기다 */
-const ITEM_HEIGHT = 44;
+/** 한 칸의 높이. 굴리다 멈춘 칸이 곧 누를 수 있는 크기여야 하므로 터치 최소 크기를 그대로 쓴다.
+ *  스타일 밖(스냅 간격 · scrollTo)에서도 쓰는 값이라 makeStyles 안에 둘 수 없다 */
+const ITEM_HEIGHT = size.touch;
 /** 위아래로 두 칸씩 보인다. 가운데가 고른 값이고, 이웃이 보여야 굴릴 수 있다는 게 읽힌다 */
 const VISIBLE = 5;
 
