@@ -69,6 +69,16 @@ export function wheelMetrics(
 const WHEEL_MAX_HEIGHT = 240;
 
 /**
+ * 스크린리더가 한 칸 올리거나 내릴 때의 다음 칸.
+ *
+ * 굴릴 때와 **같은 `wheelIndex()`** 를 지나가게 해서 끝 칸 넘김 처리가 한 곳에서 나온다 —
+ * 여기서 따로 묶으면 손가락으로 굴린 끝과 스크린리더로 간 끝이 다르게 걸린다.
+ */
+export function stepIndex(index: number, step: number, itemHeight: number, count: number): number {
+  return wheelIndex((index + step) * itemHeight, itemHeight, count);
+}
+
+/**
  * 손가락을 뗀 자리에서 고른 값을 확정해도 되나.
  *
  * `onScrollEndDrag` 는 **손가락을 뗀 순간**에 오고 그때 위치는 아직 날아가는 중이라,
@@ -80,7 +90,13 @@ export function settlesOnDragEnd(velocityY: number | undefined): boolean {
   return Math.abs(velocityY ?? 0) < FLING_VELOCITY;
 }
 
-/** 이보다 빠르면 아직 날아가는 중이다 (RN 의 velocity 는 dp/ms) */
+/**
+ * 이보다 빠르면 아직 날아가는 중이다.
+ * ⚠️ 단위가 플랫폼마다 다르다 — iOS 는 dp/ms 인데 안드로이드는 물리 픽셀/ms 를 그대로 싣는다.
+ * 그래서 화면 배율이 큰 기기에서는 이 문턱이 실질적으로 더 낮게(느린 것도 「튕겼다」로) 걸린다.
+ * 값이 빠지지는 않는다 — `snapToInterval` 이 켜져 있으면 안드로이드는 손을 뗄 때 늘 스냅
+ * 애니메이션을 돌려 `onMomentumScrollEnd` 가 뒤따라오기 때문이다. 문턱을 다시 만질 때 이 차이를 본다.
+ */
 const FLING_VELOCITY = 0.1;
 
 /**
@@ -112,15 +128,13 @@ export function formatTime(hour: number, minute: number): string {
  * 두 휠이 새 배열을 받고, 포맷팅이 JSX 안으로 들어가 「컴포넌트는 그리기만 한다」도 깨진다.
  */
 export const SETTLEMENT_DAY_LABELS: string[] = SETTLEMENT_DAYS.map((day) => `${day}일`);
-
+export const SETTLEMENT_TIME_LABELS: string[] = SETTLEMENT_TIMES.map((time) =>
+  formatTime(time.hour, time.minute),
+);
 /** "매달 25일 · 오전 9:00" — 카드와 구성원 목록이 같은 문장을 쓴다 */
 export function formatSettlement(settlement: Settlement): string {
   return `매달 ${settlement.day}일 · ${formatTime(settlement.hour, settlement.minute)}`;
 }
-
-export const SETTLEMENT_TIME_LABELS: string[] = SETTLEMENT_TIMES.map((time) =>
-  formatTime(time.hour, time.minute),
-);
 
 /**
  * 이번 달 알림이 이미 갔거나, 오늘 지난 시각으로 정해 서버가 이번 달을 건너뛴 사람에게.

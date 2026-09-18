@@ -16,6 +16,7 @@ import {
   SETTLEMENT_TIME_LABELS,
   formatSettlement,
   settlesOnDragEnd,
+  stepIndex,
   MONTH_END_HINT,
   timeIndex,
   wheelIndex,
@@ -31,6 +32,9 @@ import { Button, ErrorText, Muted, Sheet } from '@/shared/ui';
  * 한 군데만 딴 값을 보면 굴린 자리와 고른 값이 조용히 어긋난다.
  */
 type Metrics = ReturnType<typeof wheelMetrics>;
+
+/** 스크린리더의 위/아래 조절. 배열을 매 렌더 새로 만들면 프롭이 계속 바뀐다 */
+const ADJUST_ACTIONS = [{ name: 'increment' }, { name: 'decrement' }] as const;
 
 /**
  * 정산일을 고르는 아래 시트. draft 가 없으면 닫혀 있다.
@@ -151,6 +155,17 @@ function Wheel({
       accessibilityRole="adjustable"
       accessibilityLabel={label}
       accessibilityValue={{ text: items[index] }}
+      // `adjustable` 은 이 둘과 짝일 때만 성립한다. 선언만 두면 스크린리더의 위/아래 조절이
+      // 네이티브 스크롤을 가로챈 채 아무 일도 하지 않아, 읽기만 되고 못 바꾸는 컨트롤이 된다
+      accessibilityActions={ADJUST_ACTIONS}
+      onAccessibilityAction={(event) => {
+        const step = event.nativeEvent.actionName === 'increment' ? 1 : -1;
+        const next = stepIndex(index, step, metrics.itemHeight, items.length);
+        if (next === index) return;
+        // 이 경로에는 스크롤 이벤트가 오지 않아 휠이 저절로 따라오지 않는다
+        scroll.current?.scrollTo({ y: next * metrics.itemHeight, animated: false });
+        onSelect(next);
+      }}
       showsVerticalScrollIndicator={false}
       snapToInterval={metrics.itemHeight}
       decelerationRate="fast"

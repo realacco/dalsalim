@@ -10,6 +10,7 @@ import {
   passedMonthHint,
   settlesOnDragEnd,
   snapSettlement,
+  stepIndex,
   timeIndex,
   wheelIndex,
   wheelMetrics,
@@ -49,6 +50,14 @@ describe('F-FAM-10 정산일 표시', () => {
       padding: 8,
     });
     expect(padOffset).toBe(itemHeight * ((visible - 1) / 2));
+  });
+
+  it('★ F-FAM-10 스크린리더의 한 칸 이동도 굴릴 때와 같은 끝에서 멈춘다', () => {
+    expect(stepIndex(5, 1, 44, 31)).toBe(6);
+    expect(stepIndex(5, -1, 44, 31)).toBe(4);
+    // 끝에서 더 가려 해도 목록을 안 넘는다 — 굴릴 때와 같은 wheelIndex() 를 지난다
+    expect(stepIndex(0, -1, 44, 31)).toBe(0);
+    expect(stepIndex(30, 1, 44, 31)).toBe(30);
   });
 
   it('칸 글자는 한 번만 만들어 둔다', () => {

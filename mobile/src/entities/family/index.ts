@@ -36,6 +36,7 @@ export {
   passedMonthHint,
   settlesOnDragEnd,
   snapSettlement,
+  stepIndex,
   MONTH_END_HINT,
   timeIndex,
   wheelIndex,
