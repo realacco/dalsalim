@@ -9,6 +9,8 @@
  * 막는 것은 둘뿐이다. 나머지는 다 통과시킨다 — 훅이 성가시면 우회당한다.
  */
 import { execFileSync } from 'node:child_process';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const PROCESS_DOC = '.claude/process/start-task.md';
 const FEATURE_ID = /F-[A-Z]+-\d{2}/;
@@ -20,19 +22,42 @@ function git(...args) {
   }).trim();
 }
 
+/** 저장소 안에 있는 경로인가 — 종료 코드가 아니라 경로로 판정한다 */
+export function inside(repoRoot, filePath) {
+  const root = path.resolve(repoRoot);
+  const target = path.resolve(filePath);
+  return target === root || target.startsWith(root + path.sep);
+}
+
 /**
- * 커밋될 수 없는 파일 — gitignore 대상이거나 아예 저장소 밖에 있다.
+ * 커밋될 수 있는 파일인가 — `main` 에서 막을 값어치가 있는지의 판정.
  *
- * 저장소 밖을 같이 보는 이유: `/design` 이 시안 아티팩트의 원본을 스크래치패드에 쓰는데,
- * 그 절차는 브랜치를 만들기 전(보통 `main`)에 돈다. `check-ignore` 는 저장소 밖 경로를
- * 1 이 아니라 128(오류)로 알려서, 그냥 catch 로 묶으면 커밋될 리 없는 파일까지 막힌다.
+ * 저장소 밖도 커밋될 수 없다. `/design` 이 시안 아티팩트의 원본을 스크래치패드에 쓰는데
+ * 그 절차는 브랜치를 만들기 전(보통 `main`)에 돌기 때문이다.
+ *
+ * 🔴 **「저장소 밖」과 「판정 실패」를 한 값에 섞지 않는다.** 밖인지는 **경로로** 보고,
+ * `check-ignore` 가 터지면 **막는 쪽**으로 떨어진다. 섞으면(예: 종료 코드 128 을 「밖」으로 읽으면)
+ * git 이 다른 이유로 터지는 날 `main` 편집이 통째로 열린다 — 128 은 git 문서상 「치명적 오류」고
+ * 「저장소 밖」은 그 여러 원인 중 하나일 뿐이다. 게다가 **안 막는 훅은 아무 흔적을 안 남겨서**
+ * 꺼진 줄도 모른다.
  */
-function committable(filePath) {
+export function committable(filePath, { repoRoot, isIgnored }) {
+  if (repoRoot && !inside(repoRoot, filePath)) return false;
+  try {
+    return !isIgnored(filePath);
+  } catch {
+    return true; // 판정에 실패하면 막는 쪽으로
+  }
+}
+
+/** gitignore 대상인가. 「아니다」(1) 외의 실패는 그대로 던져 위에서 막는 쪽으로 보낸다 */
+function isIgnored(filePath) {
   try {
     execFileSync('git', ['check-ignore', '-q', filePath], { stdio: 'ignore' });
-    return false; // 무시되는 파일
+    return true;
   } catch (caught) {
-    return caught?.status !== 128; // 128 = 저장소 밖
+    if (caught?.status === 1) return false;
+    throw caught;
   }
 }
 
@@ -62,7 +87,13 @@ function main(input) {
 
   if (branch === 'main' || branch === 'master') {
     // 커밋될 일이 없는 파일은 막을 이유도 없다
-    if (!committable(filePath)) return;
+    let repoRoot = null;
+    try {
+      repoRoot = git('rev-parse', '--show-toplevel');
+    } catch {
+      /* 못 읽으면 밖인지 모르는 것이다 — 아래 check-ignore 판정에만 맡긴다 */
+    }
+    if (!committable(filePath, { repoRoot, isIgnored })) return;
 
     deny(
       `${branch} 에서는 파일을 고치지 않아요. 브랜치를 먼저 만들어야 해요.\n` +
@@ -84,13 +115,18 @@ function main(input) {
   }
 }
 
-let raw = '';
-process.stdin.setEncoding('utf8');
-process.stdin.on('data', (chunk) => (raw += chunk));
-process.stdin.on('end', () => {
-  try {
-    main(JSON.parse(raw || '{}'));
-  } catch {
-    /* 훅이 터져서 작업을 막는 일은 없어야 한다 */
-  }
-});
+function run() {
+  let raw = '';
+  process.stdin.setEncoding('utf8');
+  process.stdin.on('data', (chunk) => (raw += chunk));
+  process.stdin.on('end', () => {
+    try {
+      main(JSON.parse(raw || '{}'));
+    } catch {
+      /* 훅이 터져서 작업을 막는 일은 없어야 한다 */
+    }
+  });
+}
+
+// 테스트가 위 판정 함수만 떼어 쓸 수 있게, 훅으로 불릴 때만 stdin 을 연다
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) run();
