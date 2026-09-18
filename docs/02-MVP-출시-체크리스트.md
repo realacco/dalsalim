@@ -65,6 +65,7 @@ POST /auth/dev { "name": "아빠" }  →  토큰 발급
 - [x] `NODE_ENV=production`이면 켤 수도 없고, `/auth/dev` **라우트를 아예 등록하지 않는다**
       (환경변수 실수 하나로 뚫리는 구조를 남기지 않는다. 핸들러 안에도 검사가 한 겹 더 있다)
 - [x] 앱의 개발용 로그인 UI는 `/auth/config`를 따라 자동으로 사라진다
+
 ⚠️ **배포할 때마다 다시 본다** — `GET /health` 의 `devLogin` 이 `false` 인지, `sha` 가 방금 배포한
 커밋인지. 되풀이되는 확인이라 체크박스로 두지 않는다. `[x]` 로 닫아두면 다음 배포 때 아무도 안 본다.
 
@@ -140,7 +141,7 @@ Railway 에 올라가 있고 Postgres 를 본다. `https://dalsalim-production.u
 
 ---
 
-## 5. 앱 빌드 & 전달 — ✅ 구워서 나눠줬다
+## 5. 앱 빌드 & 전달 — ✅ 구워서 나눠줬다 · **버전 올리는 규칙과 실기기 확인은 남았다**
 
 preview APK 를 EAS 로 구워 가족이 쓰고 있다. 설정은 `mobile/eas.json`(`preview` = APK·내부 배포 ·
 `production` = app-bundle)이고, 빌드 주소는 profile 의 `EXPO_PUBLIC_API_URL` 에 **빌드 시점에 박힌다.**
@@ -174,7 +175,7 @@ preview APK 를 EAS 로 구워 가족이 쓰고 있다. 설정은 `mobile/eas.js
 
 ---
 
-## 6. 있으면 좋은 것 — 알림 하나는 이미 넣었다
+## 6. 🟡 있으면 좋은 것 — 알림 하나는 이미 넣었다
 
 ### 6-1. 알림 — 없으면 "매달 다시 여는" 습관이 안 붙는다
 
