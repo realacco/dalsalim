@@ -32,6 +32,7 @@ export {
   SETTLEMENT_DAY_LABELS,
   SETTLEMENT_TIMES,
   SETTLEMENT_TIME_LABELS,
+  dayIndex,
   formatSettlement,
   passedMonthHint,
   settlesOnDragEnd,

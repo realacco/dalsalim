@@ -15,6 +15,7 @@ import {
   SETTLEMENT_DAY_LABELS,
   SETTLEMENT_TIMES,
   SETTLEMENT_TIME_LABELS,
+  dayIndex,
   formatSettlement,
   settlesOnDragEnd,
   stepIndex,
@@ -94,7 +95,7 @@ export function SettlementSheet({
             <Wheel
               label="날짜"
               items={SETTLEMENT_DAY_LABELS}
-              index={draft.day - 1}
+              index={dayIndex(draft.day)}
               metrics={metrics}
               onSelect={(index) => onChange({ day: SETTLEMENT_DAYS[index] })}
             />

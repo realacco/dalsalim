@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   SETTLEMENT_DAYS,
   SETTLEMENT_DAY_LABELS,
+  dayIndex,
   SETTLEMENT_TIMES,
   SETTLEMENT_TIME_LABELS,
   formatSettlement,
@@ -60,6 +61,16 @@ describe('F-FAM-10 정산일 표시', () => {
       padding: 8,
     });
     expect(padOffset).toBe(itemHeight * ((visible - 1) / 2));
+  });
+
+  it('★ F-FAM-10 날짜도 값↔칸 양방향이 한 곳에서 맞물린다', () => {
+    // 시각(timeIndex ↔ SETTLEMENT_TIMES)과 같은 모양이어야 목록을 바꿀 때 같이 따라온다
+    expect(dayIndex(1)).toBe(0);
+    expect(dayIndex(31)).toBe(30);
+    expect(SETTLEMENT_DAYS[dayIndex(25)]).toBe(25);
+    // 범위 밖이 들어와도 칸을 안 넘는다
+    expect(dayIndex(0)).toBe(0);
+    expect(dayIndex(99)).toBe(30);
   });
 
   it('★ F-FAM-10 스크린리더의 한 칸 이동도 굴릴 때와 같은 끝에서 멈춘다', () => {

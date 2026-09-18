@@ -14,6 +14,15 @@ export const SETTLEMENT_TIMES: { hour: number; minute: number }[] = Array.from(
 );
 
 /**
+ * 날짜가 휠의 몇 번째 칸인가. `SETTLEMENT_DAYS[i] === i + 1` 의 역함수를 **여기 한 곳에** 둔다 —
+ * 시각 휠은 `timeIndex()` ↔ `SETTLEMENT_TIMES[index]` 로 양방향이 모여 있는데 날짜만
+ * 역방향이 화면의 산술로 흩어져 있었다. 목록을 바꾸면 두 방향이 같이 따라와야 한다.
+ */
+export function dayIndex(day: number): number {
+  return clampIndex(day - 1, SETTLEMENT_DAYS.length);
+}
+
+/**
  * 지금 시각이 휠의 몇 번째 칸인가. 칸 사이 값(다른 기기·서버에서 9:15 로 저장된 경우)은
  * **가까운 칸**으로 붙인다 — 휠은 칸 위에만 멈추므로 어딘가에는 세워야 한다.
  * 23:45 처럼 마지막 칸을 넘는 값은 자정(0번)이 아니라 **마지막 칸**에 세운다 —

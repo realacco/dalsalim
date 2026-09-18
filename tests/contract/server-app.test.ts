@@ -13,6 +13,7 @@ import {
   shiftYearMonth as serverShiftYearMonth,
 } from '../../server/src/lib/shared.js';
 import { displayName as serverDisplayName } from '../../server/src/lib/schemas.js';
+import { effectiveDay as serverEffectiveDay } from '../../server/src/lib/schedule.js';
 
 import { needsReason as appNeedsReason } from '../../mobile/src/entities/entry/model/reason';
 import { palettes } from '../../mobile/src/shared/config/theme';
@@ -192,6 +193,21 @@ describe('결산 차액 — 서버가 남은 돈에서 빼는 금액과 앱이 �
       }),
     ).toBe(0);
     expect(appSettlementDelta(300000, 250000)).toEqual({ kind: 'under', amount: 50000 });
+  });
+});
+
+/**
+ * 앱의 `MONTH_END_HINT` 는 "고른 날이 없는 달에는 그 달 **말일에** 알려드려요" 라고
+ * 서버 규칙을 문장으로 주장한다. 문자열은 잠글 수 없지만 **규칙의 모양**은 잠글 수 있다 —
+ * 서버가 이것을 「건너뛴다」나 「다음 달로 넘긴다」로 바꾸면 앱 문구만 조용히 틀려지고,
+ * 앱에 문턱이 없어진 뒤로는 그걸 잡는 것이 아무것도 없다. 그 자리를 이 한 줄이 메운다.
+ */
+describe('말일 보정 — 앱 안내가 주장하는 모양', () => {
+  it('없는 날은 그 달 말일로 당긴다 (0 도 다음 달도 아니다)', () => {
+    expect(serverEffectiveDay(31, 28)).toBe(28);
+    expect(serverEffectiveDay(31, 30)).toBe(30);
+    // 있는 날은 그대로 — 당기는 것은 없는 달에서만이다
+    expect(serverEffectiveDay(25, 31)).toBe(25);
   });
 });
 
