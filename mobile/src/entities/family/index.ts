@@ -36,4 +36,5 @@ export {
   MONTH_END_HINT,
   timeIndex,
   wheelIndex,
+  wheelMetrics,
 } from './model/settlement';

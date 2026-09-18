@@ -34,6 +34,36 @@ export function wheelIndex(offsetY: number, itemHeight: number, count: number): 
 }
 
 /**
+ * 시스템 글자 배율에 맞춘 휠의 칸 높이와 보이는 칸 수.
+ *
+ * 칸 높이만 dp 로 못 박으면 글자는 배율을 따라 커지는데 칸은 그대로라, 배율 1.8 쯤에서
+ * 글자가 칸을 넘는다 (`adjustsFontSizeToFit` 은 `numberOfLines=1` 에서 **폭**으로만 줄여
+ * 높이를 못 막는다). 그래서 칸을 같이 키운다.
+ *
+ * 대신 **보이는 칸 수를 줄여 판 전체 높이를 묶는다.** 칸만 키우면 판이 그만큼 길어져
+ * 큰 글자에서 시트가 화면을 넘는다 — 휠은 안쪽이 이미 세로 스크롤이라 바깥을 또
+ * 스크롤로 감쌀 수 없어서, 높이를 늘리지 않는 것이 유일한 길이다.
+ * 가운데 칸이 있어야 하므로 홀수로만 줄인다.
+ */
+export function wheelMetrics(
+  fontScale: number,
+  touchSize: number,
+): { itemHeight: number; visible: number } {
+  // 가장 큰 칸 글자(선택된 칸)의 줄 높이에 위아래 숨통을 더한 값. 터치 최소 크기보다 작아지지 않는다
+  const itemHeight = Math.max(
+    touchSize,
+    Math.ceil(SELECTED_LINE_HEIGHT * fontScale) + ITEM_PADDING,
+  );
+  return { itemHeight, visible: itemHeight * 5 <= WHEEL_MAX_HEIGHT ? 5 : 3 };
+}
+
+/** `font.title` 의 줄 높이. 칸 글자 중 가장 큰 것이라 칸 높이를 여기에 맞춘다 */
+const SELECTED_LINE_HEIGHT = 28;
+const ITEM_PADDING = 8;
+/** 판이 이보다 길어지면 큰 글자에서 시트가 화면을 넘는다 */
+const WHEEL_MAX_HEIGHT = 240;
+
+/**
  * 저장된 값을 휠 칸 위로 당긴다. 서버는 분을 0~59 로 받으므로 9:15 처럼 칸 밖 값이 올 수 있는데,
  * 그대로 열면 띠 안에는 9:30 이 서고 미리보기와 저장값은 9:15 인 채로 갈린다.
  * 게다가 휠을 9:30 칸에 맞춰도 이미 그 칸이라 아무 일도 안 일어나 빠져나올 길이 화면에 없다.

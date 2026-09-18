@@ -9,6 +9,7 @@ import {
   snapSettlement,
   timeIndex,
   wheelIndex,
+  wheelMetrics,
 } from './settlement';
 
 describe('F-FAM-10 정산일 표시', () => {
@@ -21,6 +22,19 @@ describe('F-FAM-10 정산일 표시', () => {
 
   it('카드와 구성원 목록이 같은 문장을 쓴다', () => {
     expect(formatSettlement({ day: 25, hour: 9, minute: 0 })).toBe('매달 25일 · 오전 9:00');
+  });
+
+  it('★ F-FAM-10 글자를 키우면 칸도 커지되 판 높이는 묶인다', () => {
+    // 기본 배율에서는 터치 최소 크기 그대로, 위아래 두 칸씩 보인다
+    expect(wheelMetrics(1, 44)).toEqual({ itemHeight: 44, visible: 5 });
+    // 글자가 커지면 칸도 커진다 — 안 그러면 선택 칸 글자가 칸을 넘는다
+    expect(wheelMetrics(2, 44).itemHeight).toBeGreaterThan(44);
+    // 대신 보이는 칸을 줄여 판이 길어지지 않게 한다 (큰 글자에서 시트가 화면을 넘는다)
+    expect(wheelMetrics(2, 44).visible).toBe(3);
+    const tall = wheelMetrics(2, 44);
+    expect(tall.itemHeight * tall.visible).toBeLessThanOrEqual(44 * 5 + 20);
+    // 가운데 칸이 있어야 하므로 짝수로 줄지 않는다
+    expect(wheelMetrics(3, 44).visible % 2).toBe(1);
   });
 
   it('★ F-FAM-10 칸 밖 시각으로 열면 휠이 서는 칸으로 맞춰 준다', () => {
