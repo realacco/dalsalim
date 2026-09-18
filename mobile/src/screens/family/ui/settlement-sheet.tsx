@@ -36,6 +36,12 @@ type Metrics = ReturnType<typeof wheelMetrics>;
 /** 스크린리더의 위/아래 조절. 배열을 매 렌더 새로 만들면 프롭이 계속 바뀐다 */
 const ADJUST_ACTIONS = [{ name: 'increment' }, { name: 'decrement' }] as const;
 
+function actionStep(actionName: string): number {
+  if (actionName === 'increment') return 1;
+  if (actionName === 'decrement') return -1;
+  return 0;
+}
+
 /**
  * 정산일을 고르는 아래 시트. draft 가 없으면 닫혀 있다.
  * 굴리기만 하고 적는 칸이 없어서 배경을 눌러 닫아도 잃을 것이 없다 (`dismissOnBackdrop`).
@@ -173,7 +179,9 @@ function Wheel({
       // 네이티브 스크롤을 가로챈 채 아무 일도 하지 않아, 읽기만 되고 못 바꾸는 컨트롤이 된다
       accessibilityActions={ADJUST_ACTIONS}
       onAccessibilityAction={(event) => {
-        const step = event.nativeEvent.actionName === 'increment' ? 1 : -1;
+        // 모르는 이름은 0 — 나중에 액션을 하나 더 선언한 사람이 그게 조용히
+        // 「아래로 한 칸」이 되는 일을 막는다 (step 0 이면 아래 next === index 에서 빠진다)
+        const step = actionStep(event.nativeEvent.actionName);
         const next = stepIndex(index, step, items.length);
         if (next === index) return;
         // 이 경로에는 스크롤 이벤트가 오지 않아 휠이 저절로 따라오지 않는다
