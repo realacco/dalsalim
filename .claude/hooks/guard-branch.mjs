@@ -70,7 +70,8 @@ export function inside(repoRoot, filePath) {
 export function committable(filePath, { repoRoot, isIgnored }) {
   if (repoRoot && !inside(repoRoot, filePath)) return false;
   try {
-    return !isIgnored(filePath);
+    // check-ignore 에도 푼 경로를 준다 — 한쪽만 정규화하면 「왜 되는가」가 git 구현 세부에 걸린다
+    return !isIgnored(realPath(filePath));
   } catch {
     return true; // 판정에 실패하면 막는 쪽으로
   }
