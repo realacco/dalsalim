@@ -99,6 +99,11 @@ export function stepIndex(index: number, step: number, count: number): number {
  * 세게 튕기면 중간 칸이 한 번 잡혔다가 멈춘 뒤 다시 고쳐진다 — 미리보기가 깜빡인다.
  * 그렇다고 이 신호를 버릴 수도 없다. 느리게 놓으면 튕김이 없어서 `onMomentumScrollEnd`
  * 가 아예 안 온다. 그래서 **멈춘 채로 놓았을 때만** 여기서 확정한다.
+ *
+ * ⚠️ `undefined` 는 「모른다」지 「0」이 아니다. 그런데도 0 으로 읽는 것은, 값이 빠지는 쪽보다
+ * 깜빡이는 쪽으로 기울기 위해서다 — 깜빡임은 뒤따르는 `onMomentumScrollEnd` 가 고쳐주지만
+ * 확정을 놓치면 고른 값이 사라진다. 대신 **velocity 를 안 싣는 경로에서는 이 함수가 막으려던
+ * 깜빡임이 조용히 돌아온다**(최종값은 맞아서 테스트도 3층도 안 걸린다). 안드로이드는 싣는다.
  */
 export function settlesOnDragEnd(velocityY: number | undefined): boolean {
   return Math.abs(velocityY ?? 0) < FLING_VELOCITY;
