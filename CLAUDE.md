@@ -335,9 +335,10 @@ type(scope): 한국어 한 줄 요약        type   feat fix refactor test docs 
                                     scope  정해둔 목록만 (commitlint 가 막는다)
 왜 이렇게 했는지. 버린 대안. 한계.      제목   50자 내외 · 마침표 없음 · 체언 종결
 
-Feature: F-FAM-05
 Closes #12
+Feature: F-FAM-05
 ```
+⚠️ **`Closes #` 를 먼저 적는다.** 그 아래여야 `Feature:` 가 푸터로 읽힌다 (commitlint).
 
 - **한 커밋 = 한 가지 변경.** 포맷과 로직을 섞지 않는다
 - **깨진 상태를 커밋하지 않는다**
