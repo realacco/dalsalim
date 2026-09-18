@@ -3,12 +3,27 @@ name: 코드 리뷰
 # CI(ci.yml)가 "기계가 판정할 수 있는 것"을 본다면, 이 워크플로는 그 나머지를 본다 —
 # 명세대로 만들었나 · 하드룰 위반 · 프로젝트 규칙. 성격이 달라서 서로를 대신하지 못한다.
 #
+# ★ 처음 한 번만 자동으로 돌고, 그 뒤로는 사람이 부를 때만 돈다.
+#    PR 을 열면 리뷰가 붙는다. push 할 때마다 다시 돌지는 않는다 — 리뷰를 반영해 push 하면
+#    그 리뷰가 또 새 지적을 찾아내고, 실제로 일곱 번까지 간 적이 있다 (PR #61).
+#    매번 값어치가 있었던 것도 아니다. 다시 보고 싶을 때 부르는 게 맞다.
+#
+#    다시 볼 때는 PR 에 `/review` 라고 코멘트한다. 뒤에 말을 붙이면 그게 이번 리뷰의 주문이 된다:
+#      /review
+#      /review 방금 반영한 것만 다시 봐줘
+#    ⚠️ **한 줄로 쓴다.** `/review` 와 주문 사이는 공백 하나다 — 아래 if 가 받는 모양이 그 둘뿐이다.
+#
+# ⚠️ `/review` 는 **기본 브랜치에 있는 이 파일**로 돈다 — issue_comment 트리거의 성질이다.
+#    그래서 이 워크플로를 고치는 PR **안에서는 그 경로를 시험할 수 없다.** 머지된 뒤부터 먹는다.
+#
 # ⚠️ pull_request_target 을 쓰지 않는다. fork 의 코드가 secret 에 닿게 되는 트리거다.
 #    지금은 개인 저장소라 fork PR 이 없고, 생기면 그때는 리뷰가 안 도는 게 맞다.
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, reopened]
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: read
@@ -18,25 +33,67 @@ permissions:
   id-token: write
 
 concurrency:
-  # 같은 PR 에 연속으로 push 하면 앞의 리뷰는 버린다 — 구독 사용량을 두 번 쓸 이유가 없다
-  group: review-${{ github.event.pull_request.number }}
+  # 같은 PR 에 리뷰를 연달아 부르면 앞의 것은 버린다 — 구독 사용량을 두 번 쓸 이유가 없다.
+  # issue_comment 로 들어오면 PR 번호가 issue.number 에 있다
+  group: review-${{ github.event.pull_request.number || github.event.issue.number }}
   cancel-in-progress: true
 
 jobs:
   review:
+    # PR 이 열렸을 때, 또는 **저장소에 쓸 수 있는 사람**이 PR 에 `/review` 라고 적었을 때.
+    # ⚠️ 권한을 보는 이유: 저장소가 PUBLIC 이라 누구나 코멘트할 수 있고,
+    #    안 보면 남이 구독 사용량을 마음대로 태울 수 있다.
+    # ⚠️ `startsWith(body, '/review')` 하나로 두면 `/reviewer 님 안녕` 같은 코멘트에도 돈다.
+    #    GitHub 표현식에는 정규식이 없으므로 **딱 두 모양만** 받는다 — 그래서 한 줄로 쓴다
+    if: >-
+      github.event_name == 'pull_request' ||
+      (github.event.issue.pull_request != null &&
+      (github.event.comment.body == '/review' ||
+      startsWith(github.event.comment.body, '/review ')) &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association))
     runs-on: ubuntu-latest
     steps:
+      # issue_comment 이벤트에는 PR 의 sha 가 없다. 번호만 알 수 있으므로 나머지는 물어본다
+      - name: 어느 PR 인가
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+        run: |
+          gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" \
+            --json headRefOid,baseRefOid \
+            --jq '"head_sha=\(.headRefOid)\nbase_sha=\(.baseRefOid)"' >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v4
         with:
+          # ⚠️ `/review` 로 들어오면 기본 브랜치가 체크아웃된다. 리뷰할 것은 PR 의 코드다
+          ref: ${{ steps.pr.outputs.head_sha }}
           fetch-depth: 0 # 기능 ID 를 커밋 트레일러에서도 읽으므로 전체 이력이 필요하다
 
       - name: 리뷰 컨텍스트 조립
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BASE_SHA: ${{ steps.pr.outputs.base_sha }}
           # 기능 정의서 본문을 읽어 온다. 없으면 그 축만 빠지고 리뷰는 그대로 돈다 —
           # 차단하는 검사였다면 외부 서비스에 매달 수 없지만, 리뷰는 코멘트라 괜찮다
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
         run: node .github/scripts/review-context.mjs
+
+      - name: 이번에 따로 부탁한 것 덧붙이기
+        if: github.event_name == 'issue_comment'
+        env:
+          # ⚠️ 환경변수로 받는다. 코멘트 본문을 ${{ }} 로 스크립트에 박으면
+          #    따옴표 하나로 셸이 깨진다
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          # tr -d '\r' — 웹 UI 로 쓴 여러 줄 코멘트는 CRLF 로 온다
+          REQUEST="$(printf '%s' "$COMMENT_BODY" | tr -d '\r' | sed '1s|^/review[[:space:]]*||')"
+          if [ -n "$(printf '%s' "$REQUEST" | tr -d '[:space:]')" ]; then
+            {
+              printf '\n## 이번 리뷰에 사람이 따로 부탁한 것\n\n'
+              printf '%s\n' "$REQUEST"
+              printf '\n이 부탁을 먼저 본다. 하드룰 위반은 부탁과 무관하게 그대로 적는다.\n'
+            } >> .github/review-context.md
+          fi
 
       - uses: anthropics/claude-code-action@v1
         with:

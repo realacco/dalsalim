@@ -337,7 +337,10 @@ Closes #12
 - **`--no-verify` 는 쓰지 않는다.** 훅이 막았으면 막힐 이유가 있다
 - 에이전트가 쓴 커밋은 `Co-Authored-By` 트레일러를 남긴다
 
-📖 전문: `.claude/rules/commit.md` — scope 15개 표, 훅이 도는 것, CI 두 job
+- **코드 리뷰는 PR 을 열 때 한 번만 자동으로 돈다.** 다시 보려면 PR 에 `/review` 라고 코멘트한다
+  (주문을 붙이려면 `/review 방금 반영한 것만 봐줘`). push 마다 돌지 않는다.
+
+📖 전문: `.claude/rules/commit.md` — scope 15개 표, 훅이 도는 것, CI 와 코드 리뷰
 
 ## 스키마 변경 규칙
 
